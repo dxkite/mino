@@ -16,7 +16,7 @@ type rewindConn struct {
 func NewRewindConn(conn net.Conn, size int) Conn {
 	return &rewindConn{
 		Conn: conn,
-		r:    NewRewindConn(conn, size),
+		r:    NewRewindReaderSize(conn, size),
 	}
 }
 

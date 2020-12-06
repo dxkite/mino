@@ -137,8 +137,8 @@ func (d *HttpIdentifier) Check(r io.Reader) (bool, error) {
 	}
 	for i := range HttpMethods {
 		k := len(HttpMethods[i])
-		if n >= k {
-			return string(buf[:k]) == HttpMethods[i], nil
+		if n >= k && string(buf[:k]) == HttpMethods[i] {
+			return true, nil
 		}
 	}
 	return false, nil
