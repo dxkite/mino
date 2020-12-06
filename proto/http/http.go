@@ -14,9 +14,24 @@ import (
 	"strings"
 )
 
-const MaxMethodLength = 7
+const (
+	MaxMethodLength = 7
+)
 
-type HttpAcceptor struct {
+// HTTP接口
+var HttpMethods = []string{
+	http.MethodGet,
+	http.MethodHead,
+	http.MethodPost,
+	http.MethodPut,
+	http.MethodPatch,
+	http.MethodDelete,
+	http.MethodConnect,
+	http.MethodOptions,
+	http.MethodTrace,
+}
+
+type HttpServer struct {
 	net.Conn
 	r       rewind.RewindReader
 	req     *http.Request
@@ -24,7 +39,7 @@ type HttpAcceptor struct {
 }
 
 // 握手
-func (conn *HttpAcceptor) Handshake() (err error) {
+func (conn *HttpServer) Handshake() (err error) {
 	r := rewind.NewRewindReaderSize(conn, conn.rwdSize)
 	req, er := http.ReadRequest(bufio.NewReader(r))
 	if er != nil {
@@ -39,7 +54,7 @@ func (conn *HttpAcceptor) Handshake() (err error) {
 }
 
 // 获取链接信息
-func (conn *HttpAcceptor) Info() (info *proto.ConnInfo, err error) {
+func (conn *HttpServer) Info() (info *proto.ConnInfo, err error) {
 	address := fmtHost(conn.req.URL.Scheme, conn.req.Host)
 	username, password, _ := ParseProxyAuth(conn.req)
 	return &proto.ConnInfo{
@@ -51,12 +66,12 @@ func (conn *HttpAcceptor) Info() (info *proto.ConnInfo, err error) {
 }
 
 // 获取操作流
-func (conn *HttpAcceptor) Stream() io.ReadWriteCloser {
+func (conn *HttpServer) Stream() io.ReadWriteCloser {
 	return conn
 }
 
 // 读取流
-func (conn *HttpAcceptor) Read(p []byte) (n int, err error) {
+func (conn *HttpServer) Read(p []byte) (n int, err error) {
 	if conn.r != nil {
 		return conn.r.Read(p)
 	}
@@ -64,13 +79,13 @@ func (conn *HttpAcceptor) Read(p []byte) (n int, err error) {
 }
 
 // 发送错误
-func (conn *HttpAcceptor) SendError(err error) error {
+func (conn *HttpServer) SendError(err error) error {
 	_, we := conn.Write([]byte(fmt.Sprintf("406 Not Acceptable\r\nContent-Length: %d\r\n\r\n%v", len(err.Error()), err)))
 	return we
 }
 
 // 发送连接成功
-func (conn *HttpAcceptor) SendSuccess() error {
+func (conn *HttpServer) SendSuccess() error {
 	if conn.r != nil {
 		return nil
 	}
@@ -78,12 +93,12 @@ func (conn *HttpAcceptor) SendSuccess() error {
 	return we
 }
 
-type HttpDialer struct {
+type HttpClient struct {
 	net.Conn
 	Info proto.ConnInfo
 }
 
-func (d *HttpDialer) Handshake() (err error) {
+func (d *HttpClient) Handshake() (err error) {
 	if _, er := d.Write(createConnectRequest(d.Info.Address, d.Info.Username, d.Info.Password)); er != nil {
 		return er
 	}
@@ -102,7 +117,7 @@ func (d *HttpDialer) Handshake() (err error) {
 }
 
 // 获取操作流
-func (d *HttpDialer) Stream() io.ReadWriteCloser {
+func (d *HttpClient) Stream() io.ReadWriteCloser {
 	return d
 }
 
@@ -111,26 +126,15 @@ type HttpIdentifier struct {
 
 // 判断是否为HTTP协议
 func (d *HttpIdentifier) Check(r io.Reader) (bool, error) {
-	methods := []string{
-		http.MethodGet,
-		http.MethodHead,
-		http.MethodPost,
-		http.MethodPut,
-		http.MethodPatch,
-		http.MethodDelete,
-		http.MethodConnect,
-		http.MethodOptions,
-		http.MethodTrace,
-	}
 	buf := make([]byte, MaxMethodLength)
 	n, err := r.Read(buf)
 	if err != nil {
 		return false, err
 	}
-	for i := range methods {
-		k := len(methods[i])
+	for i := range HttpMethods {
+		k := len(HttpMethods[i])
 		if n >= k {
-			return string(buf[:k]) == methods[i], nil
+			return string(buf[:k]) == HttpMethods[i], nil
 		}
 	}
 	return false, nil
@@ -147,12 +151,12 @@ func fmtHost(scheme, host string) string {
 		if strings.Index(host, "]:") > 0 {
 			return host
 		}
-		return host + ":" + port
+		return net.JoinHostPort(host, port)
 	} else { // ipv4 127.0.0.1:80
 		if strings.Index(host, ":") > 0 {
 			return host
 		}
-		return host + ":" + port
+		return net.JoinHostPort(host, port)
 	}
 }
 
@@ -197,17 +201,21 @@ type HttpConfig struct {
 	MaxRewindSize int `yaml:"max_rewind"`
 }
 
+func (h *HttpConfig) Name() string {
+	return "http"
+}
+
 // 创建HTTP接收器
-func (h *HttpConfig) NewAcceptor(conn net.Conn) proto.Acceptor {
-	return &HttpAcceptor{
+func (h *HttpConfig) NewServer(conn net.Conn) proto.Server {
+	return &HttpServer{
 		Conn:    conn,
 		rwdSize: h.MaxRewindSize,
 	}
 }
 
 // 创建HTTP请求器
-func (h *HttpConfig) NewDialer(conn net.Conn, info proto.ConnInfo) proto.Dialer {
-	return &HttpDialer{
+func (h *HttpConfig) NewClient(conn net.Conn, info proto.ConnInfo) proto.Client {
+	return &HttpClient{
 		Conn: conn,
 		Info: info,
 	}

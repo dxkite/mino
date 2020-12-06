@@ -13,7 +13,8 @@ type ConnInfo struct {
 	Password string
 }
 
-type Acceptor interface {
+// 服务器链接
+type Server interface {
 	// 握手
 	Handshake() (err error)
 	// 获取链接信息
@@ -26,7 +27,8 @@ type Acceptor interface {
 	SendSuccess() error
 }
 
-type Dialer interface {
+// 客户端链接
+type Client interface {
 	// 握手
 	Handshake() (err error)
 	// 获取流
@@ -39,7 +41,11 @@ type Identifier interface {
 
 // 协议
 type Proto interface {
-	NewAcceptor(conn net.Conn) Acceptor
-	NewDialer(conn net.Conn, info ConnInfo) Dialer
+	Name() string
+	// 接受
+	NewServer(conn net.Conn) Server
+	// 请求
+	NewClient(conn net.Conn, info ConnInfo) Client
+	// 协议判断
 	NewIdentifier() Identifier
 }
