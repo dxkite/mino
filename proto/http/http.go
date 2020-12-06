@@ -1,8 +1,9 @@
-package proto
+package http
 
 import (
 	"bufio"
-	"dxkite.cn/go-gateway/proto/rewind"
+	"dxkite.cn/go-gateway/lib/rewind"
+	"dxkite.cn/go-gateway/proto"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -38,10 +39,10 @@ func (conn *HttpAcceptor) Handshake() (err error) {
 }
 
 // 获取链接信息
-func (conn *HttpAcceptor) Info() (info *ConnInfo, err error) {
+func (conn *HttpAcceptor) Info() (info *proto.ConnInfo, err error) {
 	address := fmtHost(conn.req.URL.Scheme, conn.req.Host)
 	username, password, _ := ParseProxyAuth(conn.req)
-	return &ConnInfo{
+	return &proto.ConnInfo{
 		Network:  "tcp",
 		Address:  address,
 		Username: username,
@@ -79,7 +80,7 @@ func (conn *HttpAcceptor) SendSuccess() error {
 
 type HttpDialer struct {
 	net.Conn
-	Info ConnInfo
+	Info proto.ConnInfo
 }
 
 func (d *HttpDialer) Handshake() (err error) {
@@ -197,7 +198,7 @@ type HttpConfig struct {
 }
 
 // 创建HTTP接收器
-func (h *HttpConfig) NewAcceptor(conn net.Conn) Acceptor {
+func (h *HttpConfig) NewAcceptor(conn net.Conn) proto.Acceptor {
 	return &HttpAcceptor{
 		Conn:    conn,
 		rwdSize: h.MaxRewindSize,
@@ -205,18 +206,18 @@ func (h *HttpConfig) NewAcceptor(conn net.Conn) Acceptor {
 }
 
 // 创建HTTP请求器
-func (h *HttpConfig) NewDialer(conn net.Conn, info ConnInfo) Dialer {
+func (h *HttpConfig) NewDialer(conn net.Conn, info proto.ConnInfo) proto.Dialer {
 	return &HttpDialer{
 		Conn: conn,
 		Info: info,
 	}
 }
 
-func (h *HttpConfig) NewIdentifier() Identifier {
+func (h *HttpConfig) NewIdentifier() proto.Identifier {
 	return &HttpIdentifier{}
 }
 
 // 创建HTTP协议
-func NewHttpProto(config *HttpConfig) Proto {
+func NewHttpProto(config *HttpConfig) proto.Proto {
 	return config
 }
