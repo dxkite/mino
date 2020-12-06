@@ -1,10 +1,11 @@
 package main
 
 import (
-	"dxkite.cn/go-gateway/lib/rewind"
+	"dxkite.cn/go-gateway/pac"
 	"dxkite.cn/go-gateway/proto"
 	"dxkite.cn/go-gateway/proto/http"
 	"dxkite.cn/go-gateway/proto/socks5"
+	"dxkite.cn/go-gateway/rewind"
 	"dxkite.cn/go-gateway/session"
 	"fmt"
 	"net"
@@ -83,6 +84,14 @@ func main() {
 				fmt.Println("hand conn info error", err)
 			} else {
 				fmt.Println("conn", info.Network, info.Address)
+				if info.Address == "127.0.0.1:1080" {
+					_, _ = pac.WritePacFile(conn, "conf/pac.txt", "127.0.0.1:1080")
+					fmt.Println("return pac", info.Network, info.Address)
+					return
+				}
+				//host, _, _ := net.SplitHostPort(info.Address)
+				//net.ParseIP(host)
+				//net.LookupIP(host)
 				rmt, err := net.Dial(info.Network, info.Address)
 				if err != nil {
 					fmt.Println("dial", info.Network, info.Address, "error", err)

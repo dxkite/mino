@@ -1,7 +1,7 @@
 package proto
 
 import (
-	"dxkite.cn/go-gateway/lib/rewind"
+	"dxkite.cn/go-gateway/rewind"
 	"errors"
 )
 

@@ -2,8 +2,8 @@ package http
 
 import (
 	"bufio"
-	"dxkite.cn/go-gateway/lib/rewind"
 	"dxkite.cn/go-gateway/proto"
+	"dxkite.cn/go-gateway/rewind"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -194,6 +194,8 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 // 创建请求
 func createConnectRequest(host, username, password string) []byte {
 	request := "CONNECT " + host + " HTTP/1.1\r\n"
+	request += "Host: " + host + "\r\n"
+	request += "Proxy-Connection: keep-alive\r\n"
 	if len(username) > 0 {
 		credentials := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
 		request += "Proxy-Authorization: Basic " + credentials + "\r\n"
