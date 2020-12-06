@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"strings"
 )
 
 // Socks5服务器
@@ -188,6 +189,15 @@ func (conn *Socks5Server) Stream() net.Conn {
 
 // 发送错误
 func (conn *Socks5Server) SendError(err error) error {
+	err = errServerFailure
+	switch m := strings.ToLower(err.Error()); {
+	case strings.Contains(m, "host"):
+		err = errHostUnreachable
+	case strings.Contains(m, "unreachable"):
+		err = errNetworkUnreachable
+	case strings.Contains(m, "refused"):
+		err = errConnectionRefused
+	}
 	if v, ok := err.(socks5Err); ok {
 		conn.sendReply(v.code)
 	}

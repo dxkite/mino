@@ -80,7 +80,7 @@ func main() {
 				fmt.Println("proto handshake error", err)
 			}
 			if info, err := s.Info(); err != nil {
-				fmt.Println("proto handshake error", err)
+				fmt.Println("hand conn info error", err)
 			} else {
 				fmt.Println("conn", info.Network, info.Address)
 				rmt, err := net.Dial(info.Network, info.Address)
