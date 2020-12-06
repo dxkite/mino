@@ -20,7 +20,7 @@ type Server interface {
 	// 获取链接信息
 	Info() (info *ConnInfo, err error)
 	// 获取流
-	Stream() io.ReadWriteCloser
+	Stream() net.Conn
 	// 发送错误
 	SendError(err error) error
 	// 发送连接成功
@@ -31,10 +31,13 @@ type Server interface {
 type Client interface {
 	// 握手
 	Handshake() (err error)
+	// 连接目标
+	Connect() (err error)
 	// 获取流
-	Stream() io.ReadWriteCloser
+	Stream() net.Conn
 }
 
+// 协议检查
 type Identifier interface {
 	Check(reader io.Reader) (bool, error)
 }

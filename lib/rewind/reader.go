@@ -5,7 +5,7 @@ import (
 	"io"
 )
 
-type RewindReader interface {
+type Reader interface {
 	io.Reader
 	Rewind() error
 }
@@ -22,7 +22,7 @@ type rewindReader struct {
 }
 
 // 创建可缓冲
-func NewRewindReaderSize(r io.Reader, size int) RewindReader {
+func NewRewindReaderSize(r io.Reader, size int) Reader {
 	return &rewindReader{
 		r:   r,
 		buf: make([]byte, size),

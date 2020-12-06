@@ -40,12 +40,12 @@ type socks5Err struct {
 }
 
 var (
-	errProtocolVersion = errors.New("error protocol version")
-	errProtocolMethods = errors.New("error protocol methods")
-	//errServerFailure = socks5Err{serverFailure, "server failure"}
-	errNetworkUnreachable   = socks5Err{networkUnreachable, "network unreachable"}
-	errHostUnreachable      = socks5Err{hostUnreachable, "host unreachable"}
-	errConnectionRefused    = socks5Err{connectionRefused, "connection refused"}
+	errProtocolVersion      = errors.New("error protocol version")
+	errProtocolMethods      = errors.New("error protocol methods")
+	ErrServerFailure        = socks5Err{serverFailure, "server failure"}
+	ErrNetworkUnreachable   = socks5Err{networkUnreachable, "network unreachable"}
+	ErrHostUnreachable      = socks5Err{hostUnreachable, "host unreachable"}
+	ErrConnectionRefused    = socks5Err{connectionRefused, "connection refused"}
 	errCommandNotSupported  = socks5Err{commandNotSupported, "command not supported"}
 	errAddrTypeNotSupported = socks5Err{addrTypeNotSupported, "unknown address type"}
 )

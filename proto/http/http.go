@@ -33,7 +33,7 @@ var HttpMethods = []string{
 
 type HttpServer struct {
 	net.Conn
-	r       rewind.RewindReader
+	r       rewind.Reader
 	req     *http.Request
 	rwdSize int
 }
@@ -66,7 +66,7 @@ func (conn *HttpServer) Info() (info *proto.ConnInfo, err error) {
 }
 
 // 获取操作流
-func (conn *HttpServer) Stream() io.ReadWriteCloser {
+func (conn *HttpServer) Stream() net.Conn {
 	return conn
 }
 
@@ -99,6 +99,10 @@ type HttpClient struct {
 }
 
 func (d *HttpClient) Handshake() (err error) {
+	return
+}
+
+func (d *HttpClient) Connect() (err error) {
 	if _, er := d.Write(createConnectRequest(d.Info.Address, d.Info.Username, d.Info.Password)); er != nil {
 		return er
 	}
@@ -117,7 +121,7 @@ func (d *HttpClient) Handshake() (err error) {
 }
 
 // 获取操作流
-func (d *HttpClient) Stream() io.ReadWriteCloser {
+func (d *HttpClient) Stream() net.Conn {
 	return d
 }
 
@@ -226,6 +230,6 @@ func (h *HttpConfig) NewIdentifier() proto.Identifier {
 }
 
 // 创建HTTP协议
-func NewHttpProto(config *HttpConfig) proto.Proto {
+func NewHttp(config *HttpConfig) proto.Proto {
 	return config
 }
