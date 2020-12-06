@@ -66,7 +66,7 @@ func main() {
 		}
 		go func(c net.Conn) {
 			conn := rewind.NewRewindConn(c, 255)
-			p, err := m.Proto(conn)
+			pr, err := m.Proto(conn)
 			if err != nil {
 				fmt.Println("accept proto error", err)
 				return
@@ -75,34 +75,36 @@ func main() {
 				fmt.Println("accept rewind error", er)
 				return
 			}
-			fmt.Println("accept proto", p.Name())
-			s := p.NewServer(conn)
-			if err := s.Handshake(); err != nil {
-				fmt.Println("proto handshake error", err)
-			}
-			if info, err := s.Info(); err != nil {
-				fmt.Println("hand conn info error", err)
-			} else {
-				fmt.Println("conn", info.Network, info.Address)
-				if info.Address == "127.0.0.1:1080" {
-					_, _ = pac.WritePacFile(conn, "conf/pac.txt", "127.0.0.1:1080")
-					fmt.Println("return pac", info.Network, info.Address)
-					return
+			fmt.Println("accept proto", pr.Name())
+			if p, ok := pr.(proto.Handler); ok {
+				s := p.NewServer(conn)
+				if err := s.Handshake(); err != nil {
+					fmt.Println("proto handshake error", err)
 				}
-				//host, _, _ := net.SplitHostPort(info.Address)
-				//net.ParseIP(host)
-				//net.LookupIP(host)
-				rmt, err := net.Dial(info.Network, info.Address)
-				if err != nil {
-					fmt.Println("dial", info.Network, info.Address, "error", err)
-					_ = s.SendError(err)
-					return
+				if info, err := s.Info(); err != nil {
+					fmt.Println("hand conn info error", err)
 				} else {
-					_ = s.SendSuccess()
+					fmt.Println("conn", info.Network, info.Address)
+					if info.Address == "127.0.0.1:1080" {
+						_, _ = pac.WritePacFile(conn, "conf/pac.txt", "127.0.0.1:1080")
+						fmt.Println("return pac", info.Network, info.Address)
+						return
+					}
+					//host, _, _ := net.SplitHostPort(info.Address)
+					//net.ParseIP(host)
+					//net.LookupIP(host)
+					rmt, err := net.Dial(info.Network, info.Address)
+					if err != nil {
+						fmt.Println("dial", info.Network, info.Address, "error", err)
+						_ = s.SendError(err)
+						return
+					} else {
+						_ = s.SendSuccess()
+					}
+					sess := session.NewSession(conn, rmt)
+					up, down := sess.Transport()
+					fmt.Println("dial", info.Network, info.Address, "up", up, "down", down)
 				}
-				sess := session.NewSession(conn, rmt)
-				up, down := sess.Transport()
-				fmt.Println("dial", info.Network, info.Address, "up", up, "down", down)
 			}
 		}(c)
 	}
