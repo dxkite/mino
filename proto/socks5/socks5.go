@@ -12,12 +12,12 @@ import (
 )
 
 // Socks5服务器
-type Socks5Server struct {
+type Server struct {
 	net.Conn
 }
 
 // 握手
-func (conn *Socks5Server) Handshake() (err error) {
+func (conn *Server) Handshake() (err error) {
 	/**
 	 -->
 
@@ -66,7 +66,7 @@ func (conn *Socks5Server) Handshake() (err error) {
 }
 
 // 获取链接信息
-func (conn *Socks5Server) Info() (info *proto.ConnInfo, err error) {
+func (conn *Server) Info() (info *proto.ConnInfo, err error) {
 	network, address, er := conn.handleCmd()
 	if er != nil {
 		return nil, er
@@ -80,7 +80,7 @@ func (conn *Socks5Server) Info() (info *proto.ConnInfo, err error) {
 }
 
 // 处理命令
-func (conn *Socks5Server) handleCmd() (string, string, error) {
+func (conn *Server) handleCmd() (string, string, error) {
 	/**
 	-->
 
@@ -127,7 +127,7 @@ func (conn *Socks5Server) handleCmd() (string, string, error) {
 }
 
 // 读取域
-func (c *Socks5Server) readAddr() (string, error) {
+func (c *Server) readAddr() (string, error) {
 	addrType := make([]byte, 1)
 	if _, err := c.Read(addrType); err != nil {
 		return "", err
@@ -170,7 +170,7 @@ func (c *Socks5Server) readAddr() (string, error) {
 	return addr, nil
 }
 
-func (c *Socks5Server) sendReply(rep uint8) {
+func (c *Server) sendReply(rep uint8) {
 	reply := []byte{5, rep, 0, 1}
 	h, p, _ := net.SplitHostPort(c.LocalAddr().String())
 	ip := net.ParseIP(h).To4()
@@ -183,12 +183,12 @@ func (c *Socks5Server) sendReply(rep uint8) {
 }
 
 // 获取操作流
-func (conn *Socks5Server) Stream() net.Conn {
+func (conn *Server) Stream() net.Conn {
 	return conn
 }
 
 // 发送错误
-func (conn *Socks5Server) SendError(err error) error {
+func (conn *Server) SendError(err error) error {
 	err = errServerFailure
 	switch m := strings.ToLower(err.Error()); {
 	case strings.Contains(m, "host"):
@@ -205,17 +205,17 @@ func (conn *Socks5Server) SendError(err error) error {
 }
 
 // 发送连接成功
-func (conn *Socks5Server) SendSuccess() error {
+func (conn *Server) SendSuccess() error {
 	conn.sendReply(succeeded)
 	return nil
 }
 
-type Socks5Client struct {
+type Client struct {
 	net.Conn
 	Info proto.ConnInfo
 }
 
-func (conn *Socks5Client) Handshake() (err error) {
+func (conn *Client) Handshake() (err error) {
 	/**
 	 -->
 
@@ -257,11 +257,11 @@ func (conn *Socks5Client) Handshake() (err error) {
 }
 
 // 获取操作流
-func (c *Socks5Client) Stream() net.Conn {
+func (c *Client) Stream() net.Conn {
 	return c
 }
 
-func (conn *Socks5Client) basicAuth() error {
+func (conn *Client) basicAuth() error {
 	info := conn.Info
 	/**
 	  +----+------+----------+------+----------+
@@ -300,11 +300,11 @@ func (conn *Socks5Client) basicAuth() error {
 	return nil
 }
 
-func (conn *Socks5Client) Connect() error {
+func (conn *Client) Connect() error {
 	return conn.conn(conn.Info.Network, conn.Info.Address)
 }
 
-func (conn *Socks5Client) conn(network, address string) error {
+func (conn *Client) conn(network, address string) error {
 	if network == "udp" {
 		return errCommandNotSupported
 	}
@@ -413,33 +413,33 @@ func (d *Socks5Identifier) Check(r io.Reader) (bool, error) {
 	return n == 1 && buf[0] == Version5, nil
 }
 
-type Socks5Config struct {
+type Config struct {
 }
 
-func (h *Socks5Config) Name() string {
+func (h *Config) Name() string {
 	return "socks5"
 }
 
 // 创建Socks服务器
-func (h *Socks5Config) NewServer(conn net.Conn) proto.Server {
-	return &Socks5Server{
+func (h *Config) Server(conn net.Conn) proto.Server {
+	return &Server{
 		Conn: conn,
 	}
 }
 
 // 创建Socks客户端
-func (h *Socks5Config) NewClient(conn net.Conn, info proto.ConnInfo) proto.Client {
-	return &Socks5Client{
+func (h *Config) Client(conn net.Conn, info proto.ConnInfo) proto.Client {
+	return &Client{
 		Conn: conn,
 		Info: info,
 	}
 }
 
-func (h *Socks5Config) NewIdentifier() proto.Identifier {
+func (h *Config) Identifier() proto.Identifier {
 	return &Socks5Identifier{}
 }
 
 // 创建Socks5协议
-func NewSocks5(config *Socks5Config) proto.Proto {
+func Proto(config *Config) proto.Proto {
 	return config
 }

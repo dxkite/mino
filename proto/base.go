@@ -47,14 +47,14 @@ type Proto interface {
 	// 协议名称
 	Name() string
 	// 协议判断
-	NewIdentifier() Identifier
+	Identifier() Identifier
 }
 
 // 协议处理器
 type Handler interface {
 	Proto
 	// 接受
-	NewServer(conn net.Conn) Server
+	Server(conn net.Conn) Server
 	// 请求
-	NewClient(conn net.Conn, info ConnInfo) Client
+	Client(conn net.Conn, info ConnInfo) Client
 }

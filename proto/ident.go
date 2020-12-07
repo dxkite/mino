@@ -22,7 +22,7 @@ func NewManager() *Manager {
 // 添加协议
 func (ic *Manager) Add(proto Proto) {
 	ic.proto = append(ic.proto, proto)
-	ic.ident = append(ic.ident, proto.NewIdentifier())
+	ic.ident = append(ic.ident, proto.Identifier())
 }
 
 // 判断协议类型

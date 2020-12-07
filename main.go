@@ -56,8 +56,8 @@ func main() {
 	}
 	fmt.Println("created proxy", listener.Addr())
 	m := proto.NewManager()
-	m.Add(http.NewHttp(&http.HttpConfig{MaxRewindSize: 2 * 1024}))
-	m.Add(socks5.NewSocks5(&socks5.Socks5Config{}))
+	m.Add(http.Proto(&http.Config{MaxRewindSize: 2 * 1024}))
+	m.Add(socks5.Proto(&socks5.Config{}))
 	for {
 		c, err := listener.Accept()
 		if err != nil {
@@ -77,7 +77,7 @@ func main() {
 			}
 			fmt.Println("accept proto", pr.Name())
 			if p, ok := pr.(proto.Handler); ok {
-				s := p.NewServer(conn)
+				s := p.Server(conn)
 				if err := s.Handshake(); err != nil {
 					fmt.Println("proto handshake error", err)
 				}

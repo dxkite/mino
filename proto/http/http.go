@@ -19,7 +19,7 @@ const (
 )
 
 // HTTP接口
-var HttpMethods = []string{
+var Methods = []string{
 	http.MethodGet,
 	http.MethodHead,
 	http.MethodPost,
@@ -31,7 +31,7 @@ var HttpMethods = []string{
 	http.MethodTrace,
 }
 
-type HttpServer struct {
+type Server struct {
 	net.Conn
 	r       rewind.Reader
 	req     *http.Request
@@ -39,7 +39,7 @@ type HttpServer struct {
 }
 
 // 握手
-func (conn *HttpServer) Handshake() (err error) {
+func (conn *Server) Handshake() (err error) {
 	r := rewind.NewRewindReaderSize(conn, conn.rwdSize)
 	req, er := http.ReadRequest(bufio.NewReader(r))
 	if er != nil {
@@ -54,7 +54,7 @@ func (conn *HttpServer) Handshake() (err error) {
 }
 
 // 获取链接信息
-func (conn *HttpServer) Info() (info *proto.ConnInfo, err error) {
+func (conn *Server) Info() (info *proto.ConnInfo, err error) {
 	address := fmtHost(conn.req.URL.Scheme, conn.req.Host)
 	username, password, _ := ParseProxyAuth(conn.req)
 	return &proto.ConnInfo{
@@ -66,12 +66,12 @@ func (conn *HttpServer) Info() (info *proto.ConnInfo, err error) {
 }
 
 // 获取操作流
-func (conn *HttpServer) Stream() net.Conn {
+func (conn *Server) Stream() net.Conn {
 	return conn
 }
 
 // 读取流
-func (conn *HttpServer) Read(p []byte) (n int, err error) {
+func (conn *Server) Read(p []byte) (n int, err error) {
 	if conn.r != nil {
 		return conn.r.Read(p)
 	}
@@ -79,13 +79,13 @@ func (conn *HttpServer) Read(p []byte) (n int, err error) {
 }
 
 // 发送错误
-func (conn *HttpServer) SendError(err error) error {
+func (conn *Server) SendError(err error) error {
 	_, we := conn.Write([]byte(fmt.Sprintf("406 Not Acceptable\r\nContent-Length: %d\r\n\r\n%v", len(err.Error()), err)))
 	return we
 }
 
 // 发送连接成功
-func (conn *HttpServer) SendSuccess() error {
+func (conn *Server) SendSuccess() error {
 	if conn.r != nil {
 		return nil
 	}
@@ -93,16 +93,16 @@ func (conn *HttpServer) SendSuccess() error {
 	return we
 }
 
-type HttpClient struct {
+type Client struct {
 	net.Conn
 	Info proto.ConnInfo
 }
 
-func (d *HttpClient) Handshake() (err error) {
+func (d *Client) Handshake() (err error) {
 	return
 }
 
-func (d *HttpClient) Connect() (err error) {
+func (d *Client) Connect() (err error) {
 	if _, er := d.Write(createConnectRequest(d.Info.Address, d.Info.Username, d.Info.Password)); er != nil {
 		return er
 	}
@@ -121,23 +121,23 @@ func (d *HttpClient) Connect() (err error) {
 }
 
 // 获取操作流
-func (d *HttpClient) Stream() net.Conn {
+func (d *Client) Stream() net.Conn {
 	return d
 }
 
-type HttpIdentifier struct {
+type Identifier struct {
 }
 
 // 判断是否为HTTP协议
-func (d *HttpIdentifier) Check(r io.Reader) (bool, error) {
+func (d *Identifier) Check(r io.Reader) (bool, error) {
 	buf := make([]byte, MaxMethodLength)
 	n, err := r.Read(buf)
 	if err != nil {
 		return false, err
 	}
-	for i := range HttpMethods {
-		k := len(HttpMethods[i])
-		if n >= k && string(buf[:k]) == HttpMethods[i] {
+	for i := range Methods {
+		k := len(Methods[i])
+		if n >= k && string(buf[:k]) == Methods[i] {
 			return true, nil
 		}
 	}
@@ -203,35 +203,35 @@ func createConnectRequest(host, username, password string) []byte {
 	return []byte(request + "\r\n")
 }
 
-type HttpConfig struct {
+type Config struct {
 	MaxRewindSize int `yaml:"max_rewind"`
 }
 
-func (h *HttpConfig) Name() string {
+func (h *Config) Name() string {
 	return "http"
 }
 
 // 创建HTTP接收器
-func (h *HttpConfig) NewServer(conn net.Conn) proto.Server {
-	return &HttpServer{
+func (h *Config) Server(conn net.Conn) proto.Server {
+	return &Server{
 		Conn:    conn,
 		rwdSize: h.MaxRewindSize,
 	}
 }
 
 // 创建HTTP请求器
-func (h *HttpConfig) NewClient(conn net.Conn, info proto.ConnInfo) proto.Client {
-	return &HttpClient{
+func (h *Config) Client(conn net.Conn, info proto.ConnInfo) proto.Client {
+	return &Client{
 		Conn: conn,
 		Info: info,
 	}
 }
 
-func (h *HttpConfig) NewIdentifier() proto.Identifier {
-	return &HttpIdentifier{}
+func (h *Config) Identifier() proto.Identifier {
+	return &Identifier{}
 }
 
 // 创建HTTP协议
-func NewHttp(config *HttpConfig) proto.Proto {
+func Proto(config *Config) proto.Proto {
 	return config
 }
