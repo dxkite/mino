@@ -2,8 +2,8 @@ package http
 
 import (
 	"bufio"
-	"dxkite.cn/go-gateway/proto"
-	"dxkite.cn/go-gateway/rewind"
+	"dxkite.cn/mino/proto"
+	"dxkite.cn/mino/rewind"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -95,7 +95,7 @@ func (conn *Server) SendSuccess() error {
 
 type Client struct {
 	net.Conn
-	Info proto.ConnInfo
+	Info *proto.ConnInfo
 }
 
 func (d *Client) Handshake() (err error) {
@@ -220,7 +220,7 @@ func (h *Config) Server(conn net.Conn) proto.Server {
 }
 
 // 创建HTTP请求器
-func (h *Config) Client(conn net.Conn, info proto.ConnInfo) proto.Client {
+func (h *Config) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
 	return &Client{
 		Conn: conn,
 		Info: info,

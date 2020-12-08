@@ -1,7 +1,7 @@
 package socks5
 
 import (
-	"dxkite.cn/go-gateway/proto"
+	"dxkite.cn/mino/proto"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -212,7 +212,7 @@ func (conn *Server) SendSuccess() error {
 
 type Client struct {
 	net.Conn
-	Info proto.ConnInfo
+	Info *proto.ConnInfo
 }
 
 func (conn *Client) Handshake() (err error) {
@@ -400,11 +400,11 @@ func (conn *Client) conn(network, address string) error {
 	return nil
 }
 
-type Socks5Identifier struct {
+type Identifier struct {
 }
 
 // 判断是否为HTTP协议
-func (d *Socks5Identifier) Check(r io.Reader) (bool, error) {
+func (d *Identifier) Check(r io.Reader) (bool, error) {
 	buf := make([]byte, 1)
 	n, err := r.Read(buf)
 	if err != nil {
@@ -428,7 +428,7 @@ func (h *Config) Server(conn net.Conn) proto.Server {
 }
 
 // 创建Socks客户端
-func (h *Config) Client(conn net.Conn, info proto.ConnInfo) proto.Client {
+func (h *Config) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
 	return &Client{
 		Conn: conn,
 		Info: info,
@@ -436,7 +436,7 @@ func (h *Config) Client(conn net.Conn, info proto.ConnInfo) proto.Client {
 }
 
 func (h *Config) Identifier() proto.Identifier {
-	return &Socks5Identifier{}
+	return &Identifier{}
 }
 
 // 创建Socks5协议

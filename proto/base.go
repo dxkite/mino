@@ -7,10 +7,11 @@ import (
 
 // 链接信息
 type ConnInfo struct {
-	Network  string
-	Address  string
-	Username string
-	Password string
+	Network      string
+	Address      string
+	Username     string
+	Password     string
+	HardwareAddr []net.HardwareAddr
 }
 
 // 服务器链接
@@ -56,5 +57,5 @@ type Handler interface {
 	// 接受
 	Server(conn net.Conn) Server
 	// 请求
-	Client(conn net.Conn, info ConnInfo) Client
+	Client(conn net.Conn, info *ConnInfo) Client
 }

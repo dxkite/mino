@@ -1,4 +1,4 @@
-package http
+package mino
 
 import (
 	"errors"
@@ -95,7 +95,26 @@ const (
 	networkUnreachable
 	hostUnreachable
 	connectionRefused
+	unknownError
 )
+
+type tlsError uint8
+
+func (e tlsError) Error() string {
+	switch v := uint8(e); v {
+	case serverFailure:
+		return "serverFailure"
+	case notAllowed:
+		return "notAllowed"
+	case networkUnreachable:
+		return "networkUnreachable"
+	case hostUnreachable:
+		return "hostUnreachable"
+	case connectionRefused:
+		return "connectionRefused"
+	}
+	return "unknown"
+}
 
 // 编码
 func (m *ResponseMessage) marshal() []byte {
