@@ -12,7 +12,8 @@ import (
 	"syscall"
 )
 
-func AutoSetPac(pacUri, pacBackFile, inner string) {
+// 自动设置PAC
+func AutoSetPac(pacUri, pacBackFile, check string) {
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt, os.Kill, syscall.SIGINT, syscall.SIGTERM)
 	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\Microsoft\Windows\CurrentVersion\Internet Settings`, registry.ALL_ACCESS)
@@ -34,7 +35,7 @@ func AutoSetPac(pacUri, pacBackFile, inner string) {
 		log.Println("got raw pac", configUrl)
 	}
 
-	var bkPac = exist && !strings.Contains(configUrl, inner)
+	var bkPac = exist && !strings.Contains(configUrl, check)
 
 	if bkPac {
 		if err := ioutil.WriteFile(pacBackFile, []byte(configUrl), os.ModePerm); err != nil {
