@@ -1,6 +1,7 @@
 package pac
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -29,8 +30,13 @@ func WritePacFile(writer io.Writer, pacFile, proxy string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	pacTxt := strings.Replace(string(data), "__PROXY__", proxy, -1)
-	return writer.Write([]byte(pacTxt))
+	var respond = "HTTP/1.1 200 OK\r\n"
+	respond += "Content-Type: application/x-ns-proxy-autoconfig\r\n"
+	pacTxt := strings.Replace(string(data), "__PROXY__", "PROXY "+proxy, -1)
+	respond += fmt.Sprintf("Content-Length: %d\r\n", len(pacTxt))
+	respond += "\r\n"
+	respond += pacTxt
+	return writer.Write([]byte(respond))
 }
 
 // 开启PAC服务器（随机端口）

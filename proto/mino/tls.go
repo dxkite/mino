@@ -193,10 +193,6 @@ type Config struct {
 	KeyFile string
 	// 认证公玥
 	RootCa string
-	// 用户名
-	Username string
-	// 密码
-	Password string
 }
 
 func (c *Protocol) Name() string {
@@ -217,8 +213,8 @@ func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
 	return &Client{
 		Conn:     conn,
 		Info:     info,
-		Username: c.cfg.Username,
-		Password: c.cfg.Password,
+		Username: info.Username,
+		Password: info.Password,
 		RootCa:   c.cfg.RootCa,
 	}
 }
