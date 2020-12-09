@@ -150,7 +150,7 @@ func (conn *Client) Stream() net.Conn {
 	return conn
 }
 
-type Identifier struct {
+type Checker struct {
 }
 
 const (
@@ -159,7 +159,7 @@ const (
 )
 
 // 判断是否为HTTP协议
-func (d *Identifier) Check(r io.Reader) (bool, error) {
+func (d *Checker) Check(r io.Reader) (bool, error) {
 	// 读3个字节
 	buf := make([]byte, 3)
 	n, err := r.Read(buf)
@@ -182,6 +182,10 @@ func (d *Identifier) Check(r io.Reader) (bool, error) {
 	return true, nil
 }
 
+type Protocol struct {
+	cfg *Config
+}
+
 type Config struct {
 	// 公玥文件
 	CertFile string
@@ -195,42 +199,37 @@ type Config struct {
 	Password string
 }
 
-func (c *Config) Name() string {
+func (c *Protocol) Name() string {
 	return "mino"
 }
 
 // 创建HTTP接收器
-func (c *Config) Server(conn net.Conn) proto.Server {
+func (c *Protocol) Server(conn net.Conn) proto.Server {
 	return &Server{
 		Conn:     conn,
-		CertFile: c.CertFile,
-		KeyFile:  c.KeyFile,
+		CertFile: c.cfg.CertFile,
+		KeyFile:  c.cfg.KeyFile,
 	}
 }
 
 // 创建HTTP请求器
-func (c *Config) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
+func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
 	return &Client{
 		Conn:     conn,
 		Info:     info,
-		Username: c.Username,
-		Password: c.Password,
-		RootCa:   c.RootCa,
+		Username: c.cfg.Username,
+		Password: c.cfg.Password,
+		RootCa:   c.cfg.RootCa,
 	}
 }
 
-func (c *Config) Identifier() proto.Identifier {
-	return &Identifier{}
+func (c *Protocol) Checker() proto.Checker {
+	return &Checker{}
 }
 
 // 创建HTTP协议
 func Proto(config *Config) proto.Proto {
-	return config
-}
-
-// 创建HTTP协议
-func Handler(config *Config) proto.Handler {
-	return config
+	return &Protocol{config}
 }
 
 // 获取Mac地址

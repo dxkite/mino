@@ -400,11 +400,11 @@ func (conn *Client) conn(network, address string) error {
 	return nil
 }
 
-type Identifier struct {
+type Checker struct {
 }
 
 // 判断是否为HTTP协议
-func (d *Identifier) Check(r io.Reader) (bool, error) {
+func (c *Checker) Check(r io.Reader) (bool, error) {
 	buf := make([]byte, 1)
 	n, err := r.Read(buf)
 	if err != nil {
@@ -413,33 +413,36 @@ func (d *Identifier) Check(r io.Reader) (bool, error) {
 	return n == 1 && buf[0] == Version5, nil
 }
 
+type Protocol struct {
+}
+
 type Config struct {
 }
 
-func (h *Config) Name() string {
+func (c *Protocol) Name() string {
 	return "socks5"
 }
 
 // 创建Socks服务器
-func (h *Config) Server(conn net.Conn) proto.Server {
+func (c *Protocol) Server(conn net.Conn) proto.Server {
 	return &Server{
 		Conn: conn,
 	}
 }
 
 // 创建Socks客户端
-func (h *Config) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
+func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
 	return &Client{
 		Conn: conn,
 		Info: info,
 	}
 }
 
-func (h *Config) Identifier() proto.Identifier {
-	return &Identifier{}
+func (c *Protocol) Checker() proto.Checker {
+	return &Checker{}
 }
 
 // 创建Socks5协议
 func Proto(config *Config) proto.Proto {
-	return config
+	return &Protocol{}
 }

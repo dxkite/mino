@@ -39,21 +39,21 @@ type Client interface {
 }
 
 // 协议检查
-type Identifier interface {
+type Checker interface {
 	Check(reader io.Reader) (bool, error)
 }
 
-// 协议
-type Proto interface {
+// 协议检查器
+type Identifier interface {
 	// 协议名称
 	Name() string
 	// 协议判断
-	Identifier() Identifier
+	Checker() Checker
 }
 
 // 协议处理器
-type Handler interface {
-	Proto
+type Proto interface {
+	Identifier
 	// 接受
 	Server(conn net.Conn) Server
 	// 请求

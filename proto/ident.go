@@ -8,35 +8,41 @@ import (
 var ErrUnknownProtocol = errors.New("unknown protocol error")
 
 type Manager struct {
-	proto []Proto
-	ident []Identifier
+	proto map[string]Proto
+	check map[string]Checker
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		proto: []Proto{},
-		ident: []Identifier{},
+		proto: map[string]Proto{},
+		check: map[string]Checker{},
 	}
 }
 
 // 添加协议
-func (ic *Manager) Add(proto Proto) {
-	ic.proto = append(ic.proto, proto)
-	ic.ident = append(ic.ident, proto.Identifier())
+func (m *Manager) Add(proto Proto) {
+	m.proto[proto.Name()] = proto
+	m.check[proto.Name()] = proto.Checker()
+}
+
+// 获取协议
+func (m *Manager) Get(name string) (proto Proto, ok bool) {
+	proto, ok = m.proto[name]
+	return
 }
 
 // 判断协议类型
-func (ic *Manager) Proto(conn rewind.Conn) (proto Proto, err error) {
-	for i := range ic.ident {
+func (m *Manager) Proto(conn rewind.Conn) (proto Proto, err error) {
+	for name := range m.check {
 		if err = conn.Rewind(); err != nil {
 			return nil, err
 		}
-		ok, er := ic.ident[i].Check(conn)
+		ok, er := m.check[name].Check(conn)
 		if er != nil {
 			return nil, er
 		}
 		if ok {
-			return ic.proto[i], nil
+			return m.proto[name], nil
 		}
 	}
 	return nil, ErrUnknownProtocol

@@ -125,11 +125,11 @@ func (d *Client) Stream() net.Conn {
 	return d
 }
 
-type Identifier struct {
+type Checker struct {
 }
 
 // 判断是否为HTTP协议
-func (d *Identifier) Check(r io.Reader) (bool, error) {
+func (c *Checker) Check(r io.Reader) (bool, error) {
 	buf := make([]byte, MaxMethodLength)
 	n, err := r.Read(buf)
 	if err != nil {
@@ -203,35 +203,39 @@ func createConnectRequest(host, username, password string) []byte {
 	return []byte(request + "\r\n")
 }
 
+type Protocol struct {
+	cfg *Config
+}
+
 type Config struct {
 	MaxRewindSize int `yaml:"max_rewind"`
 }
 
-func (h *Config) Name() string {
+func (c *Protocol) Name() string {
 	return "http"
 }
 
 // 创建HTTP接收器
-func (h *Config) Server(conn net.Conn) proto.Server {
+func (c *Protocol) Server(conn net.Conn) proto.Server {
 	return &Server{
 		Conn:    conn,
-		rwdSize: h.MaxRewindSize,
+		rwdSize: c.cfg.MaxRewindSize,
 	}
 }
 
 // 创建HTTP请求器
-func (h *Config) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
+func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
 	return &Client{
 		Conn: conn,
 		Info: info,
 	}
 }
 
-func (h *Config) Identifier() proto.Identifier {
-	return &Identifier{}
+func (c *Protocol) Checker() proto.Checker {
+	return &Checker{}
 }
 
 // 创建HTTP协议
 func Proto(config *Config) proto.Proto {
-	return config
+	return &Protocol{config}
 }
