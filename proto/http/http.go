@@ -164,9 +164,9 @@ func fmtHost(scheme, host string) string {
 	}
 }
 
-// 解析 Proxy-Authorization
+// 解析 UpStream-Authorization
 func ParseProxyAuth(r *http.Request) (username, password string, ok bool) {
-	auth := r.Header.Get("Proxy-Authorization")
+	auth := r.Header.Get("UpStream-Authorization")
 	if auth == "" {
 		return
 	}
@@ -195,10 +195,10 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
 func createConnectRequest(host, username, password string) []byte {
 	request := "CONNECT " + host + " HTTP/1.1\r\n"
 	request += "Host: " + host + "\r\n"
-	request += "Proxy-Connection: keep-alive\r\n"
+	request += "UpStream-Connection: keep-alive\r\n"
 	if len(username) > 0 {
 		credentials := base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
-		request += "Proxy-Authorization: Basic " + credentials + "\r\n"
+		request += "UpStream-Authorization: Basic " + credentials + "\r\n"
 	}
 	return []byte(request + "\r\n")
 }

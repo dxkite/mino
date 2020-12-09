@@ -12,20 +12,20 @@ import (
 
 func main() {
 	var addr = flag.String("addr", ":1080", "listen addr")
-	var proxy = flag.String("proxy", "", "proxy")
+	var upstream = flag.String("upstream", "", "upstream")
 	var certFile = flag.String("cert_file", "", "tls cert file")
 	var keyFile = flag.String("key_file", "", "tls key file")
 	var httpRewind = flag.Int("http_rewind", 2*1024, "http rewind cache size")
 	var pacAddr = flag.String("pac_addr", "", "http pac enable addr")
 	flag.Parse()
-	var userProxy *url.URL
-	if len(*proxy) > 0 {
-		userProxy, _ = url.Parse(*proxy)
+	var upStream *url.URL
+	if len(*upstream) > 0 {
+		upStream, _ = url.Parse(*upstream)
 	}
 	tra := transport.New(&transport.Config{
 		Address:    *addr,
 		PacAddress: *pacAddr,
-		Proxy:      userProxy,
+		UpStream:   upStream,
 		Http:       &http.Config{MaxRewindSize: *httpRewind},
 		Socks5:     &socks5.Config{},
 		Mino: &mino.Config{

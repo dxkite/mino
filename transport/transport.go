@@ -24,7 +24,7 @@ type Transporter struct {
 // 配置
 type Config struct {
 	Address    string
-	Proxy      *url.URL
+	UpStream   *url.URL
 	PacAddress string
 	Http       *http.Config
 	Socks5     *socks5.Config
@@ -101,18 +101,18 @@ func (t *Transporter) conn(c net.Conn) {
 func (t *Transporter) dial(info *proto.ConnInfo) (net.Conn, error) {
 	var rmt net.Conn
 	var rmtErr error
-	if t.Config.Proxy != nil {
-		rmt, rmtErr = net.Dial("tcp", t.Config.Proxy.Host)
+	if t.Config.UpStream != nil {
+		rmt, rmtErr = net.Dial("tcp", t.Config.UpStream.Host)
 	} else {
 		rmt, rmtErr = net.Dial(info.Network, info.Address)
 	}
 	if rmtErr != nil {
 		return nil, rmtErr
 	}
-	if t.Config.Proxy != nil {
-		if out, ok := t.m.Get(t.Config.Proxy.Scheme); ok {
-			info.Username = t.Config.Proxy.User.Username()
-			info.Password, _ = t.Config.Proxy.User.Password()
+	if t.Config.UpStream != nil {
+		if out, ok := t.m.Get(t.Config.UpStream.Scheme); ok {
+			info.Username = t.Config.UpStream.User.Username()
+			info.Password, _ = t.Config.UpStream.User.Password()
 			c := out.Client(rmt, info)
 			if err := c.Handshake(); err != nil {
 				return nil, errors.New(fmt.Sprint("remote proto handshake error", err))
