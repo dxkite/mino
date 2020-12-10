@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"dxkite.cn/mino/config"
 	"io"
 	"net"
 )
@@ -48,14 +49,14 @@ type Identifier interface {
 	// 协议名称
 	Name() string
 	// 协议判断
-	Checker() Checker
+	Checker(config config.Config) Checker
 }
 
 // 协议处理器
 type Proto interface {
 	Identifier
 	// 接受
-	Server(conn net.Conn) Server
+	Server(conn net.Conn, config config.Config) Server
 	// 请求
-	Client(conn net.Conn, info *ConnInfo) Client
+	Client(conn net.Conn, info *ConnInfo, config config.Config) Client
 }

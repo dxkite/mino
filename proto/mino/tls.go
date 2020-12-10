@@ -3,6 +3,8 @@ package mino
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"dxkite.cn/mino"
+	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/proto"
 	"encoding/binary"
 	"io"
@@ -183,16 +185,6 @@ func (d *Checker) Check(r io.Reader) (bool, error) {
 }
 
 type Protocol struct {
-	cfg *Config
-}
-
-type Config struct {
-	// 公玥文件
-	CertFile string
-	// 私玥文件
-	KeyFile string
-	// 认证公玥
-	RootCa string
 }
 
 func (c *Protocol) Name() string {
@@ -200,32 +192,27 @@ func (c *Protocol) Name() string {
 }
 
 // 创建HTTP接收器
-func (c *Protocol) Server(conn net.Conn) proto.Server {
+func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
 	return &Server{
 		Conn:     conn,
-		CertFile: c.cfg.CertFile,
-		KeyFile:  c.cfg.KeyFile,
+		CertFile: config.String(mino.KeyCertFile),
+		KeyFile:  config.String(mino.KeyKeyFile),
 	}
 }
 
 // 创建HTTP请求器
-func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
+func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo, config config.Config) proto.Client {
 	return &Client{
 		Conn:     conn,
 		Info:     info,
-		Username: info.Username,
-		Password: info.Password,
-		RootCa:   c.cfg.RootCa,
+		Username: config.String(mino.KeyUsername),
+		Password: config.String(mino.KeyPassword),
+		RootCa:   config.String(mino.KeyRootCa),
 	}
 }
 
-func (c *Protocol) Checker() proto.Checker {
+func (c *Protocol) Checker(config config.Config) proto.Checker {
 	return &Checker{}
-}
-
-// 创建HTTP协议
-func Proto(config *Config) proto.Proto {
-	return &Protocol{config}
 }
 
 // 获取Mac地址
@@ -274,4 +261,8 @@ func readPack(r io.Reader) (typ packType, p []byte, err error) {
 		return 0, nil, err
 	}
 	return
+}
+
+func init() {
+	proto.Add(&Protocol{})
 }

@@ -2,6 +2,7 @@ package http
 
 import (
 	"bufio"
+	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/proto"
 	"dxkite.cn/mino/rewind"
 	"encoding/base64"
@@ -12,10 +13,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-)
-
-const (
-	MaxMethodLength = 7
 )
 
 // HTTP接口
@@ -37,6 +34,8 @@ type Server struct {
 	req     *http.Request
 	rwdSize int
 }
+
+const KeyMaxRewindSize = "http.max_rewind_size"
 
 // 握手
 func (conn *Server) Handshake() (err error) {
@@ -204,11 +203,6 @@ func createConnectRequest(host, username, password string) []byte {
 }
 
 type Protocol struct {
-	cfg *Config
-}
-
-type Config struct {
-	MaxRewindSize int `yaml:"max_rewind"`
 }
 
 func (c *Protocol) Name() string {
@@ -216,26 +210,25 @@ func (c *Protocol) Name() string {
 }
 
 // 创建HTTP接收器
-func (c *Protocol) Server(conn net.Conn) proto.Server {
+func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
 	return &Server{
 		Conn:    conn,
-		rwdSize: c.cfg.MaxRewindSize,
+		rwdSize: config.Int(KeyMaxRewindSize),
 	}
 }
 
 // 创建HTTP请求器
-func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
+func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo, config config.Config) proto.Client {
 	return &Client{
 		Conn: conn,
 		Info: info,
 	}
 }
 
-func (c *Protocol) Checker() proto.Checker {
+func (c *Protocol) Checker(config config.Config) proto.Checker {
 	return &Checker{}
 }
 
-// 创建HTTP协议
-func Proto(config *Config) proto.Proto {
-	return &Protocol{config}
+func init() {
+	proto.Add(&Protocol{})
 }

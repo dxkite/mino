@@ -1,11 +1,9 @@
 package mino
 
 import (
+	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/proto"
-	"dxkite.cn/mino/proto/http"
-	"dxkite.cn/mino/proto/mino"
-	"dxkite.cn/mino/proto/socks5"
 	"dxkite.cn/mino/rewind"
 	"encoding/hex"
 	"errors"
@@ -13,36 +11,23 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"strconv"
 )
 
 // 传输工具
 type Transporter struct {
-	m      *proto.Manager
-	Config *Config
+	Manager *proto.Manager
+	check   map[string]proto.Checker
+	Config  config.Config
 }
 
-// 配置
-type Config struct {
-	Address    string
-	UpStream   *url.URL
-	PacAddress string
-	Http       *http.Config
-	Socks5     *socks5.Config
-	Mino       *mino.Config
-}
-
-func New(config *Config) (t *Transporter) {
-	t = &Transporter{Config: config}
-	m := proto.NewManager()
-	m.Add(http.Proto(t.Config.Http))
-	m.Add(socks5.Proto(t.Config.Socks5))
-	m.Add(mino.Proto(t.Config.Mino))
-	t.m = m
+func New(config config.Config) (t *Transporter) {
+	t = &Transporter{Config: config, check: map[string]proto.Checker{}}
 	return t
 }
 
 func (t *Transporter) Serve() error {
-	listen, err := net.Listen("tcp", t.Config.Address)
+	listen, err := net.Listen("tcp", t.Config.String(KeyAddress))
 	if err != nil {
 		return err
 	} else {
@@ -58,27 +43,52 @@ func (t *Transporter) Serve() error {
 	}
 }
 
+func (t *Transporter) InitChecker() {
+	if t.Manager == nil {
+		t.Manager = proto.DefaultManager
+	}
+	for name := range t.Manager.Proto {
+		t.check[name] = t.Manager.Proto[name].Checker(t.Config)
+	}
+}
+
+func (t *Transporter) Proto(conn rewind.Conn) (proto proto.Proto, err error) {
+	for name := range t.check {
+		if err = conn.Rewind(); err != nil {
+			return nil, err
+		}
+		ok, er := t.check[name].Check(conn)
+		if er != nil {
+			return nil, er
+		}
+		if ok {
+			return t.Manager.Proto[name], nil
+		}
+	}
+	return nil, errors.New("unknown protocol")
+}
+
 func (t *Transporter) conn(c net.Conn) {
 	conn := rewind.NewRewindConn(c, 255)
-	p, err := t.m.Proto(conn)
+	p, err := t.Proto(conn)
 	if err != nil {
-		log.Println("accept proto error", err, "hex", hex.EncodeToString(conn.Cached()))
+		log.Println("identify protocol error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
 		return
 	}
 	if er := conn.Rewind(); er != nil {
 		log.Println("accept rewind error", er)
 		return
 	}
-	log.Println("accept proto", p.Name())
-	s := p.Server(conn)
+	log.Println("accept", p.Name(), "protocol")
+	s := p.Server(conn, t.Config)
 	if err := s.Handshake(); err != nil {
 		log.Println("proto handshake error", err)
 	}
 	if info, err := s.Info(); err != nil {
 		log.Println("hand conn info error", err)
 	} else {
-		if info.Address == t.Config.PacAddress {
-			_, _ = monkey.WritePacFile(conn, "conf/pac.txt", t.Config.PacAddress)
+		if info.Address == t.Config.String(KeyPacHost) {
+			_, _ = monkey.WritePacFile(conn, "conf/pac.txt", t.Config.String(KeyPacHost))
 			log.Println("return pac", info.Network, info.Address)
 			return
 		}
@@ -92,7 +102,7 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = s.SendSuccess()
 		}
 		log.Println("connected", info.Network, info.Address)
-		sess := mino2.NewSession(conn, rmt)
+		sess := NewSession(conn, rmt)
 		up, down := sess.Transport()
 		log.Println("transport", info.Network, info.Address, "up", up, "down", down)
 	}
@@ -101,19 +111,23 @@ func (t *Transporter) conn(c net.Conn) {
 func (t *Transporter) dial(info *proto.ConnInfo) (net.Conn, error) {
 	var rmt net.Conn
 	var rmtErr error
-	if t.Config.UpStream != nil {
-		rmt, rmtErr = net.Dial("tcp", t.Config.UpStream.Host)
+	var UpStream *url.URL
+	if upstream := t.Config.String(KeyUpstream); len(upstream) > 0 {
+		UpStream, _ = url.Parse(upstream)
+	}
+	if UpStream != nil {
+		rmt, rmtErr = net.Dial("tcp", UpStream.Host)
 	} else {
 		rmt, rmtErr = net.Dial(info.Network, info.Address)
 	}
 	if rmtErr != nil {
 		return nil, rmtErr
 	}
-	if t.Config.UpStream != nil {
-		if out, ok := t.m.Get(t.Config.UpStream.Scheme); ok {
-			info.Username = t.Config.UpStream.User.Username()
-			info.Password, _ = t.Config.UpStream.User.Password()
-			c := out.Client(rmt, info)
+	if UpStream != nil {
+		if out, ok := t.Manager.Get(UpStream.Scheme); ok {
+			info.Username = UpStream.User.Username()
+			info.Password, _ = UpStream.User.Password()
+			c := out.Client(rmt, info, t.Config)
 			if err := c.Handshake(); err != nil {
 				return nil, errors.New(fmt.Sprint("remote proto handshake error", err))
 			}

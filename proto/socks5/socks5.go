@@ -1,6 +1,7 @@
 package socks5
 
 import (
+	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/proto"
 	"encoding/binary"
 	"errors"
@@ -416,33 +417,29 @@ func (c *Checker) Check(r io.Reader) (bool, error) {
 type Protocol struct {
 }
 
-type Config struct {
-}
-
 func (c *Protocol) Name() string {
 	return "socks5"
 }
 
 // 创建Socks服务器
-func (c *Protocol) Server(conn net.Conn) proto.Server {
+func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
 	return &Server{
 		Conn: conn,
 	}
 }
 
 // 创建Socks客户端
-func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo) proto.Client {
+func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo, config config.Config) proto.Client {
 	return &Client{
 		Conn: conn,
 		Info: info,
 	}
 }
 
-func (c *Protocol) Checker() proto.Checker {
+func (c *Protocol) Checker(config config.Config) proto.Checker {
 	return &Checker{}
 }
 
-// 创建Socks5协议
-func Proto(config *Config) proto.Proto {
-	return &Protocol{}
+func init() {
+	proto.Add(&Protocol{})
 }
