@@ -17,15 +17,15 @@ import (
 
 // HTTP接口
 var Methods = []string{
-	http.MethodGet,
-	http.MethodHead,
-	http.MethodPost,
-	http.MethodPut,
-	http.MethodPatch,
-	http.MethodDelete,
-	http.MethodConnect,
-	http.MethodOptions,
-	http.MethodTrace,
+	"GE", //GET
+	"HE", //HEAD
+	"PO", //POST
+	"PU", //PUT
+	"PA", //PATCH
+	"DE", //DELETE
+	"CO", //CONNECT
+	"OP", //OPTIONS
+	"TR", //TRACE
 }
 
 type Server struct {
@@ -129,14 +129,13 @@ type Checker struct {
 
 // 判断是否为HTTP协议
 func (c *Checker) Check(r io.Reader) (bool, error) {
-	buf := make([]byte, MaxMethodLength)
-	n, err := r.Read(buf)
+	buf := make([]byte, 2)
+	n, err := io.ReadFull(r, buf)
 	if err != nil {
 		return false, err
 	}
 	for i := range Methods {
-		k := len(Methods[i])
-		if n >= k && string(buf[:k]) == Methods[i] {
+		if string(buf[:n]) == Methods[i] {
 			return true, nil
 		}
 	}
