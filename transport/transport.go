@@ -8,6 +8,7 @@ import (
 	"dxkite.cn/mino/proto/socks5"
 	"dxkite.cn/mino/rewind"
 	"dxkite.cn/mino/session"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -62,7 +63,7 @@ func (t *Transporter) conn(c net.Conn) {
 	conn := rewind.NewRewindConn(c, 255)
 	p, err := t.m.Proto(conn)
 	if err != nil {
-		log.Println("accept proto error", err)
+		log.Println("accept proto error", err, "hex", hex.EncodeToString(conn.Cached()))
 		return
 	}
 	if er := conn.Rewind(); er != nil {

@@ -8,6 +8,7 @@ import (
 type Reader interface {
 	io.Reader
 	Rewind() error
+	Cached() []byte
 }
 
 // 预读取的数据大于缓存区的数据不能回退
@@ -78,4 +79,9 @@ func (rr *rewindReader) Rewind() error {
 	}
 	rr.off = 0
 	return nil
+}
+
+// 获取缓存数据
+func (rr *rewindReader) Cached() []byte {
+	return rr.buf[:rr.wd]
 }

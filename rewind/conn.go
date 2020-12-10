@@ -27,3 +27,7 @@ func (r *rewindConn) Read(p []byte) (n int, err error) {
 func (r *rewindConn) Rewind() error {
 	return r.r.Rewind()
 }
+
+func (r *rewindConn) Cached() []byte {
+	return r.r.Cached()
+}
