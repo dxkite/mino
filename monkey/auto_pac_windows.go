@@ -1,6 +1,6 @@
 // +build windows
 
-package pac
+package monkey
 
 import (
 	"golang.org/x/sys/windows/registry"

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"dxkite.cn/mino/pac"
+	mino2 "dxkite.cn/mino"
+	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/proto/http"
 	"dxkite.cn/mino/proto/mino"
 	"dxkite.cn/mino/proto/socks5"
-	"dxkite.cn/mino/transport"
 	"flag"
 	"log"
 	"net/url"
@@ -29,11 +29,11 @@ func main() {
 
 	go func() {
 		if len(*pacAddr) > 0 {
-			pac.AutoSetPac("http://"+*pacAddr+"/mino.pac?mino-pac=true", path.Join(*data, "system-pac.bk"), "mino-pac=true")
+			monkey.AutoSetPac("http://"+*pacAddr+"/mino.pac?mino-pac=true", path.Join(*data, "system-pac.bk"), "mino-pac=true")
 		}
 	}()
 
-	tra := transport.New(&transport.Config{
+	tra := mino2.New(&mino2.Config{
 		Address:    *addr,
 		PacAddress: *pacAddr,
 		UpStream:   upStream,

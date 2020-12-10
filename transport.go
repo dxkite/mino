@@ -1,13 +1,12 @@
-package transport
+package mino
 
 import (
-	"dxkite.cn/mino/pac"
+	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/proto"
 	"dxkite.cn/mino/proto/http"
 	"dxkite.cn/mino/proto/mino"
 	"dxkite.cn/mino/proto/socks5"
 	"dxkite.cn/mino/rewind"
-	"dxkite.cn/mino/session"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -79,7 +78,7 @@ func (t *Transporter) conn(c net.Conn) {
 		log.Println("hand conn info error", err)
 	} else {
 		if info.Address == t.Config.PacAddress {
-			_, _ = pac.WritePacFile(conn, "conf/pac.txt", t.Config.PacAddress)
+			_, _ = monkey.WritePacFile(conn, "conf/pac.txt", t.Config.PacAddress)
 			log.Println("return pac", info.Network, info.Address)
 			return
 		}
@@ -93,7 +92,7 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = s.SendSuccess()
 		}
 		log.Println("connected", info.Network, info.Address)
-		sess := session.NewSession(conn, rmt)
+		sess := mino2.NewSession(conn, rmt)
 		up, down := sess.Transport()
 		log.Println("transport", info.Network, info.Address, "up", up, "down", down)
 	}
