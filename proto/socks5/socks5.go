@@ -407,7 +407,7 @@ type Checker struct {
 // 判断是否为HTTP协议
 func (c *Checker) Check(r io.Reader) (bool, error) {
 	buf := make([]byte, 1)
-	n, err := r.Read(buf)
+	n, err := io.ReadFull(r, buf)
 	if err != nil {
 		return false, err
 	}

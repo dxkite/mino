@@ -164,7 +164,7 @@ const (
 func (d *Checker) Check(r io.Reader) (bool, error) {
 	// 读3个字节
 	buf := make([]byte, 3)
-	n, err := r.Read(buf)
+	n, err := io.ReadFull(r, buf)
 	if err != nil {
 		return false, err
 	}
