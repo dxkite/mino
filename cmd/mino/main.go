@@ -2,7 +2,7 @@ package main
 
 import (
 	"dxkite.cn/mino"
-	config2 "dxkite.cn/mino/config"
+	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/proto/http"
 	_ "dxkite.cn/mino/proto/http"
@@ -30,15 +30,15 @@ func main() {
 		}
 	}()
 
-	config := config2.NewConfig()
-	config.Set(mino.KeyAddress, *addr)
-	config.Set(mino.KeyUpstream, *upstream)
-	config.Set(mino.KeyCertFile, *certFile)
-	config.Set(mino.KeyKeyFile, *keyFile)
-	config.Set(http.KeyMaxRewindSize, *httpRewind)
-	config.Set(mino.KeyPacHost, *pacHost)
-	config.Set(mino.KeyDataPath, *data)
-	tra := mino.New(config)
+	cfg := config.NewConfig()
+	cfg.Set(mino.KeyAddress, *addr)
+	cfg.Set(mino.KeyUpstream, *upstream)
+	cfg.Set(mino.KeyCertFile, *certFile)
+	cfg.Set(mino.KeyKeyFile, *keyFile)
+	cfg.Set(http.KeyMaxRewindSize, *httpRewind)
+	cfg.Set(mino.KeyPacHost, *pacHost)
+	cfg.Set(mino.KeyDataPath, *data)
+	tra := mino.New(cfg)
 	tra.InitChecker()
 	log.Println("exit", tra.Serve())
 }
