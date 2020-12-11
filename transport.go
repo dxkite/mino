@@ -69,7 +69,7 @@ func (t *Transporter) Proto(conn rewind.Conn) (proto proto.Proto, err error) {
 }
 
 func (t *Transporter) conn(c net.Conn) {
-	conn := rewind.NewRewindConn(c, 255)
+	conn := rewind.NewRewindConn(c, t.Config.IntOrDefault(KeyMaxStreamRewind, 8))
 	p, err := t.Proto(conn)
 	if err != nil {
 		log.Println("identify protocol error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
@@ -99,7 +99,7 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = s.SendError(rmtErr)
 			return
 		} else {
-			log.Println("connected", info.Network, info.Address, conn.RemoteAddr())
+			log.Println("connected", conn.RemoteAddr(), "->", info.Network, info.Address)
 			_ = s.SendSuccess()
 		}
 		sess := NewSession(conn, rmt)
