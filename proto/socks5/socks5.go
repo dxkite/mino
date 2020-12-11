@@ -49,7 +49,7 @@ func (conn *Server) Handshake() (err error) {
 	}
 	nMethods := buf[1]
 	methods := make([]byte, nMethods)
-	if n, err := conn.Read(methods); n != int(nMethods) || err != nil {
+	if n, err := io.ReadFull(conn, methods); n != int(nMethods) || err != nil {
 		_ = conn.Close()
 		return errProtocolMethods
 	}
@@ -130,7 +130,7 @@ func (conn *Server) handleCmd() (string, string, error) {
 // 读取域
 func (c *Server) readAddr() (string, error) {
 	addrType := make([]byte, 1)
-	if _, err := c.Read(addrType); err != nil {
+	if _, err := io.ReadFull(c, addrType); err != nil {
 		return "", err
 	}
 
@@ -140,13 +140,13 @@ func (c *Server) readAddr() (string, error) {
 	switch addrType[0] {
 	case AddrTypeIPv4:
 		ipv4 := make(net.IP, net.IPv4len)
-		if _, err := c.Read(ipv4); err != nil {
+		if _, err := io.ReadFull(c, ipv4); err != nil {
 			return "", err
 		}
 		host = ipv4.String()
 	case AddrTypeIPv6:
 		ipv6 := make(net.IP, net.IPv6len)
-		if _, err := c.Read(ipv6); err != nil {
+		if _, err := io.ReadFull(c, ipv6); err != nil {
 			return "", err
 		}
 		host = ipv6.String()
@@ -156,7 +156,7 @@ func (c *Server) readAddr() (string, error) {
 			return "", err
 		}
 		domain := make([]byte, domainLen)
-		if _, err := c.Read(domain); err != nil {
+		if _, err := io.ReadFull(c, domain); err != nil {
 			return "", err
 		}
 		host = string(domain)

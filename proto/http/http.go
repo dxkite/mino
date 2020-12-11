@@ -212,7 +212,7 @@ func (c *Protocol) Name() string {
 func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
 	return &Server{
 		Conn:    conn,
-		rwdSize: config.IntOrDefault(KeyMaxRewindSize, 2 * 1024),
+		rwdSize: config.IntOrDefault(KeyMaxRewindSize, 2*1024),
 	}
 }
 

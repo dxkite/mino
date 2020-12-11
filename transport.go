@@ -82,7 +82,7 @@ func (t *Transporter) conn(c net.Conn) {
 	log.Println("accept", p.Name(), "protocol")
 	s := p.Server(conn, t.Config)
 	if err := s.Handshake(); err != nil {
-		log.Println("proto handshake error", err)
+		log.Println("protocol handshake error", err)
 	}
 	if info, err := s.Info(); err != nil {
 		log.Println("hand conn info error", err)
