@@ -5,9 +5,9 @@ type Config interface {
 	Get(name string) (val interface{}, ok bool)
 
 	Int(name string) int
-	IntOrDefault(name string, dft int) int
+	IntOrDefault(name string, val int) int
 	String(name string) string
-	StringOrDefault(name, dft string) string
+	StringOrDefault(name, val string) string
 }
 
 type config map[string]interface{}
@@ -29,22 +29,24 @@ func (c config) String(name string) string {
 	return c.StringOrDefault(name, "")
 }
 
-func (c config) StringOrDefault(name, dft string) string {
+func (c config) StringOrDefault(name, val string) string {
 	if _, ok := c[name]; ok {
-		v, _ := c[name].(string)
-		return v
+		if v, tok := c[name].(string); tok {
+			return v
+		}
 	}
-	return dft
+	return val
 }
 
 func (c config) Int(name string) int {
 	return c.IntOrDefault(name, 0)
 }
 
-func (c config) IntOrDefault(name string, dft int) int {
+func (c config) IntOrDefault(name string, val int) int {
 	if _, ok := c[name]; ok {
-		v, _ := c[name].(int)
-		return v
+		if v, tok := c[name].(int); tok {
+			return v
+		}
 	}
-	return dft
+	return val
 }
