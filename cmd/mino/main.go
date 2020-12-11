@@ -38,6 +38,7 @@ func main() {
 	cfg.Set(http.KeyMaxRewindSize, *httpRewind)
 	cfg.Set(mino.KeyPacHost, *pacHost)
 	cfg.Set(mino.KeyDataPath, *data)
+
 	tra := mino.New(cfg)
 	tra.InitChecker()
 	log.Println("exit", tra.Serve())

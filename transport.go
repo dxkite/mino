@@ -99,9 +99,9 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = s.SendError(rmtErr)
 			return
 		} else {
+			log.Println("connected", info.Network, info.Address, conn.RemoteAddr())
 			_ = s.SendSuccess()
 		}
-		log.Println("connected", info.Network, info.Address)
 		sess := NewSession(conn, rmt)
 		up, down := sess.Transport()
 		log.Println("transport", info.Network, info.Address, "up", up, "down", down)
@@ -129,10 +129,10 @@ func (t *Transporter) dial(info *proto.ConnInfo) (net.Conn, error) {
 			info.Password, _ = UpStream.User.Password()
 			c := out.Client(rmt, info, t.Config)
 			if err := c.Handshake(); err != nil {
-				return nil, errors.New(fmt.Sprint("remote proto handshake error", err))
+				return nil, errors.New(fmt.Sprint("remote protocol handshake error: ", err))
 			}
 			if err := c.Connect(); err != nil {
-				return nil, errors.New(fmt.Sprint("remote connect error", err))
+				return nil, errors.New(fmt.Sprint("remote connecting error: ", err))
 			}
 		}
 	}

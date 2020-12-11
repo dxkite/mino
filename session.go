@@ -10,10 +10,6 @@ type Session struct {
 	loc io.ReadWriteCloser
 	// 远程连接
 	rmt io.ReadWriteCloser
-
-	// 关闭状态
-	sndError error
-	revError error
 }
 
 // 创建会话
@@ -29,12 +25,12 @@ func (s *Session) Transport() (up, down int64) {
 	var _closed = make(chan struct{})
 	go func() {
 		// send local -> remote
-		up, s.sndError = io.Copy(s.rmt, s.loc)
+		up, _ = io.Copy(s.rmt, s.loc)
 		_closed <- struct{}{}
 	}()
 	go func() {
 		// send remote -> down
-		down, s.revError = io.Copy(s.loc, s.rmt)
+		down, _ = io.Copy(s.loc, s.rmt)
 		_closed <- struct{}{}
 	}()
 	<-_closed

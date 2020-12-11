@@ -7,6 +7,7 @@ import (
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/proto"
 	"encoding/binary"
+	"errors"
 	"io"
 	"io/ioutil"
 	"net"
@@ -141,6 +142,9 @@ func (conn *Client) Connect() (err error) {
 			return er
 		}
 		if rsp.Code != succeeded {
+			if rsp.Code == unknownError {
+				return errors.New(rsp.Message)
+			}
 			return tlsError(rsp.Code)
 		}
 	}
