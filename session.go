@@ -2,6 +2,8 @@ package mino
 
 import (
 	"io"
+	"log"
+	"sync"
 )
 
 // 连接会话
@@ -10,6 +12,14 @@ type Session struct {
 	loc io.ReadWriteCloser
 	// 远程连接
 	rmt io.ReadWriteCloser
+	// 会话错误
+	err error
+	// 会话关闭状态
+	closed bool
+	// 关闭状态
+	mtxClosed sync.Mutex
+	// 错误设置
+	mtxErr sync.Mutex
 }
 
 // 创建会话
@@ -21,20 +31,47 @@ func NewSession(loc, rmt io.ReadWriteCloser) *Session {
 }
 
 // 传输数据
-func (s *Session) Transport() (up, down int64) {
+func (s *Session) Transport() (up, down int64, err error) {
 	var _closed = make(chan struct{})
 	go func() {
 		// send local -> remote
-		up, _ = io.Copy(s.rmt, s.loc)
+		var _err error
+		if up, _err = io.Copy(s.rmt, s.loc); _err != nil {
+			s.rwErr(_err)
+		}
 		_closed <- struct{}{}
 	}()
 	go func() {
-		// send remote -> down
-		down, _ = io.Copy(s.loc, s.rmt)
+		//send remote -> down
+		var _err error
+		if down, _err = io.Copy(s.loc, s.rmt); _err != nil {
+			s.rwErr(_err)
+		}
 		_closed <- struct{}{}
 	}()
 	<-_closed
-	_ = s.loc.Close()
-	_ = s.rmt.Close()
+	_ = s.Close()
+	err = s.err
 	return
+}
+
+func (s *Session) Close() error {
+	s.mtxClosed.Lock()
+	defer s.mtxClosed.Unlock()
+	if !s.closed {
+		_ = s.loc.Close()
+		_ = s.rmt.Close()
+		s.closed = true
+	}
+	return s.err
+}
+
+func (s *Session) rwErr(err error) {
+	s.mtxErr.Lock()
+	defer s.mtxErr.Unlock()
+	if !s.closed && err != nil {
+		log.Println("session read/write error", err)
+		s.err = err
+		_ = s.Close()
+	}
 }

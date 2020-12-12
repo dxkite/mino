@@ -104,8 +104,12 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = s.SendSuccess()
 		}
 		sess := NewSession(conn, rmt)
-		up, down := sess.Transport()
-		log.Println("transport", network, address, "up", up, "down", down)
+		up, down, err := sess.Transport()
+		msg := fmt.Sprintf("transport %s %s up %d down %d", network, address, up, down)
+		if err != nil {
+			msg += " error: " + err.Error()
+		}
+		log.Println(msg)
 	}
 }
 
