@@ -18,6 +18,8 @@ import (
 const Version = "0.1"
 
 func main() {
+	fmt.Println("mino agent", "v"+Version)
+
 	cfg := config.NewConfig()
 	if len(os.Args) == 3 && os.Args[1] == "-c" {
 		if err := cfg.Load(os.Args[2]); err != nil {
@@ -48,7 +50,6 @@ func main() {
 		cfg.Set(mino.KeyMaxStreamRewind, *protoRewind)
 		cfg.Set(mino.KeyWebRoot, *webRoot)
 	}
-	fmt.Println("mino agent", "v"+Version)
 	cfg.RequiredNotEmpty(mino.KeyAddress)
 	go monkey.AutoPac(cfg)
 	tra := transport.New(cfg)

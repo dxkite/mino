@@ -83,11 +83,9 @@ func (t *Transporter) conn(c net.Conn) {
 		return
 	}
 
-	log.Println("accept", p.Name(), "protocol")
-
 	svr := p.Server(conn, t.Config)
 	if err := svr.Handshake(t.AuthFunc); err != nil {
-		log.Println("protocol handshake error", err)
+		log.Println("protocol", p.Name(), "handshake error", err)
 		return
 	}
 
@@ -99,7 +97,7 @@ func (t *Transporter) conn(c net.Conn) {
 			dp := path.Join(t.Config.StringOrDefault(mino.KeyDataPath, "."), "http.pac")
 			_, _ = monkey.WritePacFile(svr, t.Config.StringOrDefault(mino.KeyPacFile, dp), conn.LocalAddr().String())
 			_ = svr.Close()
-			log.Println("return pac", network, address)
+			log.Println("write pac -> ", network, address)
 			return
 		}
 
@@ -109,7 +107,7 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = svr.SendError(rmtErr)
 			return
 		} else {
-			log.Println("connected", conn.RemoteAddr(), "->", network, address)
+			log.Println("connected", network, address, "via", p.Name())
 			_ = svr.SendSuccess()
 		}
 
