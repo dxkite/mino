@@ -15,25 +15,33 @@ func IsLoopbackAddr(addr string) bool {
 	return false
 }
 
+var localIpAddr []net.IP
+
+func init() {
+	if its, _ := net.Interfaces(); its != nil {
+		for _, it := range its {
+			if ads, err := it.Addrs(); err == nil {
+				for _, addr := range ads {
+					addrMask := addr.String()
+					i := strings.Index(addrMask, "/")
+					if v := net.ParseIP(string([]byte(addrMask)[:i])); v != nil {
+						localIpAddr = append(localIpAddr, v)
+					}
+				}
+			}
+		}
+	}
+}
+
 // 环回地址
 func IsLoopback(host string) bool {
 	if ip := net.ParseIP(host); ip != nil {
 		if ip.IsLoopback() {
 			return true
 		}
-		if its, _ := net.Interfaces(); its != nil {
-			for _, it := range its {
-				if ads, err := it.Addrs(); err == nil {
-					for _, addr := range ads {
-						addrMask := addr.String()
-						i := strings.Index(addrMask, "/")
-						if v := net.ParseIP(string([]byte(addrMask)[:i])); v != nil {
-							if bytes.Equal(ip, v) {
-								return true
-							}
-						}
-					}
-				}
+		for _, v := range localIpAddr {
+			if bytes.Equal(ip, v) {
+				return true
 			}
 		}
 	}

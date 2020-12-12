@@ -1,11 +1,6 @@
 package transport
 
 import (
-	"dxkite.cn/mino"
-	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/monkey"
-	"dxkite.cn/mino/proto"
-	"dxkite.cn/mino/rewind"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -13,6 +8,12 @@ import (
 	"net"
 	"net/url"
 	"strconv"
+
+	"dxkite.cn/mino"
+	"dxkite.cn/mino/config"
+	"dxkite.cn/mino/monkey"
+	"dxkite.cn/mino/proto"
+	"dxkite.cn/mino/rewind"
 )
 
 // 传输工具
@@ -95,7 +96,7 @@ func (t *Transporter) conn(c net.Conn) {
 		if IsLoopbackAddr(address) {
 			_, _ = monkey.WritePacFile(svr, config.GetPacFile(t.Config), conn.LocalAddr().String())
 			_ = svr.Close()
-			log.Println("write pac -> ", network, address)
+			log.Println("write pac ->", network, address)
 			return
 		}
 
