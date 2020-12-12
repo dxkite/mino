@@ -234,11 +234,6 @@ func (c *Server) sendReply(rep uint8) {
 	_, _ = c.Write(reply)
 }
 
-// 获取操作流
-func (conn *Server) Stream() net.Conn {
-	return conn
-}
-
 // 发送错误
 func (conn *Server) SendError(err error) error {
 	err = errServerFailure
@@ -307,11 +302,6 @@ func (conn *Client) Handshake() (err error) {
 		}
 	}
 	return nil
-}
-
-// 获取操作流
-func (c *Client) Stream() net.Conn {
-	return c
 }
 
 func (conn *Client) basicAuth() error {

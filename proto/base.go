@@ -19,6 +19,7 @@ type BasicAuthFunc func(info *AuthInfo) bool
 
 // 服务器链接
 type Server interface {
+	net.Conn
 	// 握手
 	Handshake(auth BasicAuthFunc) (err error)
 	// 获取链接信息
@@ -27,18 +28,15 @@ type Server interface {
 	SendError(err error) error
 	// 发送连接成功
 	SendSuccess() error
-	// 获取流
-	Stream() net.Conn
 }
 
 // 客户端链接
 type Client interface {
+	net.Conn
 	// 握手
 	Handshake() (err error)
 	// 连接目标
 	Connect(network, address string) (err error)
-	// 获取流
-	Stream() net.Conn
 }
 
 // 协议检查

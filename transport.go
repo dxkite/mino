@@ -81,9 +81,10 @@ func (t *Transporter) conn(c net.Conn) {
 		log.Println("accept rewind error", er)
 		return
 	}
-	log.Println("accept", p.Name(), "protocol")
-	svr := p.Server(conn, t.Config)
 
+	log.Println("accept", p.Name(), "protocol")
+
+	svr := p.Server(conn, t.Config)
 	if err := svr.Handshake(t.AuthFunc); err != nil {
 		log.Println("protocol handshake error", err)
 		return
@@ -92,13 +93,14 @@ func (t *Transporter) conn(c net.Conn) {
 	if network, address, err := svr.Info(); err != nil {
 		log.Println("recv conn info error", err)
 	} else {
+
 		if address == t.Config.String(KeyPacHost) {
 			dp := path.Join(t.Config.StringOrDefault(KeyDataPath, "data"), "http.pac")
 			_, _ = monkey.WritePacFile(conn, t.Config.StringOrDefault(KeyPacSource, dp), t.Config.String(KeyPacHost))
 			log.Println("return pac", network, address)
 			return
 		}
-		log.Println("dial", network, address)
+
 		rmt, rmtErr := t.dial(network, address)
 		if rmtErr != nil {
 			log.Println("dial", network, address, "error", rmtErr)
@@ -109,8 +111,7 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = svr.SendSuccess()
 		}
 
-		loc := svr.Stream()
-		sess := NewSession(loc, rmt)
+		sess := NewSession(svr, rmt)
 		up, down, err := sess.Transport()
 		msg := fmt.Sprintf("transport %s %s up %d down %d", network, address, up, down)
 		if err != nil {
@@ -143,7 +144,7 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 			if err := client.Connect(network, address); err != nil {
 				return nil, errors.New(fmt.Sprint("remote connecting error: ", err))
 			}
-			rmt = client.Stream()
+			rmt = client
 		}
 	} else {
 		if rmt, rmtErr = net.Dial(network, address); rmtErr != nil {

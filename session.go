@@ -2,7 +2,6 @@ package mino
 
 import (
 	"io"
-	"log"
 	"sync"
 )
 
@@ -39,7 +38,7 @@ func (s *Session) Transport() (up, down int64, err error) {
 		if down, _err = io.Copy(s.loc, s.rmt); _err != nil {
 			s.rwErr("read", _err)
 		}
-		log.Println("read closed")
+		//log.Println("read closed")
 		_closed <- struct{}{}
 	}()
 	// local -> remote
@@ -48,7 +47,7 @@ func (s *Session) Transport() (up, down int64, err error) {
 		s.rwErr("write", _err)
 	}
 	_ = s.close()
-	log.Println("write closed")
+	//log.Println("write closed")
 	<-_closed
 	err = s.err
 	return
@@ -61,7 +60,7 @@ func (s *Session) close() error {
 		s.mtxClosed.Unlock()
 		_ = s.loc.Close()
 		_ = s.rmt.Close()
-		log.Println("session closed")
+		//log.Println("session closed")
 	}
 	return s.err
 }
@@ -70,7 +69,7 @@ func (s *Session) rwErr(name string, err error) {
 	s.mtxErr.Lock()
 	defer s.mtxErr.Unlock()
 	if !s.closed && err != nil {
-		log.Println("session", name, "error", err)
+		//log.Println("session", name, "error", err)
 		s.err = err
 		_ = s.close()
 	}

@@ -24,6 +24,8 @@ const (
 	msgResponse
 )
 
+var ErrAuth = errors.New("auth error")
+
 type Server struct {
 	net.Conn
 	// 公玥文件
@@ -60,7 +62,7 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 			}) {
 			} else {
 				_ = conn.Close()
-				return errors.New("auth error")
+				return ErrAuth
 			}
 		}
 		conn.r = req
@@ -77,11 +79,6 @@ func (conn *Server) Info() (network, address string, err error) {
 		network = "tcp"
 	}
 	return network, conn.r.Address, nil
-}
-
-// 获取操作流
-func (conn *Server) Stream() net.Conn {
-	return conn
 }
 
 // 发送错误
@@ -161,11 +158,6 @@ func (conn *Client) Connect(network, address string) (err error) {
 		}
 	}
 	return
-}
-
-// 获取操作流
-func (conn *Client) Stream() net.Conn {
-	return conn
 }
 
 type Checker struct {

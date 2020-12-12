@@ -71,11 +71,6 @@ func (conn *Server) Info() (network, address string, err error) {
 	return "tcp", address, nil
 }
 
-// 获取操作流
-func (conn *Server) Stream() net.Conn {
-	return conn
-}
-
 // 读取流
 func (conn *Server) Read(p []byte) (n int, err error) {
 	if conn.r != nil {
@@ -125,11 +120,6 @@ func (c *Client) Connect(network, address string) (err error) {
 		}
 	}
 	return
-}
-
-// 获取操作流
-func (c *Client) Stream() net.Conn {
-	return c
 }
 
 type Checker struct {
