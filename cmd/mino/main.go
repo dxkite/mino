@@ -20,8 +20,8 @@ func main() {
 	var keyFile = flag.String("key_file", "", "tls key file")
 	var httpRewind = flag.Int("http_rewind", 2*1024, "http rewind cache size")
 	var protoRewind = flag.Int("proto_rewind", 8, "http rewind cache size")
-	var pacHost = flag.String("pac_host", "", "http pac enable addr")
-	var pacFile = flag.String("pac_file", "", "http pac file addr")
+	var pacFile = flag.String("pac_file", "", "http pac file")
+	var webRoot = flag.String("web_root", "www", "http pac file")
 	var data = flag.String("data", "data", "data path")
 
 	flag.Parse()
@@ -32,10 +32,10 @@ func main() {
 	cfg.Set(mino.KeyCertFile, *certFile)
 	cfg.Set(mino.KeyKeyFile, *keyFile)
 	cfg.Set(http.KeyMaxRewindSize, *httpRewind)
-	cfg.Set(mino.KeyPacHost, *pacHost)
 	cfg.Set(mino.KeyPacFile, *pacFile)
 	cfg.Set(mino.KeyDataPath, *data)
 	cfg.Set(mino.KeyMaxStreamRewind, *protoRewind)
+	cfg.Set(mino.KeyWebRoot, *webRoot)
 
 	go monkey.AutoPac(cfg)
 

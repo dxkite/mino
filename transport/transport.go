@@ -95,9 +95,9 @@ func (t *Transporter) conn(c net.Conn) {
 		log.Println("recv conn info error", err)
 	} else {
 
-		if address == t.Config.String(mino.KeyPacHost) {
+		if IsLoopbackAddr(address) {
 			dp := path.Join(t.Config.StringOrDefault(mino.KeyDataPath, "data"), "http.pac")
-			_, _ = monkey.WritePacFile(conn, t.Config.StringOrDefault(mino.KeyPacFile, dp), t.Config.String(mino.KeyPacHost))
+			_, _ = monkey.WritePacFile(conn, t.Config.StringOrDefault(mino.KeyPacFile, dp), conn.LocalAddr().String())
 			log.Println("return pac", network, address)
 			return
 		}

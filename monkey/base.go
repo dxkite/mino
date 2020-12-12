@@ -42,8 +42,8 @@ func WritePacFile(writer io.Writer, pacFile, proxy string) (int, error) {
 }
 
 func AutoPac(config config.Config) {
-	if host := config.String(mino.KeyPacHost); len(host) > 0 {
-		AutoSetPac("http://"+host+"/mino.pac?mino-pac=true", path.Join(config.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
+	if pacPath := config.String(mino.KeyPacFile); len(pacPath) > 0 {
+		AutoSetPac("http://127.0.0.1/mino.pac?mino-pac=true", path.Join(config.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
 	}
 }
 
