@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/url"
+	"path"
 	"strconv"
 )
 
@@ -84,12 +85,14 @@ func (t *Transporter) conn(c net.Conn) {
 	s := p.Server(conn, t.Config)
 	if err := s.Handshake(t.AuthFunc); err != nil {
 		log.Println("protocol handshake error", err)
+		return
 	}
 	if network, address, err := s.Info(); err != nil {
 		log.Println("recv conn info error", err)
 	} else {
 		if address == t.Config.String(KeyPacHost) {
-			_, _ = monkey.WritePacFile(conn, "conf/pac.txt", t.Config.String(KeyPacHost))
+			dp := path.Join(t.Config.StringOrDefault(KeyDataPath, "data"), "http.pac")
+			_, _ = monkey.WritePacFile(conn, t.Config.StringOrDefault(KeyPacSource, dp), t.Config.String(KeyPacHost))
 			log.Println("return pac", network, address)
 			return
 		}

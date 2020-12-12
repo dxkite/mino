@@ -34,29 +34,28 @@ func NewSession(loc, rmt io.ReadWriteCloser) *Session {
 func (s *Session) Transport() (up, down int64, err error) {
 	var _closed = make(chan struct{})
 	go func() {
-		// send local -> remote
-		var _err error
-		if up, _err = io.Copy(s.rmt, s.loc); _err != nil {
-			s.rwErr(_err)
-		}
-		_ = s.Close()
-		_closed <- struct{}{}
-	}()
-	go func() {
-		//send remote -> down
+		// remote -> local
 		var _err error
 		if down, _err = io.Copy(s.loc, s.rmt); _err != nil {
-			s.rwErr(_err)
+			s.rwErr("read", _err)
 		}
-		_ = s.Close()
+		_ = s.close()
+		log.Println("read closed")
 		_closed <- struct{}{}
 	}()
+	// local -> remote
+	var _err error
+	if up, _err = io.Copy(s.rmt, s.loc); _err != nil {
+		s.rwErr("write", _err)
+	}
+	_ = s.close()
+	log.Println("write closed")
 	<-_closed
 	err = s.err
 	return
 }
 
-func (s *Session) Close() error {
+func (s *Session) close() error {
 	if !s.closed {
 		s.mtxClosed.Lock()
 		s.closed = true
@@ -67,12 +66,12 @@ func (s *Session) Close() error {
 	return s.err
 }
 
-func (s *Session) rwErr(err error) {
+func (s *Session) rwErr(name string, err error) {
 	s.mtxErr.Lock()
 	defer s.mtxErr.Unlock()
 	if !s.closed && err != nil {
-		log.Println("session read/write error", err)
+		log.Println("session", name, "error", err)
 		s.err = err
-		_ = s.Close()
+		_ = s.close()
 	}
 }

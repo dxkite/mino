@@ -1,4 +1,4 @@
-# Mino Gate
+# Mino Agent
 
 基于Go语言的网关代理服务，支持网站访问权限限制，转发请求
 

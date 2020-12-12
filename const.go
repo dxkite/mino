@@ -5,6 +5,7 @@ const (
 	KeyPassword        = "password"
 	KeyAddress         = "address"
 	KeyPacHost         = "pac_host"
+	KeyPacSource       = "pac_source"
 	KeyUpstream        = "upstream"
 	KeyDataPath        = "data_path"
 	KeyMaxStreamRewind = "max_stream_rewind"
