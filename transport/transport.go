@@ -1,6 +1,7 @@
-package mino
+package transport
 
 import (
+	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/proto"
@@ -29,7 +30,7 @@ func New(config config.Config) (t *Transporter) {
 }
 
 func (t *Transporter) Serve() error {
-	listen, err := net.Listen("tcp", t.Config.String(KeyAddress))
+	listen, err := net.Listen("tcp", t.Config.String(mino.KeyAddress))
 	if err != nil {
 		return err
 	} else {
@@ -71,7 +72,7 @@ func (t *Transporter) Proto(conn rewind.Conn) (proto proto.Proto, err error) {
 }
 
 func (t *Transporter) conn(c net.Conn) {
-	conn := rewind.NewRewindConn(c, t.Config.IntOrDefault(KeyMaxStreamRewind, 8))
+	conn := rewind.NewRewindConn(c, t.Config.IntOrDefault(mino.KeyMaxStreamRewind, 8))
 	p, err := t.Proto(conn)
 	if err != nil {
 		log.Println("identify protocol error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
@@ -94,9 +95,9 @@ func (t *Transporter) conn(c net.Conn) {
 		log.Println("recv conn info error", err)
 	} else {
 
-		if address == t.Config.String(KeyPacHost) {
-			dp := path.Join(t.Config.StringOrDefault(KeyDataPath, "data"), "http.pac")
-			_, _ = monkey.WritePacFile(conn, t.Config.StringOrDefault(KeyPacSource, dp), t.Config.String(KeyPacHost))
+		if address == t.Config.String(mino.KeyPacHost) {
+			dp := path.Join(t.Config.StringOrDefault(mino.KeyDataPath, "data"), "http.pac")
+			_, _ = monkey.WritePacFile(conn, t.Config.StringOrDefault(mino.KeyPacFile, dp), t.Config.String(mino.KeyPacHost))
 			log.Println("return pac", network, address)
 			return
 		}
@@ -125,7 +126,7 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 	var rmt net.Conn
 	var rmtErr error
 	var UpStream *url.URL
-	if upstream := t.Config.String(KeyUpstream); len(upstream) > 0 {
+	if upstream := t.Config.String(mino.KeyUpstream); len(upstream) > 0 {
 		UpStream, _ = url.Parse(upstream)
 	}
 	if UpStream != nil {
@@ -134,9 +135,9 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 		}
 		if cl, ok := t.Manager.Get(UpStream.Scheme); ok {
 			cfg := t.Config
-			cfg.Set(KeyUsername, UpStream.User.Username())
+			cfg.Set(mino.KeyUsername, UpStream.User.Username())
 			pwd, _ := UpStream.User.Password()
-			cfg.Set(KeyPassword, pwd)
+			cfg.Set(mino.KeyPassword, pwd)
 			client := cl.Client(rmt, cfg)
 			if err := client.Handshake(); err != nil {
 				return nil, errors.New(fmt.Sprint("remote protocol handshake error: ", err))

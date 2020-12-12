@@ -1,12 +1,14 @@
 package monkey
 
 import (
+	"dxkite.cn/mino"
+	"dxkite.cn/mino/config"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
 	"net/http"
+	"path"
 	"strings"
 )
 
@@ -39,22 +41,9 @@ func WritePacFile(writer io.Writer, pacFile, proxy string) (int, error) {
 	return writer.Write([]byte(respond))
 }
 
-// 开启PAC服务器（随机端口）
-func StartPacServer(uri, file, bkFile string, autoSet bool) {
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		log.Fatal("listen web pac error")
-	}
-	if len(file) == 0 {
-		log.Println("missing pac file")
-		return
-	}
-	log.Println("listen web pac at", "http://"+l.Addr().String()+"/epipe.pac?_s=epipe-inner-config")
-	if autoSet {
-		go AutoSetPac("http://"+l.Addr().String()+"/epipe.pac?_s=epipe-inner-config", bkFile, "_s=epipe-inner-config")
-	}
-	if err := http.Serve(l, &pacServer{file, uri}); err != nil {
-		log.Fatal("listen web pac error")
+func AutoPac(config config.Config) {
+	if host := config.String(mino.KeyPacHost); len(host) > 0 {
+		AutoSetPac("http://"+host+"/mino.pac?mino-pac=true", path.Join(config.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
 	}
 }
 
