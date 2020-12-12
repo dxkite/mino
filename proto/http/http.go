@@ -40,7 +40,7 @@ const KeyMaxRewindSize = "http.max_rewind_size"
 
 // 握手
 func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
-	r := rewind.NewRewindReaderSize(conn, conn.rwdSize)
+	r := rewind.NewRewindReaderSize(conn.Conn, conn.rwdSize)
 	req, er := http.ReadRequest(bufio.NewReader(r))
 	if er != nil {
 		err = er

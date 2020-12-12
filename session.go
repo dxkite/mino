@@ -39,7 +39,6 @@ func (s *Session) Transport() (up, down int64, err error) {
 		if down, _err = io.Copy(s.loc, s.rmt); _err != nil {
 			s.rwErr("read", _err)
 		}
-		_ = s.close()
 		log.Println("read closed")
 		_closed <- struct{}{}
 	}()
@@ -62,6 +61,7 @@ func (s *Session) close() error {
 		s.mtxClosed.Unlock()
 		_ = s.loc.Close()
 		_ = s.rmt.Close()
+		log.Println("session closed")
 	}
 	return s.err
 }

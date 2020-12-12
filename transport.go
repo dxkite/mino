@@ -82,12 +82,14 @@ func (t *Transporter) conn(c net.Conn) {
 		return
 	}
 	log.Println("accept", p.Name(), "protocol")
-	s := p.Server(conn, t.Config)
-	if err := s.Handshake(t.AuthFunc); err != nil {
+	svr := p.Server(conn, t.Config)
+
+	if err := svr.Handshake(t.AuthFunc); err != nil {
 		log.Println("protocol handshake error", err)
 		return
 	}
-	if network, address, err := s.Info(); err != nil {
+
+	if network, address, err := svr.Info(); err != nil {
 		log.Println("recv conn info error", err)
 	} else {
 		if address == t.Config.String(KeyPacHost) {
@@ -100,13 +102,15 @@ func (t *Transporter) conn(c net.Conn) {
 		rmt, rmtErr := t.dial(network, address)
 		if rmtErr != nil {
 			log.Println("dial", network, address, "error", rmtErr)
-			_ = s.SendError(rmtErr)
+			_ = svr.SendError(rmtErr)
 			return
 		} else {
 			log.Println("connected", conn.RemoteAddr(), "->", network, address)
-			_ = s.SendSuccess()
+			_ = svr.SendSuccess()
 		}
-		sess := NewSession(conn, rmt)
+
+		loc := svr.Stream()
+		sess := NewSession(loc, rmt)
 		up, down, err := sess.Transport()
 		msg := fmt.Sprintf("transport %s %s up %d down %d", network, address, up, down)
 		if err != nil {
@@ -132,19 +136,19 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 			cfg.Set(KeyUsername, UpStream.User.Username())
 			pwd, _ := UpStream.User.Password()
 			cfg.Set(KeyPassword, pwd)
-			c := cl.Client(rmt, cfg)
-			if err := c.Handshake(); err != nil {
+			client := cl.Client(rmt, cfg)
+			if err := client.Handshake(); err != nil {
 				return nil, errors.New(fmt.Sprint("remote protocol handshake error: ", err))
 			}
-			if err := c.Connect(network, address); err != nil {
+			if err := client.Connect(network, address); err != nil {
 				return nil, errors.New(fmt.Sprint("remote connecting error: ", err))
 			}
+			rmt = client.Stream()
 		}
 	} else {
 		if rmt, rmtErr = net.Dial(network, address); rmtErr != nil {
 			return nil, rmtErr
 		}
 	}
-
 	return rmt, nil
 }
