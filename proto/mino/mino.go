@@ -30,40 +30,52 @@ type Server struct {
 	CertFile string
 	// 私玥文件
 	KeyFile string
+	// 请求信息
+	r *RequestMessage
 }
 
 // 握手
-func (conn *Server) Handshake() (err error) {
+func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 	cert, er := tls.LoadX509KeyPair(conn.CertFile, conn.KeyFile)
 	if er != nil {
 		return err
 	}
 	conn.Conn = tls.Server(conn.Conn, &tls.Config{Certificates: []tls.Certificate{cert}})
+	if _, p, er := readPack(conn); er != nil {
+		_ = conn.Close()
+		return er
+	} else {
+		req := new(RequestMessage)
+		if er := req.unmarshal(p); er != nil {
+			_ = conn.Close()
+			return er
+		}
+		if auth != nil {
+			if auth(&proto.AuthInfo{
+				Username:     req.Username,
+				Password:     req.Password,
+				RemoteAddr:   conn.RemoteAddr().String(),
+				HardwareAddr: req.MacAddress,
+			}) {
+			} else {
+				_ = conn.Close()
+				return errors.New("auth error")
+			}
+		}
+		conn.r = req
+	}
 	return
 }
 
 // 获取链接信息
-func (conn *Server) Info() (info *proto.ConnInfo, err error) {
-	if _, p, er := readPack(conn); er != nil {
-		return nil, er
-	} else {
-		req := new(RequestMessage)
-		if er := req.unmarshal(p); er != nil {
-			return nil, er
-		}
-		info = new(proto.ConnInfo)
-		switch req.Network {
-		case NetworkUdp:
-			info.Network = "udp"
-		default:
-			info.Network = "tcp"
-		}
-		info.Address = req.Address
-		info.Username = req.Username
-		info.Password = req.Password
-		info.HardwareAddr = req.MacAddress
-		return info, nil
+func (conn *Server) Info() (network, address string, err error) {
+	switch conn.r.Network {
+	case NetworkUdp:
+		network = "udp"
+	default:
+		network = "tcp"
 	}
+	return network, conn.r.Address, nil
 }
 
 // 获取操作流
@@ -86,7 +98,6 @@ func (conn *Server) SendSuccess() error {
 
 type Client struct {
 	net.Conn
-	Info *proto.ConnInfo
 	// 认证公玥
 	RootCa string
 	// 用户名
@@ -119,15 +130,15 @@ func (conn *Client) cfgGen() (cfg *tls.Config, err error) {
 	return
 }
 
-func (conn *Client) Connect() (err error) {
+func (conn *Client) Connect(network, address string) (err error) {
 	m := new(RequestMessage)
-	switch conn.Info.Network {
+	switch network {
 	case "udp":
 		m.Network = NetworkUdp
 	default:
 		m.Network = NetworkTcp
 	}
-	m.Address = conn.Info.Address
+	m.Address = address
 	m.Username = conn.Username
 	m.Password = conn.Password
 	m.MacAddress = getHardwareAddr()
@@ -205,10 +216,9 @@ func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
 }
 
 // 创建HTTP请求器
-func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo, config config.Config) proto.Client {
+func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
 	return &Client{
 		Conn:     conn,
-		Info:     info,
 		Username: config.String(mino.KeyUsername),
 		Password: config.String(mino.KeyPassword),
 		RootCa:   config.String(mino.KeyRootCa),

@@ -1,6 +1,7 @@
 package socks5
 
 import (
+	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/proto"
 	"encoding/binary"
@@ -18,7 +19,7 @@ type Server struct {
 }
 
 // 握手
-func (conn *Server) Handshake() (err error) {
+func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 	/**
 	 -->
 
@@ -53,31 +54,53 @@ func (conn *Server) Handshake() (err error) {
 		_ = conn.Close()
 		return errProtocolMethods
 	}
-	/**
-	<--
-	+----+--------+
-	|VER | METHOD |
-	+----+--------+
-	| 1  |   1    |
-	+----+--------+
-	*/
-	buf[1] = 0 // NO AUTH
-	_, err = conn.Write(buf)
+	if auth == nil {
+		/**
+		<--
+		+----+--------+
+		|VER | METHOD |
+		+----+--------+
+		| 1  |   1    |
+		+----+--------+
+		*/
+		buf[1] = 0 // NO AUTH
+		_, err = conn.Write(buf)
+	} else {
+		/**
+		<--
+		+----+--------+
+		|VER | METHOD |
+		+----+--------+
+		| 1  |   1    |
+		+----+--------+
+		*/
+		buf[1] = 1 // Basic Auth
+		if _, err = conn.Write(buf); err != nil {
+			_ = conn.Close()
+			return err
+		}
+
+		if u, p, err := conn.readUser(); err != nil {
+			_ = conn.Close()
+			return err
+		} else if auth(&proto.AuthInfo{
+			Username:     u,
+			Password:     p,
+			RemoteAddr:   conn.RemoteAddr().String(),
+			HardwareAddr: []net.HardwareAddr{},
+		}) {
+		} else {
+			_ = conn.Close()
+			return errors.New("auth error")
+		}
+	}
 	return err
 }
 
 // 获取链接信息
-func (conn *Server) Info() (info *proto.ConnInfo, err error) {
-	network, address, er := conn.handleCmd()
-	if er != nil {
-		return nil, er
-	}
-	return &proto.ConnInfo{
-		Network:  network,
-		Address:  address,
-		Username: "",
-		Password: "",
-	}, nil
+func (conn *Server) Info() (network, address string, err error) {
+	network, address, err = conn.handleCmd()
+	return
 }
 
 // 处理命令
@@ -125,6 +148,34 @@ func (conn *Server) handleCmd() (string, string, error) {
 		_ = conn.Close()
 	}
 	return "", "", errCommandNotSupported
+}
+
+// 读取用户信息
+func (c *Server) readUser() (username, password string, err error) {
+	/**
+	-->
+	  +----+------+----------+------+----------+
+	  |VER | ULEN |  UNAME   | PLEN |  PASSWD  |
+	  +----+------+----------+------+----------+
+	  | 1  |  1   | 1 to 255 |  1   | 1 to 255 |
+	  +----+------+----------+------+----------+
+	*/
+	buf := make([]byte, 2)
+	if _, err := io.ReadFull(c, buf); err != nil {
+		return "", "", err
+	}
+	un := make([]byte, buf[1])
+	if _, err := io.ReadFull(c, un); err != nil {
+		return "", "", err
+	}
+	if _, err := io.ReadFull(c, buf[:1]); err != nil {
+		return "", "", err
+	}
+	pw := make([]byte, buf[0])
+	if _, err := io.ReadFull(c, pw); err != nil {
+		return "", "", err
+	}
+	return string(un), string(pw), nil
 }
 
 // 读取域
@@ -213,7 +264,8 @@ func (conn *Server) SendSuccess() error {
 
 type Client struct {
 	net.Conn
-	Info *proto.ConnInfo
+	Username string
+	Password string
 }
 
 func (conn *Client) Handshake() (err error) {
@@ -263,7 +315,7 @@ func (c *Client) Stream() net.Conn {
 }
 
 func (conn *Client) basicAuth() error {
-	info := conn.Info
+	info := conn
 	/**
 	  +----+------+----------+------+----------+
 	  |VER | ULEN |  UNAME   | PLEN |  PASSWD  |
@@ -301,8 +353,8 @@ func (conn *Client) basicAuth() error {
 	return nil
 }
 
-func (conn *Client) Connect() error {
-	return conn.conn(conn.Info.Network, conn.Info.Address)
+func (conn *Client) Connect(network, address string) error {
+	return conn.conn(network, address)
 }
 
 func (conn *Client) conn(network, address string) error {
@@ -429,10 +481,11 @@ func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
 }
 
 // 创建Socks客户端
-func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo, config config.Config) proto.Client {
+func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
 	return &Client{
-		Conn: conn,
-		Info: info,
+		Conn:     conn,
+		Username: config.String(mino.KeyUsername),
+		Password: config.String(mino.KeyPassword),
 	}
 }
 

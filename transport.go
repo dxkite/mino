@@ -16,9 +16,10 @@ import (
 
 // 传输工具
 type Transporter struct {
-	Manager *proto.Manager
-	check   map[string]proto.Checker
-	Config  config.Config
+	Manager  *proto.Manager
+	check    map[string]proto.Checker
+	Config   config.Config
+	AuthFunc proto.BasicAuthFunc
 }
 
 func New(config config.Config) (t *Transporter) {
@@ -81,34 +82,34 @@ func (t *Transporter) conn(c net.Conn) {
 	}
 	log.Println("accept", p.Name(), "protocol")
 	s := p.Server(conn, t.Config)
-	if err := s.Handshake(); err != nil {
+	if err := s.Handshake(t.AuthFunc); err != nil {
 		log.Println("protocol handshake error", err)
 	}
-	if info, err := s.Info(); err != nil {
-		log.Println("hand conn info error", err)
+	if network, address, err := s.Info(); err != nil {
+		log.Println("recv conn info error", err)
 	} else {
-		if info.Address == t.Config.String(KeyPacHost) {
+		if address == t.Config.String(KeyPacHost) {
 			_, _ = monkey.WritePacFile(conn, "conf/pac.txt", t.Config.String(KeyPacHost))
-			log.Println("return pac", info.Network, info.Address)
+			log.Println("return pac", network, address)
 			return
 		}
-		log.Println("dial", info.Network, info.Address, "user", info.Username, "hardware addr", info.HardwareAddr)
-		rmt, rmtErr := t.dial(info)
+		log.Println("dial", network, address)
+		rmt, rmtErr := t.dial(network, address)
 		if rmtErr != nil {
-			log.Println("dial", info.Network, info.Address, "error", rmtErr)
+			log.Println("dial", network, address, "error", rmtErr)
 			_ = s.SendError(rmtErr)
 			return
 		} else {
-			log.Println("connected", conn.RemoteAddr(), "->", info.Network, info.Address)
+			log.Println("connected", conn.RemoteAddr(), "->", network, address)
 			_ = s.SendSuccess()
 		}
 		sess := NewSession(conn, rmt)
 		up, down := sess.Transport()
-		log.Println("transport", info.Network, info.Address, "up", up, "down", down)
+		log.Println("transport", network, address, "up", up, "down", down)
 	}
 }
 
-func (t *Transporter) dial(info *proto.ConnInfo) (net.Conn, error) {
+func (t *Transporter) dial(network, address string) (net.Conn, error) {
 	var rmt net.Conn
 	var rmtErr error
 	var UpStream *url.URL
@@ -117,24 +118,24 @@ func (t *Transporter) dial(info *proto.ConnInfo) (net.Conn, error) {
 	}
 	if UpStream != nil {
 		rmt, rmtErr = net.Dial("tcp", UpStream.Host)
-	} else {
-		rmt, rmtErr = net.Dial(info.Network, info.Address)
-	}
-	if rmtErr != nil {
-		return nil, rmtErr
-	}
-	if UpStream != nil {
-		if out, ok := t.Manager.Get(UpStream.Scheme); ok {
-			info.Username = UpStream.User.Username()
-			info.Password, _ = UpStream.User.Password()
-			c := out.Client(rmt, info, t.Config)
+		if cl, ok := t.Manager.Get(UpStream.Scheme); ok {
+			cfg := t.Config
+			cfg.Set(KeyUsername, UpStream.User.Username())
+			pwd, _ := UpStream.User.Password()
+			cfg.Set(KeyPassword, pwd)
+			c := cl.Client(rmt, cfg)
 			if err := c.Handshake(); err != nil {
 				return nil, errors.New(fmt.Sprint("remote protocol handshake error: ", err))
 			}
-			if err := c.Connect(); err != nil {
+			if err := c.Connect(network, address); err != nil {
 				return nil, errors.New(fmt.Sprint("remote connecting error: ", err))
 			}
 		}
+	} else {
+		rmt, rmtErr = net.Dial(network, address)
+	}
+	if rmtErr != nil {
+		return nil, rmtErr
 	}
 	return rmt, nil
 }

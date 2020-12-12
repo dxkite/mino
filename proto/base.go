@@ -6,27 +6,29 @@ import (
 	"net"
 )
 
-// 链接信息
-type ConnInfo struct {
-	Network      string
-	Address      string
+// 连接信息
+type AuthInfo struct {
 	Username     string
 	Password     string
+	RemoteAddr   string
 	HardwareAddr []net.HardwareAddr
 }
+
+// 基本验证函数
+type BasicAuthFunc func(info *AuthInfo) bool
 
 // 服务器链接
 type Server interface {
 	// 握手
-	Handshake() (err error)
+	Handshake(auth BasicAuthFunc) (err error)
 	// 获取链接信息
-	Info() (info *ConnInfo, err error)
-	// 获取流
-	Stream() net.Conn
-	// 发送错误
+	Info() (network, address string, err error)
+	// 发送连接错误
 	SendError(err error) error
 	// 发送连接成功
 	SendSuccess() error
+	// 获取流
+	Stream() net.Conn
 }
 
 // 客户端链接
@@ -34,7 +36,7 @@ type Client interface {
 	// 握手
 	Handshake() (err error)
 	// 连接目标
-	Connect() (err error)
+	Connect(network, address string) (err error)
 	// 获取流
 	Stream() net.Conn
 }
@@ -58,5 +60,5 @@ type Proto interface {
 	// 接受
 	Server(conn net.Conn, config config.Config) Server
 	// 请求
-	Client(conn net.Conn, info *ConnInfo, config config.Config) Client
+	Client(conn net.Conn, config config.Config) Client
 }

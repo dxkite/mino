@@ -2,6 +2,7 @@ package http
 
 import (
 	"bufio"
+	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/proto"
 	"dxkite.cn/mino/rewind"
@@ -38,7 +39,7 @@ type Server struct {
 const KeyMaxRewindSize = "http.max_rewind_size"
 
 // 握手
-func (conn *Server) Handshake() (err error) {
+func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 	r := rewind.NewRewindReaderSize(conn, conn.rwdSize)
 	req, er := http.ReadRequest(bufio.NewReader(r))
 	if er != nil {
@@ -49,19 +50,24 @@ func (conn *Server) Handshake() (err error) {
 	if req.Method != http.MethodConnect {
 		conn.r = r
 	}
+	username, password, _ := ParseProxyAuth(req)
+	if auth != nil {
+		if auth(&proto.AuthInfo{
+			Username:     username,
+			Password:     password,
+			RemoteAddr:   conn.RemoteAddr().String(),
+			HardwareAddr: nil,
+		}) {
+		} else {
+		}
+	}
 	return
 }
 
 // 获取链接信息
-func (conn *Server) Info() (info *proto.ConnInfo, err error) {
-	address := fmtHost(conn.req.URL.Scheme, conn.req.Host)
-	username, password, _ := ParseProxyAuth(conn.req)
-	return &proto.ConnInfo{
-		Network:  "tcp",
-		Address:  address,
-		Username: username,
-		Password: password,
-	}, nil
+func (conn *Server) Info() (network, address string, err error) {
+	address = fmtHost(conn.req.URL.Scheme, conn.req.Host)
+	return "tcp", address, nil
 }
 
 // 获取操作流
@@ -94,18 +100,19 @@ func (conn *Server) SendSuccess() error {
 
 type Client struct {
 	net.Conn
-	Info *proto.ConnInfo
+	Username string
+	Password string
 }
 
-func (d *Client) Handshake() (err error) {
+func (c *Client) Handshake() (err error) {
 	return
 }
 
-func (d *Client) Connect() (err error) {
-	if _, er := d.Write(createConnectRequest(d.Info.Address, d.Info.Username, d.Info.Password)); er != nil {
+func (c *Client) Connect(network, address string) (err error) {
+	if _, er := c.Write(createConnectRequest(address, c.Username, c.Password)); er != nil {
 		return er
 	}
-	if resp, er := http.ReadResponse(bufio.NewReader(d), nil); er != nil {
+	if resp, er := http.ReadResponse(bufio.NewReader(c), nil); er != nil {
 		return er
 	} else {
 		if resp.ContentLength > 0 {
@@ -120,8 +127,8 @@ func (d *Client) Connect() (err error) {
 }
 
 // 获取操作流
-func (d *Client) Stream() net.Conn {
-	return d
+func (c *Client) Stream() net.Conn {
+	return c
 }
 
 type Checker struct {
@@ -217,10 +224,11 @@ func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
 }
 
 // 创建HTTP请求器
-func (c *Protocol) Client(conn net.Conn, info *proto.ConnInfo, config config.Config) proto.Client {
+func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
 	return &Client{
-		Conn: conn,
-		Info: info,
+		Conn:     conn,
+		Username: config.String(mino.KeyUsername),
+		Password: config.String(mino.KeyPassword),
 	}
 }
 
