@@ -121,7 +121,9 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 		UpStream, _ = url.Parse(upstream)
 	}
 	if UpStream != nil {
-		rmt, rmtErr = net.Dial("tcp", UpStream.Host)
+		if rmt, rmtErr = net.Dial("tcp", UpStream.Host); rmtErr != nil {
+			return nil, rmtErr
+		}
 		if cl, ok := t.Manager.Get(UpStream.Scheme); ok {
 			cfg := t.Config
 			cfg.Set(KeyUsername, UpStream.User.Username())
@@ -136,10 +138,10 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 			}
 		}
 	} else {
-		rmt, rmtErr = net.Dial(network, address)
+		if rmt, rmtErr = net.Dial(network, address); rmtErr != nil {
+			return nil, rmtErr
+		}
 	}
-	if rmtErr != nil {
-		return nil, rmtErr
-	}
+
 	return rmt, nil
 }
