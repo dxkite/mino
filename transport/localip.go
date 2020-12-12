@@ -1,8 +1,10 @@
 package transport
 
 import (
+	"bytes"
 	"log"
 	"net"
+	"strings"
 )
 
 // 请求本机地址
@@ -16,7 +18,24 @@ func IsLoopbackAddr(addr string) bool {
 // 环回地址
 func IsLoopback(host string) bool {
 	if ip := net.ParseIP(host); ip != nil {
-		return ip.IsLoopback()
+		if ip.IsLoopback() {
+			return true
+		}
+		if its, _ := net.Interfaces(); its != nil {
+			for _, it := range its {
+				if ads, err := it.Addrs(); err == nil {
+					for _, addr := range ads {
+						addrMask := addr.String()
+						i := strings.Index(addrMask, "/")
+						if v := net.ParseIP(string([]byte(addrMask)[:i])); v != nil {
+							if bytes.Equal(ip, v) {
+								return true
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	if ips, err := net.LookupIP(host); err != nil {
 		log.Println("LookupIP", err)
