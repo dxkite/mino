@@ -59,6 +59,7 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 			HardwareAddr: nil,
 		}) {
 		} else {
+			_, _ = conn.Write([]byte("401 Unauthorized\r\nContent-Length: 0\r\n\r\n"))
 		}
 	}
 	return
@@ -85,7 +86,7 @@ func (conn *Server) Read(p []byte) (n int, err error) {
 
 // 发送错误
 func (conn *Server) SendError(err error) error {
-	_, we := conn.Write([]byte(fmt.Sprintf("406 Not Acceptable\r\nContent-Length: %d\r\n\r\n%v", len(err.Error()), err)))
+	_, we := conn.Write([]byte(fmt.Sprintf("406 Not Acceptable\r\nContent-Length: %d\r\n\r\n%s", len(err.Error()), err.Error())))
 	return we
 }
 
