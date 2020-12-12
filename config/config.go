@@ -1,8 +1,18 @@
 package config
 
-import "sync"
+import (
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"log"
+	"os"
+	"reflect"
+	"sync"
+)
 
 type Config interface {
+	Load(filename string) error
+	RequiredNotEmpty(name string)
+
 	Set(name string, val interface{})
 	Get(name string) (val interface{}, ok bool)
 
@@ -19,6 +29,25 @@ type config struct {
 
 func NewConfig() Config {
 	return &config{val: map[string]interface{}{}}
+}
+
+func (c *config) Load(filename string) error {
+	in, er := ioutil.ReadFile(filename)
+	if er != nil {
+		return er
+	}
+	if er := yaml.Unmarshal(in, &c.val); er != nil {
+		return er
+	}
+	return nil
+}
+
+func (c *config) RequiredNotEmpty(name string) {
+	v, _ := c.Get(name)
+	if v == nil || reflect.ValueOf(v).IsZero() {
+		log.Println("config", name, "can be empty")
+		os.Exit(1)
+	}
 }
 
 func (c *config) Set(name string, val interface{}) {

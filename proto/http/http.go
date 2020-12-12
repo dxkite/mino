@@ -36,7 +36,7 @@ type Server struct {
 	rwdSize int
 }
 
-const KeyMaxRewindSize = "http.max_rewind_size"
+const KeyMaxRewindSize = "http_max_rewind_size"
 
 // 握手
 func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
