@@ -1,10 +1,12 @@
 package config
 
 import (
+	"dxkite.cn/mino"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"reflect"
 	"sync"
 )
@@ -91,4 +93,8 @@ func (c *config) IntOrDefault(name string, val int) int {
 		}
 	}
 	return val
+}
+
+func GetPacFile(cfg Config) string {
+	return path.Join(cfg.StringOrDefault(mino.KeyDataPath, "."), "http.pac")
 }

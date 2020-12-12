@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path"
 	"strings"
 )
@@ -47,8 +48,12 @@ func WritePacFile(writer io.Writer, pacFile, proxy string) (int, error) {
 	return writer.Write([]byte(respond))
 }
 
-func AutoPac(config config.Config) {
-	AutoSetPac("http://"+fmtHost(config.String(mino.KeyAddress))+"/mino.pac?mino-pac=true", path.Join(config.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
+func AutoPac(cfg config.Config) {
+	if p := config.GetPacFile(cfg); FileExists(p) {
+		AutoSetPac("http://"+fmtHost(cfg.String(mino.KeyAddress))+"/mino.pac?mino-pac=true", path.Join(cfg.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
+	} else {
+		log.Println("pac file not found:", p)
+	}
 }
 
 func fmtHost(host string) string {
@@ -61,6 +66,17 @@ func fmtHost(host string) string {
 		return host
 	}
 	return "127.0.0.1" + host
+}
+
+func FileExists(name string) bool {
+	_, err := os.Stat(name)
+	if err == nil {
+		return true
+	}
+	if os.IsNotExist(err) {
+		return false
+	}
+	return false
 }
 
 func warnError(fun func() (err error)) {
