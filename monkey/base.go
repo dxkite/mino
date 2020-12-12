@@ -30,7 +30,13 @@ func (p *pacServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 func WritePacFile(writer io.Writer, pacFile, proxy string) (int, error) {
 	data, err := ioutil.ReadFile(pacFile)
 	if err != nil {
-		return 0, err
+		msg := fmt.Sprintf("read pac file error: %s %s", pacFile, err.Error())
+		var respond = "HTTP/1.1 404 Not Found\r\n"
+		respond += "Content-Type: text/plain\r\n"
+		respond += fmt.Sprintf("Content-Length: %d\r\n", len(msg))
+		respond += "\r\n"
+		respond += msg
+		return writer.Write([]byte(respond))
 	}
 	var respond = "HTTP/1.1 200 OK\r\n"
 	respond += "Content-Type: application/x-ns-proxy-autoconfig\r\n"
@@ -42,9 +48,19 @@ func WritePacFile(writer io.Writer, pacFile, proxy string) (int, error) {
 }
 
 func AutoPac(config config.Config) {
-	if pacPath := config.String(mino.KeyPacFile); len(pacPath) > 0 {
-		AutoSetPac("http://127.0.0.1/mino.pac?mino-pac=true", path.Join(config.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
+	AutoSetPac("http://"+fmtHost(config.String(mino.KeyAddress))+"/mino.pac?mino-pac=true", path.Join(config.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
+}
+
+func fmtHost(host string) string {
+	if host[0] == '[' {
+		if i := strings.Index(host, "]"); i > 0 {
+			return host
+		}
 	}
+	if i := strings.Index(host, ":"); i > 0 {
+		return host
+	}
+	return "127.0.0.1" + host
 }
 
 func warnError(fun func() (err error)) {

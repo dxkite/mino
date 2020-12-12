@@ -97,7 +97,8 @@ func (t *Transporter) conn(c net.Conn) {
 
 		if IsLoopbackAddr(address) {
 			dp := path.Join(t.Config.StringOrDefault(mino.KeyDataPath, "data"), "http.pac")
-			_, _ = monkey.WritePacFile(conn, t.Config.StringOrDefault(mino.KeyPacFile, dp), conn.LocalAddr().String())
+			_, _ = monkey.WritePacFile(svr, t.Config.StringOrDefault(mino.KeyPacFile, dp), conn.LocalAddr().String())
+			_ = svr.Close()
 			log.Println("return pac", network, address)
 			return
 		}
