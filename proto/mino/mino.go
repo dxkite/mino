@@ -38,7 +38,8 @@ type Server struct {
 func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 	cert, er := tls.LoadX509KeyPair(conn.CertFile, conn.KeyFile)
 	if er != nil {
-		return err
+		_ = conn.Close()
+		return er
 	}
 	conn.Conn = tls.Server(conn.Conn, &tls.Config{Certificates: []tls.Certificate{cert}})
 	if _, p, er := readPack(conn); er != nil {
@@ -179,12 +180,8 @@ const (
 func (d *Checker) Check(r io.Reader) (bool, error) {
 	// 读3个字节
 	buf := make([]byte, 3)
-	n, err := io.ReadFull(r, buf)
-	if err != nil {
+	if _, err := io.ReadFull(r, buf); err != nil {
 		return false, err
-	}
-	if n < 3 {
-		return false, nil
 	}
 	if buf[0] != TlsRecordTypeHandshake {
 		return false, nil
