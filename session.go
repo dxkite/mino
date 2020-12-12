@@ -39,6 +39,7 @@ func (s *Session) Transport() (up, down int64, err error) {
 		if up, _err = io.Copy(s.rmt, s.loc); _err != nil {
 			s.rwErr(_err)
 		}
+		_ = s.Close()
 		_closed <- struct{}{}
 	}()
 	go func() {
@@ -47,21 +48,21 @@ func (s *Session) Transport() (up, down int64, err error) {
 		if down, _err = io.Copy(s.loc, s.rmt); _err != nil {
 			s.rwErr(_err)
 		}
+		_ = s.Close()
 		_closed <- struct{}{}
 	}()
 	<-_closed
-	_ = s.Close()
 	err = s.err
 	return
 }
 
 func (s *Session) Close() error {
-	s.mtxClosed.Lock()
-	defer s.mtxClosed.Unlock()
 	if !s.closed {
+		s.mtxClosed.Lock()
+		s.closed = true
+		s.mtxClosed.Unlock()
 		_ = s.loc.Close()
 		_ = s.rmt.Close()
-		s.closed = true
 	}
 	return s.err
 }
