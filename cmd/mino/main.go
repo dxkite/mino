@@ -39,6 +39,7 @@ func main() {
 		var pacFile = flag.String("pac_file", "", "http pac file")
 		var webRoot = flag.String("web_root", "", "http web root")
 		var data = flag.String("data", ".", "data path")
+		var autoStart = flag.Bool("auto_start", false, "auto start")
 		flag.Parse()
 		cfg.Set(mino.KeyAddress, *addr)
 		cfg.Set(mino.KeyUpstream, *upstream)
@@ -49,6 +50,7 @@ func main() {
 		cfg.Set(mino.KeyDataPath, *data)
 		cfg.Set(mino.KeyMaxStreamRewind, *protoRewind)
 		cfg.Set(mino.KeyWebRoot, *webRoot)
+		cfg.Set(mino.KeyAutoStart, *autoStart)
 	}
 	cfg.RequiredNotEmpty(mino.KeyAddress)
 	transporter := transport.New(cfg)
@@ -61,6 +63,9 @@ func main() {
 	}
 	if len(cfg.String(mino.KeyPacFile)) > 0 {
 		go monkey.AutoPac(cfg)
+	}
+	if cfg.Bool(mino.KeyAutoStart) {
+		go monkey.AutoStart(os.Args[0])
 	}
 	if len(cfg.String(mino.KeyWebRoot)) > 0 {
 		go server.StartHttpServer(listener, cfg)

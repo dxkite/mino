@@ -20,8 +20,12 @@ type Config interface {
 
 	Int(name string) int
 	IntOrDefault(name string, val int) int
+
 	String(name string) string
 	StringOrDefault(name, val string) string
+
+	Bool(name string) bool
+	BoolOrDefault(name string, val bool) bool
 }
 
 type config struct {
@@ -89,6 +93,21 @@ func (c *config) IntOrDefault(name string, val int) int {
 	defer c.mtx.Unlock()
 	if _, ok := c.val[name]; ok {
 		if v, tok := c.val[name].(int); tok {
+			return v
+		}
+	}
+	return val
+}
+
+func (c *config) Bool(name string) bool {
+	return c.BoolOrDefault(name, false)
+}
+
+func (c *config) BoolOrDefault(name string, val bool) bool {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+	if _, ok := c.val[name]; ok {
+		if v, tok := c.val[name].(bool); tok {
 			return v
 		}
 	}
