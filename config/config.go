@@ -16,6 +16,8 @@ type Config interface {
 	RequiredNotEmpty(name string)
 
 	Set(name string, val interface{})
+	SetValueDefault(name string, val, defaultVal interface{})
+
 	Get(name string) (val interface{}, ok bool)
 
 	Int(name string) int
@@ -57,9 +59,27 @@ func (c *config) RequiredNotEmpty(name string) {
 }
 
 func (c *config) Set(name string, val interface{}) {
+	c.SetValueDefault(name, val, nil)
+}
+
+// 如果 val 为空，则设置 defaultVal
+// 如果 val != 已有的值 以 val 为主
+// 如果 defaultVal != 已有的val 以 已有的值为准
+func (c *config) SetValueDefault(name string, val, defaultVal interface{}) {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
-	c.val[name] = val
+
+	_, ok := c.val[name]
+	if reflect.ValueOf(val).IsZero() {
+		val = defaultVal
+	} else if ok && val != c.val[name] {
+		c.val[name] = val
+		return
+	}
+
+	if !ok && val != nil {
+		c.val[name] = val
+	}
 }
 
 func (c *config) Get(name string) (val interface{}, ok bool) {

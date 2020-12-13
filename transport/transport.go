@@ -66,10 +66,10 @@ func (l *listen_) Accept() (conn net.Conn, err error) {
 	for {
 		select {
 		case conn = <-l.t.acceptConn:
-			log.Println("accept new http conn", conn.RemoteAddr().String())
+			log.Println("accept web conn", conn.RemoteAddr().String())
 			return
 		case err = <-l.t.acceptErr:
-			log.Println("accept new http conn error", err)
+			log.Println("accept web conn error", err)
 			return
 		}
 	}
@@ -134,7 +134,6 @@ func (t *Transporter) conn(c net.Conn) {
 		log.Println("recv conn info error", err)
 	} else {
 		if IsRequestHttp(t.listen.Addr().String(), address) {
-			log.Println("accept web http", address)
 			t.acceptConn <- svr
 			return
 		}
@@ -151,6 +150,7 @@ func (t *Transporter) conn(c net.Conn) {
 
 		sess := NewSession(svr, rmt)
 		up, down, err := sess.Transport()
+
 		msg := fmt.Sprintf("transport %s %s via %s up %d down %d", network, address, p.Name(), up, down)
 		if err != nil {
 			msg += " error: " + err.Error()

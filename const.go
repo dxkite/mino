@@ -12,6 +12,8 @@ const (
 	KeyMaxStreamRewind = "max_stream_rewind"
 	KeyWebRoot         = "web_root"
 	KeyAutoStart       = "auto_start"
+	KeyLogFile         = "log_file"
+	KeyConfFile        = "conf_file"
 	KeyRootCa          = "tls_root_ca"
 	KeyCertFile        = "tls_cert_file"
 	KeyKeyFile         = "tls_key_file"

@@ -31,7 +31,9 @@ func StartHttpServer(listener net.Listener, cfg config.Config) {
 			_, _ = w.Write(b)
 		}
 	})
-	mux.Handle("/", http.FileServer(http.Dir(root)))
-	log.Println("start web server with root", root)
+	if len(cfg.String(mino.KeyWebRoot)) > 0 {
+		log.Println("start web server with root", root)
+		mux.Handle("/", http.FileServer(http.Dir(root)))
+	}
 	log.Println(http.Serve(listener, mux))
 }
