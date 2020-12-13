@@ -37,7 +37,7 @@ func main() {
 		var httpRewind = flag.Int("http_rewind", 2*1024, "http rewind cache size")
 		var protoRewind = flag.Int("proto_rewind", 8, "http rewind cache size")
 		var pacFile = flag.String("pac_file", "", "http pac file")
-		var webRoot = flag.String("web_root", "www", "http pac file")
+		var webRoot = flag.String("web_root", "", "http web root")
 		var data = flag.String("data", ".", "data path")
 		flag.Parse()
 		cfg.Set(mino.KeyAddress, *addr)
@@ -59,7 +59,11 @@ func main() {
 	} else {
 		listener = transporter.NetListener()
 	}
-	go monkey.AutoPac(cfg)
-	go server.StartHttpServer(listener, cfg)
+	if len(cfg.String(mino.KeyPacFile)) > 0 {
+		go monkey.AutoPac(cfg)
+	}
+	if len(cfg.String(mino.KeyWebRoot)) > 0 {
+		go server.StartHttpServer(listener, cfg)
+	}
 	log.Println("exit", transporter.Serve())
 }

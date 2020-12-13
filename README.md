@@ -49,8 +49,6 @@ mino
 ```
 
 - 默认配置名 `mino.yml`
-- 默认pac文件 `http.pac`
-
 
 指定配置文件：
 ```

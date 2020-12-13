@@ -18,7 +18,7 @@ func AutoPac(cfg config.Config) {
 	if p := config.GetPacFile(cfg); FileExists(p) {
 		AutoSetPac("http://"+fmtHost(cfg.String(mino.KeyAddress))+mino.PathMinoPac+"?mino-pac=true", path.Join(cfg.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
 	} else {
-		log.Println("pac file not found:", p)
+		log.Println("public pac error", p)
 	}
 }
 
