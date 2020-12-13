@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"dxkite.cn/mino/proto/http"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -134,16 +133,9 @@ func (t *Transporter) conn(c net.Conn) {
 	if network, address, err := svr.Info(); err != nil {
 		log.Println("recv conn info error", err)
 	} else {
-
-		if IsLoopbackAddr(address) {
-			web := svr.(*http.Server)
-			if er := web.Rewind(); er != nil {
-				log.Println("accept http error", er)
-				t.acceptErr <- er
-				return
-			}
+		if IsRequestHttp(t.listen.Addr().String(), address) {
 			log.Println("accept web http", address)
-			t.acceptConn <- web
+			t.acceptConn <- svr
 			return
 		}
 

@@ -49,6 +49,10 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 	conn.req = req
 	if req.Method != http.MethodConnect {
 		conn.r = r
+		// 不是CONNECT读完要重置
+		if er := r.Rewind(); er != nil {
+			return er
+		}
 	}
 	username, password, _ := ParseProxyAuth(req)
 	if auth != nil {

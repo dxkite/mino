@@ -7,9 +7,12 @@ import (
 )
 
 // 请求本机地址
-func IsLoopbackAddr(addr string) bool {
-	if host, _, err := net.SplitHostPort(addr); err == nil {
-		return IsLoopback(host)
+func IsRequestHttp(listen, addr string) bool {
+	_, at, _ := net.SplitHostPort(listen)
+	if host, port, err := net.SplitHostPort(addr); err == nil {
+		if IsLoopback(host) && port == at {
+			return true
+		}
 	}
 	return false
 }
