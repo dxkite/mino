@@ -153,13 +153,13 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = svr.SendError(rmtErr)
 			return
 		} else {
-			log.Println("connected", network, address, "via", p.Name())
+			log.Println("connected", network, address)
 			_ = svr.SendSuccess()
 		}
 
 		sess := NewSession(svr, rmt)
 		up, down, err := sess.Transport()
-		msg := fmt.Sprintf("transport %s %s up %d down %d", network, address, up, down)
+		msg := fmt.Sprintf("transport %s %s via %s up %d down %d", network, address, p.Name(), up, down)
 		if err != nil {
 			msg += " error: " + err.Error()
 		}

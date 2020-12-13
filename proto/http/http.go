@@ -67,11 +67,13 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 
 // 获取链接信息
 func (conn *Server) Info() (network, address string, err error) {
-	host := conn.req.URL.Host
-	if len(host) == 0 {
-		host = conn.req.Host
+	if conn.req.Method == http.MethodConnect {
+		address = conn.req.RequestURI
 	}
-	address = fmtHost(conn.req.URL.Scheme, host)
+	if len(address) == 0 {
+		address = conn.req.Host
+	}
+	address = fmtHost(conn.req.URL.Scheme, address)
 	return "tcp", address, nil
 }
 
