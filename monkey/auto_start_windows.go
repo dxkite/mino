@@ -6,11 +6,9 @@ import (
 	"golang.org/x/sys/windows/registry"
 	"log"
 	"os"
-	"strconv"
 )
 
 func AutoStart(cmd string) {
-	cmd = strconv.Quote(cmd)
 	k, err := registry.OpenKey(registry.CURRENT_USER, `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`, registry.ALL_ACCESS)
 	if err != nil {
 		log.Println(err)

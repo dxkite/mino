@@ -16,8 +16,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"strconv"
 )
-
 
 func main() {
 	fmt.Println("mino agent", "v"+mino.Version)
@@ -50,7 +50,7 @@ func main() {
 		} else {
 			log.SetOutput(io.MultiWriter(os.Stdout, f))
 			log.Println("log output", p)
-			defer func() {_ = f.Close()}()
+			defer func() { _ = f.Close() }()
 		}
 	}
 
@@ -95,7 +95,7 @@ func main() {
 	}
 
 	if cfg.Bool(mino.KeyAutoStart) {
-		go monkey.AutoStart(os.Args[0])
+		go monkey.AutoStart(strconv.Quote(os.Args[0]) + " start " + monkey.GetCmdString(os.Args[1:]))
 	}
 
 	listener := transporter.NetListener()
