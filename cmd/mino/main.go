@@ -17,10 +17,8 @@ import (
 	"os"
 )
 
-const Version = "0.1"
-
 func main() {
-	fmt.Println("mino agent", "v"+Version)
+	fmt.Println("mino agent", "v"+mino.Version)
 
 	cfg := config.NewConfig()
 	if len(os.Args) == 3 && os.Args[1] == "-c" {

@@ -1,5 +1,7 @@
 package mino
 
+const Version = "0.1.1"
+
 const (
 	KeyUsername        = "username"
 	KeyPassword        = "password"
