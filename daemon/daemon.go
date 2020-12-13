@@ -42,12 +42,6 @@ func start(pidPath string, args []string) {
 		log.Println("mino is running")
 		return
 	}
-
-	if !hasLog(args) {
-		args = append(args, "-log")
-		args = append(args, "output.log")
-	}
-
 	cmd := exec.Command(args[0], args[1:]...)
 	log.Println("run", cmd)
 	if err := cmd.Start(); err != nil {
@@ -61,13 +55,4 @@ func start(pidPath string, args []string) {
 	} else {
 		log.Println("start error")
 	}
-}
-
-func hasLog(args []string) bool {
-	for _, n := range args {
-		if n == "-log" {
-			return true
-		}
-	}
-	return false
 }

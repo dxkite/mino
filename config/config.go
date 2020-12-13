@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -137,4 +138,14 @@ func (c *config) BoolOrDefault(name string, val bool) bool {
 func GetPacFile(cfg Config) string {
 	d := path.Join(cfg.StringOrDefault(mino.KeyDataPath, "."), "http.pac")
 	return cfg.StringOrDefault(mino.KeyPacFile, d)
+}
+
+func AbsPath(root, name string) string {
+	if path.IsAbs(name) {
+		return name
+	}
+	if strings.Index(name, ":") > 0 {
+		return name
+	}
+	return path.Join(root, name)
 }

