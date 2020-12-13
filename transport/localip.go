@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"bytes"
 	"log"
 	"net"
 	"strings"
@@ -15,17 +14,18 @@ func IsLoopbackAddr(addr string) bool {
 	return false
 }
 
-var localIpAddr []net.IP
+var localIpAddr map[string]struct{}
 
 func init() {
+	localIpAddr = map[string]struct{}{}
 	if its, _ := net.Interfaces(); its != nil {
 		for _, it := range its {
 			if ads, err := it.Addrs(); err == nil {
 				for _, addr := range ads {
 					addrMask := addr.String()
 					i := strings.Index(addrMask, "/")
-					if v := net.ParseIP(string([]byte(addrMask)[:i])); v != nil {
-						localIpAddr = append(localIpAddr, v)
+					if v := net.ParseIP(addrMask[:i]); v != nil {
+						localIpAddr[string(v)] = struct{}{}
 					}
 				}
 			}
@@ -39,10 +39,8 @@ func IsLoopback(host string) bool {
 		if ip.IsLoopback() {
 			return true
 		}
-		for _, v := range localIpAddr {
-			if bytes.Equal(ip, v) {
-				return true
-			}
+		if _, ok := localIpAddr[string(ip)]; ok {
+			return true
 		}
 	}
 	if ips, err := net.LookupIP(host); err != nil {
