@@ -58,12 +58,19 @@ func init() {
 
 // 获取相对路径
 func GetRelativePath(name string) string {
+	return SearchPath(runtimeSearch, name)
+}
+
+// 获取相对路径
+func SearchPath(root []string, name string) string {
 	if len(name) == 0 {
 		return ""
 	}
-	for _, p := range runtimeSearch {
-		if pp := ConcatPath(p, name); Exists(pp) {
-			return pp
+	for _, p := range root {
+		if len(p) != 0 {
+			if pp := ConcatPath(p, name); Exists(pp) {
+				return pp
+			}
 		}
 	}
 	return name

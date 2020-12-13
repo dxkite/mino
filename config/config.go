@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sync"
 )
@@ -135,6 +136,15 @@ func (c *config) BoolOrDefault(name string, val bool) bool {
 }
 
 func GetPacFile(cfg Config) string {
-	defPac := util.GetRelativePath("mino.pac")
-	return cfg.StringOrDefault(mino.KeyPacFile, defPac)
+	return GetConfigFile(cfg, cfg.StringOrDefault(mino.KeyPacFile, "mino.pac"))
+}
+
+func GetConfigFile(cfg Config, name string) string {
+	paths := []string{filepath.Dir(cfg.String(mino.KeyConfFile)), util.GetRuntimePath(), util.GetBinaryPath()}
+	return util.SearchPath(paths, name)
+}
+
+func GetDataFile(cfg Config, name string) string {
+	paths := []string{filepath.Dir(cfg.String(mino.KeyDataPath)), util.GetRuntimePath(), util.GetBinaryPath()}
+	return util.SearchPath(paths, name)
 }

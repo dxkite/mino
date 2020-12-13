@@ -16,7 +16,7 @@ const ContentType = "application/x-ns-proxy-autoconfig"
 
 func AutoPac(cfg config.Config) {
 	if p := config.GetPacFile(cfg); util.Exists(p) {
-		AutoSetPac("http://"+fmtHost(cfg.String(mino.KeyAddress))+mino.PathMinoPac+"?mino-pac=true", path.Join(cfg.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
+		AutoSetPac("http://"+fmtHost(cfg.String(mino.KeyAddress))+mino.PathMinoPac+"?mino-pac=true", path.Join(util.GetBinaryPath(), "system.pac.bk"), "mino-pac=true")
 	} else {
 		log.Println("public pac error", p)
 	}
