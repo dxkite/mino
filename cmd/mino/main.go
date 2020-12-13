@@ -11,12 +11,13 @@ import (
 	_ "dxkite.cn/mino/proto/socks5"
 	"dxkite.cn/mino/server"
 	"dxkite.cn/mino/transport"
+	"dxkite.cn/mino/util"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"path"
+	"time"
 )
 
 func main() {
@@ -28,44 +29,60 @@ func main() {
 		}
 	}()
 
+	var confFile = flag.String("conf", "", "config file")
+	var addr = flag.String("addr", "", "listen addr")
+	var upstream = flag.String("upstream", "", "upstream")
+	var certFile = flag.String("cert_file", "", "tls cert file")
+	var keyFile = flag.String("key_file", "", "tls key file")
+	var httpRewind = flag.Int("http_rewind", 0, "http rewind cache size")
+	var protoRewind = flag.Int("proto_rewind", 0, "http rewind cache size")
+	var pacFile = flag.String("pac_file", "", "http pac file")
+	var webRoot = flag.String("web_root", "", "http web root")
+	var data = flag.String("data", "", "data path")
+	var autoStart = flag.Bool("auto_start", false, "auto start")
+	var logFile = flag.String("log", "", "log file")
+
+	flag.Parse()
 	cfg := config.NewConfig()
+
 	if len(os.Args) == 1 {
-		root := path.Dir(os.Args[0])
-		cfg.Set(mino.KeyConfFile, path.Join(root, "mino.yml"))
-		cfg.Set(mino.KeyLogFile, path.Join(root, "mino.log"))
+		cfg.Set(mino.KeyConfFile, util.ConcatPath(util.GetBinaryPath(), "mino.yml"))
+		cfg.Set(mino.KeyLogFile, util.ConcatPath(util.GetBinaryPath(), "mino.log"))
+		cfg.Set(mino.KeyPacFile, util.ConcatPath(util.GetBinaryPath(), "mino.pac"))
 	} else if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
-		daemon.Exec("mino.pid", os.Args)
+		daemon.Exec(util.ConcatPath(util.GetBinaryPath(), "mino.pid"), os.Args)
 		os.Exit(0)
 	} else {
-		var confFile = flag.String("conf", "", "config file")
-		var addr = flag.String("addr", "", "listen addr")
-		var upstream = flag.String("upstream", "", "upstream")
-		var certFile = flag.String("cert_file", "", "tls cert file")
-		var keyFile = flag.String("key_file", "", "tls key file")
-		var httpRewind = flag.Int("http_rewind", 0, "http rewind cache size")
-		var protoRewind = flag.Int("proto_rewind", 0, "http rewind cache size")
-		var pacFile = flag.String("pac_file", "", "http pac file")
-		var webRoot = flag.String("web_root", "", "http web root")
-		var data = flag.String("data", "", "data path")
-		var autoStart = flag.Bool("auto_start", false, "auto start")
-		var logFile = flag.String("log", "", "log file")
-		flag.Parse()
-		cfg.SetValueDefault(mino.KeyAddress, *addr, ":1080")
-		cfg.SetValueDefault(mino.KeyUpstream, *upstream, nil)
-		cfg.SetValueDefault(mino.KeyCertFile, *certFile, nil)
-		cfg.SetValueDefault(mino.KeyKeyFile, *keyFile, nil)
-		cfg.SetValueDefault(http.KeyMaxRewindSize, *httpRewind, 2*1024)
-		cfg.SetValueDefault(mino.KeyPacFile, *pacFile, nil)
-		cfg.SetValueDefault(mino.KeyDataPath, *data, nil)
-		cfg.SetValueDefault(mino.KeyMaxStreamRewind, *protoRewind, 255)
-		cfg.SetValueDefault(mino.KeyWebRoot, *webRoot, nil)
-		cfg.SetValueDefault(mino.KeyAutoStart, *autoStart, nil)
 		cfg.SetValueDefault(mino.KeyLogFile, *logFile, nil)
-		cfg.SetValueDefault(mino.KeyConfFile, *confFile, nil)
+		cfg.SetValueDefault(mino.KeyConfFile, util.GetRelativePath(*confFile), nil)
+		cfg.SetValueDefault(mino.KeyPacFile, *pacFile, nil)
 	}
 
+	log.Println("log file at", cfg.String(mino.KeyLogFile))
+	log.Println("config file at", cfg.String(mino.KeyConfFile))
+
+	if p := cfg.String(mino.KeyConfFile); len(p) > 0 {
+		if err := cfg.Load(p); err != nil {
+			log.Println("read config error", p, err)
+			time.Sleep(2 * time.Second)
+			os.Exit(1)
+		}
+	}
+
+	cfg.SetValueDefault(mino.KeyAddress, *addr, ":1080")
+	cfg.SetValueDefault(mino.KeyUpstream, *upstream, nil)
+	cfg.SetValueDefault(mino.KeyCertFile, util.GetRelativePath(*certFile), nil)
+	cfg.SetValueDefault(mino.KeyKeyFile, util.GetRelativePath(*keyFile), nil)
+	cfg.SetValueDefault(http.KeyMaxRewindSize, *httpRewind, 2*1024)
+	cfg.SetValueDefault(mino.KeyDataPath, *data, nil)
+	cfg.SetValueDefault(mino.KeyMaxStreamRewind, *protoRewind, 255)
+	cfg.SetValueDefault(mino.KeyWebRoot, *webRoot, nil)
+	cfg.SetValueDefault(mino.KeyAutoStart, *autoStart, nil)
+
+	// 写入日志文件
 	if p := cfg.String(mino.KeyLogFile); len(p) > 0 {
-		if f, err := os.OpenFile(p, os.O_CREATE|os.O_APPEND, os.ModePerm); err != nil {
+		pp := util.ConcatPath(util.GetRuntimePath(), p)
+		if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND, os.ModePerm); err != nil {
 			log.Println("open log file error", p)
 		} else {
 			log.SetOutput(io.MultiWriter(os.Stdout, f))
@@ -74,15 +91,7 @@ func main() {
 		}
 	}
 
-	if len(cfg.String(mino.KeyConfFile)) > 0 {
-		kcf := cfg.String(mino.KeyConfFile)
-		if err := cfg.Load(kcf); err != nil {
-			log.Fatalln("read config error", kcf, err)
-		}
-	}
-
 	cfg.RequiredNotEmpty(mino.KeyAddress)
-
 	transporter := transport.New(cfg)
 	transporter.InitChecker()
 
@@ -103,6 +112,5 @@ func main() {
 	}
 
 	go server.StartHttpServer(transporter.NetListener(), cfg)
-
 	log.Println("exit", transporter.Serve())
 }

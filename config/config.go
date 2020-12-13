@@ -2,13 +2,12 @@ package config
 
 import (
 	"dxkite.cn/mino"
+	"dxkite.cn/mino/util"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"reflect"
-	"strings"
 	"sync"
 )
 
@@ -136,16 +135,6 @@ func (c *config) BoolOrDefault(name string, val bool) bool {
 }
 
 func GetPacFile(cfg Config) string {
-	d := path.Join(cfg.StringOrDefault(mino.KeyDataPath, "."), "http.pac")
-	return cfg.StringOrDefault(mino.KeyPacFile, d)
-}
-
-func AbsPath(root, name string) string {
-	if path.IsAbs(name) {
-		return name
-	}
-	if strings.Index(name, ":") > 0 {
-		return name
-	}
-	return path.Join(root, name)
+	defPac := util.GetRelativePath("mino.pac")
+	return cfg.StringOrDefault(mino.KeyPacFile, defPac)
 }

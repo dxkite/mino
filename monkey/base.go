@@ -3,11 +3,11 @@ package monkey
 import (
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
+	"dxkite.cn/mino/util"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 	"path"
 	"strings"
 )
@@ -15,7 +15,7 @@ import (
 const ContentType = "application/x-ns-proxy-autoconfig"
 
 func AutoPac(cfg config.Config) {
-	if p := config.GetPacFile(cfg); FileExists(p) {
+	if p := config.GetPacFile(cfg); util.Exists(p) {
 		AutoSetPac("http://"+fmtHost(cfg.String(mino.KeyAddress))+mino.PathMinoPac+"?mino-pac=true", path.Join(cfg.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
 	} else {
 		log.Println("public pac error", p)
@@ -31,7 +31,7 @@ type pacServer struct {
 }
 
 func (ps *pacServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if p := config.GetPacFile(ps.cfg); FileExists(p) {
+	if p := config.GetPacFile(ps.cfg); util.Exists(p) {
 		w.Header().Add("ContentType", ContentType)
 		_, _ = ps.WritePacFile(w, p, "SOCKS5 "+fmtHost(ps.cfg.String(mino.KeyAddress)))
 	} else {
@@ -60,17 +60,6 @@ func fmtHost(host string) string {
 		return host
 	}
 	return "127.0.0.1" + host
-}
-
-func FileExists(name string) bool {
-	_, err := os.Stat(name)
-	if err == nil {
-		return true
-	}
-	if os.IsNotExist(err) {
-		return false
-	}
-	return false
 }
 
 func warnError(fun func() (err error)) {
