@@ -94,7 +94,7 @@ func (t *Transporter) conn(c net.Conn) {
 	} else {
 
 		if IsLoopbackAddr(address) {
-			_, _ = monkey.WritePacFile(svr, config.GetPacFile(t.Config), conn.LocalAddr().String())
+			_, _ = monkey.WritePacFile(svr, config.GetPacFile(t.Config), "SOCKS5 "+conn.LocalAddr().String())
 			_ = svr.Close()
 			log.Println("write pac ->", network, address)
 			return

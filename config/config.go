@@ -96,5 +96,6 @@ func (c *config) IntOrDefault(name string, val int) int {
 }
 
 func GetPacFile(cfg Config) string {
-	return path.Join(cfg.StringOrDefault(mino.KeyDataPath, "."), "http.pac")
+	d := path.Join(cfg.StringOrDefault(mino.KeyDataPath, "."), "http.pac")
+	return cfg.StringOrDefault(mino.KeyPacFile, d)
 }

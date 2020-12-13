@@ -41,7 +41,7 @@ func WritePacFile(writer io.Writer, pacFile, proxy string) (int, error) {
 	}
 	var respond = "HTTP/1.1 200 OK\r\n"
 	respond += "Content-Type: application/x-ns-proxy-autoconfig\r\n"
-	pacTxt := strings.Replace(string(data), "__PROXY__", "PROXY "+proxy, -1)
+	pacTxt := strings.Replace(string(data), "__PROXY__", proxy, -1)
 	respond += fmt.Sprintf("Content-Length: %d\r\n", len(pacTxt))
 	respond += "\r\n"
 	respond += pacTxt
