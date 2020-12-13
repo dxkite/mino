@@ -23,11 +23,11 @@ func main() {
 	cfg := config.NewConfig()
 	if len(os.Args) == 3 && os.Args[1] == "-c" {
 		if err := cfg.Load(os.Args[2]); err != nil {
-			log.Println("read config error", os.Args[2], err)
+			log.Fatalln("read config error", os.Args[2], err)
 		}
 	} else if len(os.Args) == 1 {
 		if err := cfg.Load("mino.yml"); err != nil {
-			log.Println("read mino.yml error", err)
+			log.Fatalln("read mino.yml error", err)
 		}
 	} else {
 		var addr = flag.String("addr", ":1080", "listen addr")
@@ -55,7 +55,7 @@ func main() {
 	transporter.InitChecker()
 	var listener net.Listener
 	if err := transporter.Listen(); err != nil {
-		log.Println("listen port error")
+		log.Fatalln("listen port error")
 	} else {
 		listener = transporter.NetListener()
 	}
