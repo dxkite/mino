@@ -13,3 +13,5 @@ const (
 	KeyCertFile        = "tls_cert_file"
 	KeyKeyFile         = "tls_key_file"
 )
+
+const PathMinoPac = "/mino.pac"

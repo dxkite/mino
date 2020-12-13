@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"dxkite.cn/mino/proto/http"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -11,39 +12,80 @@ import (
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/proto"
 	"dxkite.cn/mino/rewind"
 )
 
 // 传输工具
 type Transporter struct {
-	Manager  *proto.Manager
-	check    map[string]proto.Checker
-	Config   config.Config
-	AuthFunc proto.BasicAuthFunc
+	Manager    *proto.Manager
+	check      map[string]proto.Checker
+	Config     config.Config
+	AuthFunc   proto.BasicAuthFunc
+	acceptConn chan net.Conn
+	acceptErr  chan error
+	listen     net.Listener
 }
 
 func New(config config.Config) (t *Transporter) {
-	t = &Transporter{Config: config, check: map[string]proto.Checker{}}
+	t = &Transporter{
+		Config:     config,
+		check:      map[string]proto.Checker{},
+		acceptConn: make(chan net.Conn),
+		acceptErr:  make(chan error),
+	}
 	return t
 }
 
-func (t *Transporter) Serve() error {
+func (t *Transporter) Listen() error {
 	listen, err := net.Listen("tcp", t.Config.String(mino.KeyAddress))
 	if err != nil {
 		return err
 	} else {
 		log.Println("create proxy at", listen.Addr())
 	}
+	t.listen = listen
+	return nil
+}
+
+func (t *Transporter) Serve() error {
 	for {
-		c, err := listen.Accept()
+		c, err := t.listen.Accept()
 		if err != nil {
 			log.Println("accept error", err)
 			continue
 		}
 		go t.conn(c)
 	}
+}
+
+type listen_ struct {
+	t *Transporter
+}
+
+func (l *listen_) Accept() (conn net.Conn, err error) {
+	for {
+		select {
+		case conn = <-l.t.acceptConn:
+			log.Println("accept new http conn", conn.RemoteAddr().String())
+			return
+		case err = <-l.t.acceptErr:
+			log.Println("accept new http conn error", err)
+			return
+		}
+	}
+}
+
+func (l *listen_) Close() error {
+	return nil
+}
+
+func (l *listen_) Addr() net.Addr {
+	return l.t.listen.Addr()
+}
+
+func (t *Transporter) NetListener() net.Listener {
+	return &listen_{t: t}
 }
 
 func (t *Transporter) InitChecker() {
@@ -94,9 +136,14 @@ func (t *Transporter) conn(c net.Conn) {
 	} else {
 
 		if IsLoopbackAddr(address) {
-			_, _ = monkey.WritePacFile(svr, config.GetPacFile(t.Config), "SOCKS5 "+conn.LocalAddr().String())
-			_ = svr.Close()
-			log.Println("write pac ->", network, address)
+			web := svr.(*http.Server)
+			if er := web.Rewind(); er != nil {
+				log.Println("accept http error", er)
+				t.acceptErr <- er
+				return
+			}
+			log.Println("accept web http", address)
+			t.acceptConn <- web
 			return
 		}
 

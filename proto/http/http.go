@@ -83,6 +83,14 @@ func (conn *Server) Read(p []byte) (n int, err error) {
 	return conn.Conn.Read(p)
 }
 
+// 重置连接
+func (conn *Server) Rewind() error {
+	if conn.r != nil {
+		return conn.r.Rewind()
+	}
+	return nil
+}
+
 // 发送错误
 func (conn *Server) SendError(err error) error {
 	_, we := conn.Write([]byte(fmt.Sprintf("406 Not Acceptable\r\nContent-Length: %d\r\n\r\n%s", len(err.Error()), err.Error())))

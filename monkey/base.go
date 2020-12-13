@@ -3,7 +3,6 @@ package monkey
 import (
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -13,47 +12,42 @@ import (
 	"strings"
 )
 
-type pacServer struct {
-	file string
-	uri  string
-}
-
 const ContentType = "application/x-ns-proxy-autoconfig"
 
-func (p *pacServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	w.Header().Add("ContentType", ContentType)
-	if _, err := WritePacFile(w, p.file, p.uri); err != nil {
-		log.Fatal("pac respond error")
+func AutoPac(cfg config.Config) {
+	if p := config.GetPacFile(cfg); FileExists(p) {
+		AutoSetPac("http://"+fmtHost(cfg.String(mino.KeyAddress))+mino.PathMinoPac+"?mino-pac=true", path.Join(cfg.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
+	} else {
+		log.Println("pac file not found:", p)
+	}
+}
+
+func NewPacServer(cfg config.Config) http.Handler {
+	return &pacServer{cfg}
+}
+
+type pacServer struct {
+	cfg config.Config
+}
+
+func (ps *pacServer) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if p := config.GetPacFile(ps.cfg); FileExists(p) {
+		w.Header().Add("ContentType", ContentType)
+		_, _ = ps.WritePacFile(w, p, "SOCKS5 "+fmtHost(ps.cfg.String(mino.KeyAddress)))
+	} else {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("pac file not exists"))
 	}
 }
 
 // 保存PAC文件
-func WritePacFile(writer io.Writer, pacFile, proxy string) (int, error) {
+func (p *pacServer) WritePacFile(writer io.Writer, pacFile, proxy string) (int, error) {
 	data, err := ioutil.ReadFile(pacFile)
 	if err != nil {
-		msg := fmt.Sprintf("read pac file error: %s %s", pacFile, err.Error())
-		var respond = "HTTP/1.1 404 Not Found\r\n"
-		respond += "Content-Type: text/plain\r\n"
-		respond += fmt.Sprintf("Content-Length: %d\r\n", len(msg))
-		respond += "\r\n"
-		respond += msg
-		return writer.Write([]byte(respond))
+		return 0, err
 	}
-	var respond = "HTTP/1.1 200 OK\r\n"
-	respond += "Content-Type: application/x-ns-proxy-autoconfig\r\n"
 	pacTxt := strings.Replace(string(data), "__PROXY__", proxy, -1)
-	respond += fmt.Sprintf("Content-Length: %d\r\n", len(pacTxt))
-	respond += "\r\n"
-	respond += pacTxt
-	return writer.Write([]byte(respond))
-}
-
-func AutoPac(cfg config.Config) {
-	if p := config.GetPacFile(cfg); FileExists(p) {
-		AutoSetPac("http://"+fmtHost(cfg.String(mino.KeyAddress))+"/mino.pac?mino-pac=true", path.Join(cfg.StringOrDefault(mino.KeyDataPath, "data"), "system-pac.bk"), "mino-pac=true")
-	} else {
-		log.Println("pac file not found:", p)
-	}
+	return writer.Write([]byte(pacTxt))
 }
 
 func fmtHost(host string) string {

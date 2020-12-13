@@ -8,10 +8,12 @@ import (
 	_ "dxkite.cn/mino/proto/http"
 	_ "dxkite.cn/mino/proto/mino"
 	_ "dxkite.cn/mino/proto/socks5"
+	"dxkite.cn/mino/server"
 	"dxkite.cn/mino/transport"
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 )
 
@@ -51,8 +53,15 @@ func main() {
 		cfg.Set(mino.KeyWebRoot, *webRoot)
 	}
 	cfg.RequiredNotEmpty(mino.KeyAddress)
+	transporter := transport.New(cfg)
+	transporter.InitChecker()
+	var listener net.Listener
+	if err := transporter.Listen(); err != nil {
+		log.Println("listen port error")
+	} else {
+		listener = transporter.NetListener()
+	}
 	go monkey.AutoPac(cfg)
-	tra := transport.New(cfg)
-	tra.InitChecker()
-	log.Println("exit", tra.Serve())
+	go server.StartHttpServer(listener, cfg)
+	log.Println("exit", transporter.Serve())
 }
