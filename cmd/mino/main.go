@@ -112,5 +112,10 @@ func main() {
 	}
 
 	go server.StartHttpServer(transporter.NetListener(), cfg)
+
+	if err := mino.Notification("Mino Agent", "Mino启动成功", "现在可以愉快的访问互联网了~"); err != nil {
+		log.Println("notification error", err)
+	}
+
 	log.Println("exit", transporter.Serve())
 }

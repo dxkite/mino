@@ -13,7 +13,7 @@ import (
 func StartHttpServer(listener net.Listener, cfg config.Config) {
 	mux := http.NewServeMux()
 	mux.Handle(mino.PathMinoPac, monkey.NewPacServer(cfg))
-	root := cfg.StringOrDefault(mino.KeyWebRoot, "www")
+	root := config.GetConfigFile(cfg, cfg.StringOrDefault(mino.KeyWebRoot, "www"))
 	mux.HandleFunc("/version", func(w http.ResponseWriter, req *http.Request) {
 		v := map[string]interface{}{
 			"name":    "Mino Agent",
