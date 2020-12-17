@@ -1,6 +1,6 @@
 // +build windows
 
-package mino
+package notification
 
 import (
 	"bytes"

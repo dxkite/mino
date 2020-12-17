@@ -5,6 +5,7 @@ import (
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/daemon"
 	"dxkite.cn/mino/monkey"
+	"dxkite.cn/mino/notification"
 	"dxkite.cn/mino/proto/http"
 	_ "dxkite.cn/mino/proto/http"
 	_ "dxkite.cn/mino/proto/mino"
@@ -113,7 +114,7 @@ func main() {
 
 	go server.StartHttpServer(transporter.NetListener(), cfg)
 
-	if err := mino.Notification("Mino Agent", "Mino启动成功", "现在可以愉快的访问互联网了~"); err != nil {
+	if err := notification.Notification("Mino Agent", "Mino启动成功", "现在可以愉快的访问互联网了~"); err != nil {
 		log.Println("notification error", err)
 	}
 
