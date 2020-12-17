@@ -14,7 +14,6 @@ import (
 	"dxkite.cn/mino/transport"
 	"dxkite.cn/mino/util"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -22,7 +21,8 @@ import (
 )
 
 func main() {
-	fmt.Println("mino agent", "v"+mino.Version)
+
+	log.Println("Mino Agent", "v"+mino.Version)
 
 	defer func() {
 		if r := recover(); r != nil {
