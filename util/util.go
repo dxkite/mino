@@ -1,6 +1,9 @@
 package util
 
 import (
+	"archive/zip"
+	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -74,4 +77,50 @@ func SearchPath(root []string, name string) string {
 		}
 	}
 	return name
+}
+
+// 解压文件到文件夹
+func Unzip(filename, output string) error {
+	s, ser := os.Open(filename)
+	if ser != nil {
+		return ser
+	}
+	f, err := zip.OpenReader(s.Name())
+	if err != nil {
+		return err
+	}
+	defer func() { _ = f.Close() }()
+	for _, file := range f.File {
+		outName := path.Join(output, file.Name)
+		info := file.FileInfo()
+		if info.IsDir() {
+			if err = os.MkdirAll(outName, os.ModePerm); err != nil {
+				log.Println("error make all", file.Name)
+			}
+		} else {
+			if Exists(outName) {
+				bkName := outName + ".bak"
+				if err := os.Rename(outName, bkName); err != nil {
+					log.Println("exist file", file.Name, "=>", bkName, err)
+					// ignore file overwrite when error
+					continue
+				}
+				log.Println("exist file", file.Name, "=>", bkName)
+			}
+			src, err := file.Open()
+			if err != nil {
+				log.Println("read zip file error", err.Error())
+				continue
+			}
+			defer func() { _ = src.Close() }()
+			dst, err := os.Create(outName)
+			if err != nil {
+				log.Println("write zip file error: open error:", err.Error())
+				continue
+			}
+			_, _ = io.Copy(dst, src)
+			_ = dst.Close()
+		}
+	}
+	return nil
 }
