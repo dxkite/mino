@@ -78,6 +78,14 @@ func GetMachineId() string {
 	return machineId
 }
 
+// 检查机器白名单
+func CheckMachineId(id string) bool {
+	if len(id) == 0 {
+		return true
+	}
+	return machineId == id
+}
+
 // 获取网卡地址
 func GetHardwareAddr() []net.HardwareAddr {
 	return hardwareAddr

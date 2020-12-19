@@ -1,7 +1,7 @@
 package mino
 
 // 版本号
-const Version = "0.1.1"
+const Version = "0.1.2"
 
 // 默认自动更新网址
 const Upload = ""

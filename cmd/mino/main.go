@@ -24,6 +24,12 @@ func main() {
 
 	log.Println("Mino Agent", "v"+mino.Version)
 
+	if !util.CheckMachineId(mino.MachineId) {
+		if err := notification.Notification("Mino Agent", "Mino启动失败", "当前机器非白名单机器"); err != nil {
+			log.Println("notification error", err)
+		}
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("panic error", r)
