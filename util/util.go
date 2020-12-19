@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -124,4 +125,44 @@ func Unzip(filename, output, backup string) error {
 		}
 	}
 	return nil
+}
+
+var vvMap = map[string]int{
+	"alpha":   1,
+	"beta":    2,
+	"release": 3,
+}
+
+// version format
+// major.min.patch.count-tag
+// major.min.patch.count[-alpha,beta,gamma]
+func VersionCompare(ver1, ver2 string) int {
+	ver1 = strings.ToLower(ver1)
+	ver2 = strings.ToLower(ver2)
+	v1 := strings.Split(ver1, "-")
+	v2 := strings.Split(ver2, "-")
+	num1 := strings.Split(v1[0], ".")
+	num2 := strings.Split(v2[0], ".")
+	for i, c := range num1 {
+		n1, _ := strconv.Atoi(c)
+		if len(num2) >= (i + 1) {
+			n2, _ := strconv.Atoi(num2[i])
+			if n1 != n2 {
+				return n1 - n2
+			}
+		} else {
+			return 1
+		}
+	}
+	l1 := len(v1)
+	l2 := len(v2)
+	// 都有 tag
+	if l1 == l2 && l1 == 2 {
+		vv1, _ := vvMap[v1[1]]
+		vv2, _ := vvMap[v2[1]]
+		return vv1 - vv2
+	} else {
+		// 有tag要小
+		return l2 - l1
+	}
 }
