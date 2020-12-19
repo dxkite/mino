@@ -112,6 +112,10 @@ func main() {
 		go monkey.AutoStart(os.Args[0])
 	}
 
+	if cfg.BoolOrDefault(mino.KeyAutoUpdate, true) {
+		go monkey.AutoUpdate(cfg)
+	}
+
 	go server.StartHttpServer(transporter.NetListener(), cfg)
 
 	if err := notification.Notification("Mino Agent", "Mino启动成功", "现在可以愉快的访问互联网了~"); err != nil {

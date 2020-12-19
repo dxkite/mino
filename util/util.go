@@ -2,8 +2,10 @@ package util
 
 import (
 	"archive/zip"
+	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"path"
@@ -81,7 +83,7 @@ func SearchPath(root []string, name string) string {
 }
 
 // 解压文件到文件夹
-func Unzip(filename, output, backup string) error {
+func Unzip(filename, output, backup string, overwrite map[string]string) error {
 	s, ser := os.Open(filename)
 	if ser != nil {
 		return ser
@@ -92,7 +94,14 @@ func Unzip(filename, output, backup string) error {
 	}
 	defer func() { _ = f.Close() }()
 	for _, file := range f.File {
-		outName := path.Join(output, file.Name)
+		var outName string
+
+		if v, ok := overwrite[file.Name]; ok {
+			outName = path.Join(output, v)
+		} else {
+			outName = path.Join(output, file.Name)
+		}
+
 		info := file.FileInfo()
 		if info.IsDir() {
 			if err = os.MkdirAll(outName, os.ModePerm); err != nil {
@@ -165,4 +174,15 @@ func VersionCompare(ver1, ver2 string) int {
 		// 有tag要小
 		return l2 - l1
 	}
+}
+
+// 获取绝对地址
+func GetAbsUrl(r, u string) string {
+	if strings.Index(u, "://") > 0 {
+		return u
+	}
+	if uu, err := url.Parse(r); err == nil {
+		return fmt.Sprintf("%s://%s%s", uu.Scheme, uu.Host, u)
+	}
+	return u
 }

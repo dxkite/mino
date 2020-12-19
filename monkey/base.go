@@ -67,13 +67,3 @@ func warnError(fun func() (err error)) {
 		log.Println(err)
 	}
 }
-
-func GetCmdString(args []string) string {
-	arg := []string{}
-	for _, n := range args {
-		if n != "-auto_start" {
-			arg = append(arg, n)
-		}
-	}
-	return strings.Join(arg, " ")
-}

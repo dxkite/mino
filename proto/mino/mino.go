@@ -6,6 +6,7 @@ import (
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/proto"
+	"dxkite.cn/mino/util"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -139,7 +140,7 @@ func (conn *Client) Connect(network, address string) (err error) {
 	m.Address = address
 	m.Username = conn.Username
 	m.Password = conn.Password
-	m.MacAddress = getHardwareAddr()
+	m.MacAddress = util.GetHardwareAddr()
 	if er := writePack(conn, msgRequest, m.marshal()); er != nil {
 		return er
 	}
@@ -216,19 +217,6 @@ func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
 
 func (c *Protocol) Checker(config config.Config) proto.Checker {
 	return &Checker{}
-}
-
-// 获取Mac地址
-func getHardwareAddr() []net.HardwareAddr {
-	h := []net.HardwareAddr{}
-	if its, _ := net.Interfaces(); its != nil {
-		for _, it := range its {
-			if it.Flags&net.FlagLoopback == 0 {
-				h = append(h, it.HardwareAddr)
-			}
-		}
-	}
-	return h
 }
 
 // 写入包

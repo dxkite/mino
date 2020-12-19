@@ -1,12 +1,15 @@
-package transport
+package util
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"log"
 	"net"
+	"sort"
 	"strings"
 )
 
-// 请求本机地址
+// 判断是否是本机IP
 func IsRequestHttp(listen, addr string) bool {
 	_, at, _ := net.SplitHostPort(listen)
 	if host, port, err := net.SplitHostPort(addr); err == nil {
@@ -18,11 +21,18 @@ func IsRequestHttp(listen, addr string) bool {
 }
 
 var localIpAddr map[string]struct{}
+var machineId = ""
+var hardwareAddr []net.HardwareAddr
 
 func init() {
 	localIpAddr = map[string]struct{}{}
+	machineMacs := []string{}
 	if its, _ := net.Interfaces(); its != nil {
 		for _, it := range its {
+			machineMacs = append(machineMacs, string(it.HardwareAddr))
+			if it.Flags&net.FlagLoopback == 0 {
+				hardwareAddr = append(hardwareAddr, it.HardwareAddr)
+			}
 			if ads, err := it.Addrs(); err == nil {
 				for _, addr := range ads {
 					addrMask := addr.String()
@@ -34,6 +44,11 @@ func init() {
 			}
 		}
 	}
+
+	sort.Strings(machineMacs)
+	h := md5.New()
+	h.Write([]byte(strings.Join(machineMacs, "")))
+	machineId = hex.EncodeToString(h.Sum(nil))
 }
 
 // 环回地址
@@ -56,4 +71,14 @@ func IsLoopback(host string) bool {
 		}
 	}
 	return false
+}
+
+// 获取机械码
+func GetMachineId() string {
+	return machineId
+}
+
+// 获取网卡地址
+func GetHardwareAddr() []net.HardwareAddr {
+	return hardwareAddr
 }

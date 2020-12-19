@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"dxkite.cn/mino/util"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -133,7 +134,7 @@ func (t *Transporter) conn(c net.Conn) {
 	if network, address, err := svr.Info(); err != nil {
 		log.Println("recv conn info error", err)
 	} else {
-		if IsRequestHttp(t.listen.Addr().String(), address) {
+		if util.IsRequestHttp(t.listen.Addr().String(), address) {
 			t.acceptConn <- svr
 			return
 		}
