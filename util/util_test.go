@@ -6,5 +6,5 @@ import (
 )
 
 func TestUnzip(t *testing.T) {
-	fmt.Println(Unzip("testdata/mino-windows.zip", "testdata"))
+	fmt.Println(Unzip("testdata/mino-windows.zip", "testdata", "testdata/backup"))
 }

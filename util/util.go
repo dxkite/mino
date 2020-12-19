@@ -80,7 +80,7 @@ func SearchPath(root []string, name string) string {
 }
 
 // 解压文件到文件夹
-func Unzip(filename, output string) error {
+func Unzip(filename, output, backup string) error {
 	s, ser := os.Open(filename)
 	if ser != nil {
 		return ser
@@ -99,7 +99,8 @@ func Unzip(filename, output string) error {
 			}
 		} else {
 			if Exists(outName) {
-				bkName := outName + ".bak"
+				bkName := path.Join(backup, file.Name) + ".bak"
+				_ = os.MkdirAll(filepath.Dir(bkName), os.ModePerm)
 				if err := os.Rename(outName, bkName); err != nil {
 					log.Println("exist file", file.Name, "=>", bkName, err)
 					// ignore file overwrite when error
