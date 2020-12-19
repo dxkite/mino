@@ -17,17 +17,21 @@ import (
 	"io"
 	"log"
 	"os"
-	"time"
 )
+
+func errMsg(msg string) {
+	if err := notification.Notification("Mino Agent", "Mino启动失败", msg); err != nil {
+		log.Println("notification error", err)
+	}
+}
 
 func main() {
 
 	log.Println("Mino Agent", "v"+mino.Version)
 
 	if !util.CheckMachineId(mino.MachineId) {
-		if err := notification.Notification("Mino Agent", "Mino启动失败", "当前机器非白名单机器"); err != nil {
-			log.Println("notification error", err)
-		}
+		errMsg("当前机器非白名单机器")
+		return
 	}
 
 	defer func() {
@@ -71,7 +75,7 @@ func main() {
 	if p := cfg.String(mino.KeyConfFile); len(p) > 0 {
 		if err := cfg.Load(p); err != nil {
 			log.Println("read config error", p, err)
-			time.Sleep(2 * time.Second)
+			errMsg("配置文件读取失败：" + p)
 			os.Exit(1)
 		}
 	}
@@ -103,6 +107,7 @@ func main() {
 	transporter.InitChecker()
 
 	if err := transporter.Listen(); err != nil {
+		errMsg("网络端口被占用")
 		log.Fatalln("listen port error")
 	}
 
