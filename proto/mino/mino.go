@@ -200,8 +200,8 @@ func (c *Protocol) Name() string {
 func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
 	return &Server{
 		Conn:     conn,
-		CertFile: config.String(mino.KeyCertFile),
-		KeyFile:  config.String(mino.KeyKeyFile),
+		CertFile: util.GetRelativePath(config.String(mino.KeyCertFile)),
+		KeyFile:  util.GetRelativePath(config.String(mino.KeyKeyFile)),
 	}
 }
 
@@ -211,7 +211,7 @@ func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
 		Conn:     conn,
 		Username: config.String(mino.KeyUsername),
 		Password: config.String(mino.KeyPassword),
-		RootCa:   config.String(mino.KeyRootCa),
+		RootCa:   util.GetRelativePath(config.String(mino.KeyRootCa)),
 	}
 }
 

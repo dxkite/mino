@@ -86,7 +86,7 @@ func DownloadZip(url string, ui *mino.UpdateInfo) (string, error) {
 
 // 自动更新
 func AutoUpdate(cfg config.Config) {
-	log.Println("checking update")
+	log.Println("check update")
 	fro, ui := GetUpdateInfo(cfg)
 	if ui != nil {
 		dl := util.GetAbsUrl(fro, ui.DownloadUrl)
@@ -110,5 +110,7 @@ func AutoUpdate(cfg config.Config) {
 				log.Println("notification error", err)
 			}
 		}
+	} else {
+		log.Println("update not found")
 	}
 }

@@ -22,6 +22,7 @@ func StartHttpServer(listener net.Listener, cfg config.Config) {
 		os := req.Header.Get("Mino-OS")
 		arch := req.Header.Get("Mino-Arch")
 		ver := cfg.StringOrDefault(mino.KeyLatestVersion, mino.Version)
+
 		if len(os) == 0 {
 			os = runtime.GOOS
 		}

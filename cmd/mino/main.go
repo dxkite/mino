@@ -57,9 +57,9 @@ func main() {
 	cfg := config.NewConfig()
 
 	if len(os.Args) == 1 {
-		cfg.Set(mino.KeyConfFile, util.ConcatPath(util.GetBinaryPath(), "mino.yml"))
-		cfg.Set(mino.KeyLogFile, util.ConcatPath(util.GetBinaryPath(), "mino.log"))
-		cfg.Set(mino.KeyPacFile, util.ConcatPath(util.GetBinaryPath(), "mino.pac"))
+		cfg.Set(mino.KeyConfFile, util.GetRelativePath("mino.yml"))
+		cfg.Set(mino.KeyLogFile, util.GetRelativePath("mino.log"))
+		cfg.Set(mino.KeyPacFile, util.GetRelativePath("mino.pac"))
 	} else if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
 		daemon.Exec(util.ConcatPath(util.GetBinaryPath(), "mino.pid"), os.Args)
 		os.Exit(0)

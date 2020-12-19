@@ -152,19 +152,29 @@ func VersionCompare(ver1, ver2 string) int {
 	v2 := strings.Split(ver2, "-")
 	num1 := strings.Split(v1[0], ".")
 	num2 := strings.Split(v2[0], ".")
+
+	ln1 := len(num1)
+	ln2 := len(num2)
+
 	for i, c := range num1 {
 		n1, _ := strconv.Atoi(c)
-		if len(num2) >= (i + 1) {
+		if ln2 >= (i + 1) {
 			n2, _ := strconv.Atoi(num2[i])
 			if n1 != n2 {
 				return n1 - n2
 			}
 		} else {
-			return 1
+			return ln1 - ln2
 		}
 	}
+
+	if ln2 != ln1 {
+		return ln1 - ln2
+	}
+
 	l1 := len(v1)
 	l2 := len(v2)
+
 	// 都有 tag
 	if l1 == l2 && l1 == 2 {
 		vv1, _ := vvMap[v1[1]]
