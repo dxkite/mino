@@ -196,3 +196,14 @@ func GetAbsUrl(r, u string) string {
 	}
 	return u
 }
+
+// 判断协议是否在指定类型中
+func InArrayComma(chk, typ string) bool {
+	ts := strings.Split(typ, ",")
+	for _, t := range ts {
+		if chk == t {
+			return true
+		}
+	}
+	return false
+}

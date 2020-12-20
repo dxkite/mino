@@ -116,23 +116,35 @@ func (t *Transporter) Proto(conn rewind.Conn) (proto proto.Proto, err error) {
 func (t *Transporter) conn(c net.Conn) {
 	conn := rewind.NewRewindConn(c, t.Config.IntOrDefault(mino.KeyMaxStreamRewind, 8))
 	p, err := t.Proto(conn)
+
 	if err != nil {
 		log.Println("identify protocol error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
+		_ = c.Close()
 		return
 	}
+
+	if !util.InArrayComma(p.Name(), t.Config.StringOrDefault(mino.KeyInput, "mino")) {
+		log.Println("protocol is disabled", p.Name())
+		_ = c.Close()
+		return
+	}
+
 	if er := conn.Rewind(); er != nil {
 		log.Println("accept rewind error", er)
+		_ = c.Close()
 		return
 	}
 
 	svr := p.Server(conn, t.Config)
 	if err := svr.Handshake(t.AuthFunc); err != nil {
 		log.Println("protocol", p.Name(), "handshake error", err)
+		_ = c.Close()
 		return
 	}
 
 	if network, address, err := svr.Info(); err != nil {
 		log.Println("recv conn info error", err)
+		_ = c.Close()
 	} else {
 		if util.IsRequestHttp(t.listen.Addr().String(), address) {
 			t.acceptConn <- svr

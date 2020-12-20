@@ -15,6 +15,7 @@ const (
 	KeyAddress         = "address"
 	KeyPacFile         = "pac_file"
 	KeyUpstream        = "upstream"
+	KeyInput           = "input"
 	KeyDataPath        = "data_path"
 	KeyMaxStreamRewind = "max_stream_rewind"
 	KeyWebRoot         = "web_root"

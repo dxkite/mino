@@ -52,6 +52,7 @@ func main() {
 	var data = flag.String("data", "", "data path")
 	var autoStart = flag.Bool("auto_start", false, "auto start")
 	var logFile = flag.String("log", "", "log file")
+	var inputTypes = flag.String("input", "", "input type")
 
 	flag.Parse()
 	cfg := config.NewConfig()
@@ -89,6 +90,7 @@ func main() {
 	cfg.SetValueDefault(mino.KeyMaxStreamRewind, *protoRewind, 255)
 	cfg.SetValueDefault(mino.KeyWebRoot, *webRoot, nil)
 	cfg.SetValueDefault(mino.KeyAutoStart, *autoStart, nil)
+	cfg.SetValueDefault(mino.KeyInput, *inputTypes, "mino,http,socks5")
 
 	// 写入日志文件
 	if p := cfg.String(mino.KeyLogFile); len(p) > 0 {
