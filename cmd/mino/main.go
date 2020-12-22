@@ -53,6 +53,7 @@ func main() {
 	var autoStart = flag.Bool("auto_start", false, "auto start")
 	var logFile = flag.String("log", "", "log file")
 	var inputTypes = flag.String("input", "", "input type")
+	var secure = flag.Bool("secure", false, "input type")
 
 	flag.Parse()
 	cfg := config.NewConfig()
@@ -91,6 +92,7 @@ func main() {
 	cfg.SetValueDefault(mino.KeyWebRoot, *webRoot, nil)
 	cfg.SetValueDefault(mino.KeyAutoStart, *autoStart, nil)
 	cfg.SetValueDefault(mino.KeyInput, *inputTypes, "mino,http,socks5")
+	cfg.SetValueDefault(mino.KeyTlsEnable, *secure, false)
 
 	// 写入日志文件
 	if p := cfg.String(mino.KeyLogFile); len(p) > 0 {
@@ -106,7 +108,10 @@ func main() {
 
 	cfg.RequiredNotEmpty(mino.KeyAddress)
 	transporter := transport.New(cfg)
-	transporter.InitChecker()
+
+	if err := transporter.Init(); err != nil {
+		log.Fatalln("init error", err)
+	}
 
 	if err := transporter.Listen(); err != nil {
 		errMsg("网络端口被占用")

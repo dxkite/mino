@@ -1,10 +1,12 @@
 package transport
 
 import (
+	"crypto/tls"
 	"dxkite.cn/mino/util"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/url"
@@ -25,6 +27,8 @@ type Transporter struct {
 	acceptConn chan net.Conn
 	acceptErr  chan error
 	listen     net.Listener
+	tlsSvrCfg  *tls.Config
+	tlsCltCfg  *tls.Config
 }
 
 func New(config config.Config) (t *Transporter) {
@@ -35,6 +39,26 @@ func New(config config.Config) (t *Transporter) {
 		acceptErr:  make(chan error),
 	}
 	return t
+}
+
+func (t *Transporter) Init() error {
+	// 初始化checker
+	t.initChecker()
+
+	// 服务器自适应 TLS
+	certF := util.GetRelativePath(t.Config.String(mino.KeyCertFile))
+	keyF := util.GetRelativePath(t.Config.String(mino.KeyKeyFile))
+	if cert, err := tls.LoadX509KeyPair(certF, keyF); err != nil {
+		log.Println("load secure config error", err)
+	} else {
+		t.tlsSvrCfg = &tls.Config{Certificates: []tls.Certificate{cert}}
+	}
+
+	// 输出流使用TLS
+	if t.Config.Bool(mino.KeyTlsEnable) {
+		t.tlsCltCfg = &tls.Config{InsecureSkipVerify: true}
+	}
+	return nil
 }
 
 func (t *Transporter) Listen() error {
@@ -88,7 +112,7 @@ func (t *Transporter) NetListener() net.Listener {
 	return &listen_{t: t}
 }
 
-func (t *Transporter) InitChecker() {
+func (t *Transporter) initChecker() {
 	if t.Manager == nil {
 		t.Manager = proto.DefaultManager
 	}
@@ -114,7 +138,29 @@ func (t *Transporter) Proto(conn rewind.Conn) (proto proto.Proto, err error) {
 }
 
 func (t *Transporter) conn(c net.Conn) {
-	conn := rewind.NewRewindConn(c, t.Config.IntOrDefault(mino.KeyMaxStreamRewind, 8))
+
+	rwdS := t.Config.IntOrDefault(mino.KeyMaxStreamRewind, 8)
+	conn := rewind.NewRewindConn(c, rwdS)
+
+	if t.IsTls(conn) {
+
+		if t.tlsSvrCfg == nil {
+			log.Println("accept tls client error: empty tls config")
+			_ = c.Close()
+			return
+		}
+
+		log.Println("accept tls client")
+
+		if er := conn.Rewind(); er != nil {
+			log.Println("accept rewind error", er)
+			_ = c.Close()
+			return
+		}
+
+		conn = rewind.NewRewindConn(tls.Server(conn, t.tlsSvrCfg), rwdS)
+	}
+
 	p, err := t.Proto(conn)
 
 	if err != nil {
@@ -176,13 +222,24 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 	var rmt net.Conn
 	var rmtErr error
 	var UpStream *url.URL
+	var _n = network
+	var _a = address
+
 	if upstream := t.Config.String(mino.KeyUpstream); len(upstream) > 0 {
 		UpStream, _ = url.Parse(upstream)
+		network = "tcp"
+		address = UpStream.Host
 	}
+
+	if rmt, rmtErr = net.Dial(network, address); rmtErr != nil {
+		return nil, rmtErr
+	}
+
+	if t.tlsCltCfg != nil {
+		rmt = tls.Client(rmt, t.tlsCltCfg)
+	}
+
 	if UpStream != nil {
-		if rmt, rmtErr = net.Dial("tcp", UpStream.Host); rmtErr != nil {
-			return nil, rmtErr
-		}
 		if cl, ok := t.Manager.Get(UpStream.Scheme); ok {
 			cfg := t.Config
 			cfg.Set(mino.KeyUsername, UpStream.User.Username())
@@ -192,15 +249,33 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 			if err := client.Handshake(); err != nil {
 				return nil, errors.New(fmt.Sprint("remote protocol handshake error: ", err))
 			}
-			if err := client.Connect(network, address); err != nil {
+			if err := client.Connect(_n, _a); err != nil {
 				return nil, errors.New(fmt.Sprint("remote connecting error: ", err))
 			}
 			rmt = client
 		}
-	} else {
-		if rmt, rmtErr = net.Dial(network, address); rmtErr != nil {
-			return nil, rmtErr
-		}
 	}
 	return rmt, nil
+}
+
+const TlsRecordTypeHandshake uint8 = 22
+
+// 判断是否为TLS
+func (t *Transporter) IsTls(r io.Reader) bool {
+	// 读3个字节
+	buf := make([]byte, 3)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return false
+	}
+	if buf[0] != TlsRecordTypeHandshake {
+		return false
+	}
+	// 0300~0305
+	if buf[1] != 0x03 {
+		return false
+	}
+	if buf[2] > 0x05 {
+		return false
+	}
+	return true
 }

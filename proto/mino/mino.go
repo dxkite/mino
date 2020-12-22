@@ -1,8 +1,6 @@
 package mino
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/proto"
@@ -10,12 +8,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net"
 )
 
 const (
 	Version1 = 0x01
+	Version2 = 0x02
 )
 
 type packType uint8
@@ -29,22 +27,12 @@ var ErrAuth = errors.New("auth error")
 
 type Server struct {
 	net.Conn
-	// 公玥文件
-	CertFile string
-	// 私玥文件
-	KeyFile string
 	// 请求信息
 	r *RequestMessage
 }
 
 // 握手
 func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
-	cert, er := tls.LoadX509KeyPair(conn.CertFile, conn.KeyFile)
-	if er != nil {
-		_ = conn.Close()
-		return er
-	}
-	conn.Conn = tls.Server(conn.Conn, &tls.Config{Certificates: []tls.Certificate{cert}})
 	if _, p, er := readPack(conn); er != nil {
 		_ = conn.Close()
 		return er
@@ -97,8 +85,6 @@ func (conn *Server) SendSuccess() error {
 
 type Client struct {
 	net.Conn
-	// 认证公玥
-	RootCa string
 	// 用户名
 	Username string
 	// 密码
@@ -106,26 +92,6 @@ type Client struct {
 }
 
 func (conn *Client) Handshake() (err error) {
-	cfg, er := conn.cfgGen()
-	if er != nil {
-		return er
-	}
-	conn.Conn = tls.Client(conn.Conn, cfg)
-	return
-}
-
-func (conn *Client) cfgGen() (cfg *tls.Config, err error) {
-	if len(conn.RootCa) == 0 {
-		cfg = &tls.Config{InsecureSkipVerify: true}
-	} else {
-		pool := x509.NewCertPool()
-		caCrt, e := ioutil.ReadFile(conn.RootCa)
-		if e != nil {
-			return nil, e
-		}
-		pool.AppendCertsFromPEM(caCrt)
-		cfg = &tls.Config{RootCAs: pool}
-	}
 	return
 }
 
@@ -164,29 +130,14 @@ func (conn *Client) Connect(network, address string) (err error) {
 type Checker struct {
 }
 
-const (
-	// TLS握手记录
-	TlsRecordTypeHandshake uint8 = 22
-)
-
 // 判断是否为HTTP协议
 func (d *Checker) Check(r io.Reader) (bool, error) {
-	// 读3个字节
-	buf := make([]byte, 3)
+	buf := make([]byte, 1)
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return false, err
 	}
-	if buf[0] != TlsRecordTypeHandshake {
-		return false, nil
-	}
-	// 0300~0305
-	if buf[1] != 0x03 {
-		return false, nil
-	}
-	if buf[2] > 0x05 {
-		return false, nil
-	}
-	return true, nil
+	v := buf[0] & 0x0f
+	return v == Version1, nil
 }
 
 type Protocol struct {
@@ -199,9 +150,7 @@ func (c *Protocol) Name() string {
 // 创建HTTP接收器
 func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
 	return &Server{
-		Conn:     conn,
-		CertFile: util.GetRelativePath(config.String(mino.KeyCertFile)),
-		KeyFile:  util.GetRelativePath(config.String(mino.KeyKeyFile)),
+		Conn: conn,
 	}
 }
 
@@ -211,7 +160,6 @@ func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
 		Conn:     conn,
 		Username: config.String(mino.KeyUsername),
 		Password: config.String(mino.KeyPassword),
-		RootCa:   util.GetRelativePath(config.String(mino.KeyRootCa)),
 	}
 }
 
