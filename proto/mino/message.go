@@ -5,11 +5,6 @@ import (
 	"net"
 )
 
-const (
-	NetworkTcp uint8 = iota
-	NetworkUdp uint8 = iota
-)
-
 // 连接信息
 type RequestMessage struct {
 	// 网络信息

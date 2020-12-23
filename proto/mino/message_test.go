@@ -93,7 +93,7 @@ func TestRequestMessage_unmarshal(t *testing.T) {
 	}{
 		{
 			"simple",
-			NetworkUdp,
+			uint8(NetworkUdp),
 			"dxkite.cn:443",
 			"dxkite",
 			"p@ssw0rd",
@@ -105,7 +105,7 @@ func TestRequestMessage_unmarshal(t *testing.T) {
 		},
 		{
 			"simple-empty-auth",
-			NetworkUdp,
+			uint8(NetworkUdp),
 			"dxkite.cn:443",
 			"",
 			"",
@@ -117,7 +117,7 @@ func TestRequestMessage_unmarshal(t *testing.T) {
 		},
 		{
 			"simple-empty-auth-address",
-			NetworkUdp,
+			uint8(NetworkUdp),
 			"dxkite.cn:443",
 			"",
 			"",

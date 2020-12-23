@@ -23,6 +23,13 @@ const (
 	msgResponse
 )
 
+type NetworkType uint8
+
+const (
+	NetworkTcp NetworkType = iota
+	NetworkUdp
+)
+
 var ErrAuth = errors.New("auth error")
 
 type Server struct {
@@ -61,7 +68,7 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 
 // 获取链接信息
 func (conn *Server) Info() (network, address string, err error) {
-	switch conn.r.Network {
+	switch NetworkType(conn.r.Network) {
 	case NetworkUdp:
 		network = "udp"
 	default:
@@ -99,9 +106,9 @@ func (conn *Client) Connect(network, address string) (err error) {
 	m := new(RequestMessage)
 	switch network {
 	case "udp":
-		m.Network = NetworkUdp
+		m.Network = uint8(NetworkUdp)
 	default:
-		m.Network = NetworkTcp
+		m.Network = uint8(NetworkTcp)
 	}
 	m.Address = address
 	m.Username = conn.Username
