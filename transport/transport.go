@@ -143,7 +143,6 @@ func (t *Transporter) conn(c net.Conn) {
 	conn := rewind.NewRewindConn(c, rwdS)
 
 	if t.IsTls(conn) {
-
 		if t.tlsSvrCfg == nil {
 			log.Println("accept tls client error: empty tls config")
 			_ = c.Close()

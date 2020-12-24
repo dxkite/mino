@@ -8,10 +8,9 @@ import (
 
 // 连接信息
 type AuthInfo struct {
-	Username     string
-	Password     string
-	RemoteAddr   string
-	HardwareAddr []net.HardwareAddr
+	Username   string
+	Password   string
+	RemoteAddr string
 }
 
 // 基本验证函数

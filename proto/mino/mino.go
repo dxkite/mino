@@ -4,33 +4,14 @@ import (
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/proto"
-	"dxkite.cn/mino/util"
-	"encoding/binary"
 	"errors"
 	"io"
 	"net"
 )
 
 const (
-	Version1 = 0x01
 	Version2 = 0x02
 )
-
-type packType uint8
-
-const (
-	msgRequest packType = iota
-	msgResponse
-)
-
-type NetworkType uint8
-
-const (
-	NetworkTcp NetworkType = iota
-	NetworkUdp
-)
-
-var ErrAuth = errors.New("auth error")
 
 type Server struct {
 	net.Conn
@@ -38,56 +19,59 @@ type Server struct {
 	r *RequestMessage
 }
 
+var ErrAuth = errors.New("auth error")
+
 // 握手
 func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
-	if _, p, er := readPack(conn); er != nil {
-		_ = conn.Close()
-		return er
-	} else {
-		req := new(RequestMessage)
-		if er := req.unmarshal(p); er != nil {
-			_ = conn.Close()
-			return er
-		}
-		if auth != nil {
-			if auth(&proto.AuthInfo{
-				Username:     req.Username,
-				Password:     req.Password,
-				RemoteAddr:   conn.RemoteAddr().String(),
-				HardwareAddr: req.MacAddress,
-			}) {
-			} else {
-				_ = conn.Close()
-				return ErrAuth
-			}
-		}
-		conn.r = req
+	buf := make([]byte, 1)
+	if _, err := io.ReadFull(conn, buf); err != nil {
+		return err
 	}
-	return
+	if buf[0] != Version2 {
+		return errors.New("version error")
+	}
+	m := new(RequestMessage)
+	if err := m.unmarshal(conn); err != nil {
+		return err
+	}
+	if auth != nil {
+		if (auth(&proto.AuthInfo{
+			Username:   m.Username,
+			Password:   m.Password,
+			RemoteAddr: conn.RemoteAddr().String(),
+		})) {
+		} else {
+			_ = conn.Close()
+			return ErrAuth
+		}
+	}
+	conn.r = m
+	return nil
 }
 
 // 获取链接信息
 func (conn *Server) Info() (network, address string, err error) {
-	switch NetworkType(conn.r.Network) {
-	case NetworkUdp:
-		network = "udp"
-	default:
-		network = "tcp"
-	}
-	return network, conn.r.Address, nil
+	return conn.r.Network, conn.r.Address, nil
 }
 
 // 发送错误
 func (conn *Server) SendError(err error) error {
-	if e, ok := err.(tlsError); ok {
-		return writeRspMsg(conn, uint8(e), e.Error())
+	m := &ResponseMessage{err: err}
+	b, _ := m.marshal()
+	if _, er := conn.Write(b); er != nil {
+		return er
 	}
-	return writeRspMsg(conn, unknownError, err.Error())
+	return nil
 }
 
 // 发送连接成功
 func (conn *Server) SendSuccess() error {
-	return writeRspMsg(conn, succeeded, "OK")
+	m := &ResponseMessage{err: nil}
+	b, _ := m.marshal()
+	if _, er := conn.Write(b); er != nil {
+		return er
+	}
+	return nil
 }
 
 type Client struct {
@@ -103,35 +87,21 @@ func (conn *Client) Handshake() (err error) {
 }
 
 func (conn *Client) Connect(network, address string) (err error) {
-	m := new(RequestMessage)
-	switch network {
-	case "udp":
-		m.Network = uint8(NetworkUdp)
-	default:
-		m.Network = uint8(NetworkTcp)
+	m := &RequestMessage{
+		Network:  network,
+		Address:  address,
+		Username: conn.Username,
+		Password: conn.Password,
 	}
-	m.Address = address
-	m.Username = conn.Username
-	m.Password = conn.Password
-	m.MacAddress = util.GetHardwareAddr()
-	if er := writePack(conn, msgRequest, m.marshal()); er != nil {
+	b, _ := m.marshal()
+	if _, er := conn.Write(b); er != nil {
 		return er
 	}
-	if _, p, er := readPack(conn); er != nil {
-		return er
-	} else {
-		rsp := new(ResponseMessage)
-		if er := rsp.unmarshal(p); er != nil {
-			return er
-		}
-		if rsp.Code != succeeded {
-			if rsp.Code == unknownError {
-				return errors.New(rsp.Message)
-			}
-			return tlsError(rsp.Code)
-		}
+	rsp := new(ResponseMessage)
+	if err := rsp.unmarshal(conn); err != nil {
+		return err
 	}
-	return
+	return rsp.Error()
 }
 
 type Checker struct {
@@ -143,8 +113,7 @@ func (d *Checker) Check(r io.Reader) (bool, error) {
 	if _, err := io.ReadFull(r, buf); err != nil {
 		return false, err
 	}
-	v := buf[0] & 0x0f
-	return v == Version1, nil
+	return buf[0] == Version2, nil
 }
 
 type Protocol struct {
@@ -172,41 +141,6 @@ func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
 
 func (c *Protocol) Checker(config config.Config) proto.Checker {
 	return &Checker{}
-}
-
-// 写入包
-func writePack(w io.Writer, typ packType, p []byte) (err error) {
-	buf := make([]byte, 4)
-	buf[0] = Version1
-	buf[1] = byte(typ)
-	binary.BigEndian.PutUint16(buf[2:], uint16(len(p)))
-	buf = append(buf, p...)
-	_, err = w.Write(buf)
-	return
-}
-
-// 写信息
-func writeRspMsg(w io.Writer, code uint8, msg string) (err error) {
-	m := &ResponseMessage{Code: code, Message: msg}
-	if er := writePack(w, msgResponse, m.marshal()); er != nil {
-		return er
-	}
-	return nil
-}
-
-// 读取包
-func readPack(r io.Reader) (typ packType, p []byte, err error) {
-	buf := make([]byte, 4)
-	if _, err := io.ReadFull(r, buf); err != nil {
-		return 0, nil, err
-	}
-	typ = packType(buf[1])
-	l := binary.BigEndian.Uint16(buf[2:])
-	p = make([]byte, l)
-	if _, err := io.ReadFull(r, p); err != nil {
-		return 0, nil, err
-	}
-	return
 }
 
 func init() {

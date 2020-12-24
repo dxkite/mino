@@ -84,10 +84,9 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 			_ = conn.Close()
 			return err
 		} else if auth(&proto.AuthInfo{
-			Username:     u,
-			Password:     p,
-			RemoteAddr:   conn.RemoteAddr().String(),
-			HardwareAddr: []net.HardwareAddr{},
+			Username:   u,
+			Password:   p,
+			RemoteAddr: conn.RemoteAddr().String(),
 		}) {
 		} else {
 			_ = conn.Close()

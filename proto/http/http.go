@@ -57,10 +57,9 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 	username, password, _ := ParseProxyAuth(req)
 	if auth != nil {
 		if auth(&proto.AuthInfo{
-			Username:     username,
-			Password:     password,
-			RemoteAddr:   conn.RemoteAddr().String(),
-			HardwareAddr: nil,
+			Username:   username,
+			Password:   password,
+			RemoteAddr: conn.RemoteAddr().String(),
 		}) {
 		} else {
 			_, _ = conn.Write([]byte("401 Unauthorized\r\nContent-Length: 0\r\n\r\n"))

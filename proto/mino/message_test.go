@@ -1,148 +1,110 @@
 package mino
 
 import (
-	"net"
+	"bytes"
+	"io"
 	"reflect"
 	"testing"
 )
 
-func TestResponseMessage_marshal(t *testing.T) {
+func TestRequestMessage_marshal(t *testing.T) {
 	tests := []struct {
 		name    string
-		Code    uint8
-		Message string
+		m       *RequestMessage
 		want    []byte
-	}{
-		{
-			"simple",
-			0,
-			"OK",
-			[]byte{0, 2, 'O', 'K'},
-		},
-		{
-			"simple-empty",
-			10,
-			"",
-			[]byte{10, 0},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			m := &ResponseMessage{
-				Code:    tt.Code,
-				Message: tt.Message,
-			}
-			if got := m.marshal(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("marshal() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestResponseMessage_unmarshal(t *testing.T) {
-
-	tests := []struct {
-		name    string
-		Code    uint8
-		Message string
-		p       []byte
 		wantErr bool
 	}{
 		{
-			"simple",
-			0,
-			"OK",
-			[]byte{0, 2, 'O', 'K'},
+			"simple-ipv4",
+			&RequestMessage{
+				Network: "tcp",
+				Address: "127.0.0.1:1080",
+			},
+			[]byte("\x02" + string(byte(0b00000000)) + "\x7f\x00\x00\x01\x04\x38"),
 			false,
 		},
 		{
-			"simple-empty",
-			10,
-			"",
-			[]byte{10, 0},
+			"simple-ipv6",
+			&RequestMessage{
+				Network: "udp",
+				Address: "[::1]:1080",
+			},
+			[]byte("\x02" + string(byte(0b00110000)) + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x04\x38"),
+			false,
+		},
+		{
+			"simple-host-password",
+			&RequestMessage{
+				Network:  "udp",
+				Address:  "baidu.com:443",
+				Username: "dxkite",
+				Password: "123456",
+			},
+			[]byte("\x02" + string(byte(0b01010001)) + "\x09baidu.com\x01\xbb\x06\x06dxkite123456"),
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &ResponseMessage{
-				Code:    tt.Code,
-				Message: tt.Message,
+			got, err := tt.m.marshal()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("marshal() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
-			v := new(ResponseMessage)
-			if err := v.unmarshal(tt.p); (err != nil) != tt.wantErr {
-				t.Errorf("unmarshal() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if !reflect.DeepEqual(m, v) {
-				t.Errorf("unmarshal() got = %v, want %v", v, m)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("marshal() got = %08b %x, want %08b %x", got[0], got[1:], tt.want[0], tt.want[1:])
 			}
 		})
 	}
 }
 
 func TestRequestMessage_unmarshal(t *testing.T) {
+
 	tests := []struct {
-		name       string
-		Network    uint8
-		Address    string
-		Username   string
-		Password   string
-		MacAddress []net.HardwareAddr
-		p          []byte
-		wantErr    bool
+		name    string
+		r       io.Reader
+		m       *RequestMessage
+		wantErr bool
 	}{
 		{
-			"simple",
-			uint8(NetworkUdp),
-			"dxkite.cn:443",
-			"dxkite",
-			"p@ssw0rd",
-			[]net.HardwareAddr{
-				[]byte("\x00\x11\x22\x33\x44\x55"),
+			"simple-ipv4",
+			bytes.NewBufferString(string(byte(0b00000000)) + "\x7f\x00\x00\x01\x04\x38"),
+			&RequestMessage{
+				Network: "tcp",
+				Address: "127.0.0.1:1080",
 			},
-			[]byte("\x01\x0Ddxkite.cn:443\x06dxkite\x08p@ssw0rd\x01\x00\x11\x22\x33\x44\x55"),
 			false,
 		},
 		{
-			"simple-empty-auth",
-			uint8(NetworkUdp),
-			"dxkite.cn:443",
-			"",
-			"",
-			[]net.HardwareAddr{
-				[]byte("\x00\x11\x22\x33\x44\x55"),
+			"simple-ipv6",
+			bytes.NewBufferString(string(byte(0b00110000)) + "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x04\x38"),
+			&RequestMessage{
+				Network: "udp",
+				Address: "[::1]:1080",
 			},
-			[]byte("\x01\x0Ddxkite.cn:443\x00\x00\x01\x00\x11\x22\x33\x44\x55"),
 			false,
 		},
 		{
-			"simple-empty-auth-address",
-			uint8(NetworkUdp),
-			"dxkite.cn:443",
-			"",
-			"",
-			[]net.HardwareAddr{},
-			[]byte("\x01\x0Ddxkite.cn:443\x00\x00\x00"),
+			"simple-host-password",
+			bytes.NewBufferString(string(byte(0b01010001)) + "\x09baidu.com\x01\xbb\x06\x06dxkite123456"),
+			&RequestMessage{
+				Network:  "udp",
+				Address:  "baidu.com:443",
+				Username: "dxkite",
+				Password: "123456",
+			},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &RequestMessage{
-				Network:    tt.Network,
-				Address:    tt.Address,
-				Username:   tt.Username,
-				Password:   tt.Password,
-				MacAddress: tt.MacAddress,
-			}
-			v := new(RequestMessage)
-			if err := v.unmarshal(tt.p); (err != nil) != tt.wantErr {
+			mm := new(RequestMessage)
+			if err := mm.unmarshal(tt.r); (err != nil) != tt.wantErr {
 				t.Errorf("unmarshal() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(m, v) {
-				t.Errorf("unmarshal() got = %v, want %v", v, m)
+			if reflect.DeepEqual(mm, tt.m) == false {
+				t.Errorf("unmarshal() got = %v, want %v", mm, tt.m)
 			}
-
 		})
 	}
 }

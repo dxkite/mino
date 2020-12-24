@@ -1,133 +1,184 @@
 package mino
 
 import (
+	"encoding/binary"
 	"errors"
+	"io"
 	"net"
+	"strconv"
 )
 
-// 连接信息
 type RequestMessage struct {
-	// 网络信息
-	Network uint8
-	// 地址
-	Address string
-	// 用户名
+	Network  string
+	Address  string
 	Username string
-	// 密码
 	Password string
-	// 硬件地址
-	MacAddress []net.HardwareAddr
 }
 
 // 编码
-func (m *RequestMessage) marshal() []byte {
-	buf := []byte{m.Network}
-	buf = append(buf, byte(len(m.Address)))
-	buf = append(buf, m.Address...)
-	buf = append(buf, byte(len(m.Username)))
-	buf = append(buf, m.Username...)
-	buf = append(buf, byte(len(m.Password)))
-	buf = append(buf, m.Password...)
-	buf = append(buf, byte(len(m.MacAddress)))
-	for _, mac := range m.MacAddress {
-		buf = append(buf, mac...)
+func (m *RequestMessage) marshal() ([]byte, error) {
+	var host string
+	var port int
+	var ports string
+	var err error
+	if host, ports, err = net.SplitHostPort(m.Address); err != nil {
+		return nil, err
 	}
-	return buf
-}
-
-// 编码
-func (m *RequestMessage) unmarshal(p []byte) (err error) {
-	if len(p) < 5 {
-		return errors.New("sort message")
+	if port, err = strconv.Atoi(ports); err != nil {
+		return nil, err
 	}
-	m.Network = p[0]
-	off := 1
-	if m.Address, off, err = readString(off, p); err != nil {
-		return err
+	// PackageInfo(b2)
+	//	AddrType 3 bit
+	//		- 000 IPv4
+	//		- 001 IPv6
+	//		- 010 HostName
+	//	ProtoType 1 bit
+	//      - 0 TCP
+	//		- 1 UDP
+	//	AuthType
+	//		- 0000 No Auth
+	//		- 0001 Password
+	var b2 uint8 = 0
+	if len(m.Username) > 0 {
+		b2 |= 1
 	}
-	if m.Username, off, err = readString(off, p); err != nil {
-		return err
+	// NetworkType
+	if m.Network == "udp" {
+		b2 |= 1 << 4
 	}
-	if m.Password, off, err = readString(off, p); err != nil {
-		return err
-	}
-	m.MacAddress = []net.HardwareAddr{}
-	lm := int(p[off])
-	off++
-	for i := 0; i < lm; i++ {
-		if len(p) < off+6 {
-			return errors.New("sort message")
+	// IP or Host
+	h := false
+	ip := net.ParseIP(host)
+	if ip != nil {
+		if v := ip.To4(); v != nil {
+			ip = v
+		} else {
+			b2 |= 1 << 5
 		}
-		m.MacAddress = append(m.MacAddress, p[off:off+6])
-		off += 6
+	} else {
+		b2 |= 1 << 6
+		h = true
+	}
+	buf := []byte{Version2, b2}
+	if h {
+		buf = append(buf, byte(len(host)))
+		buf = append(buf, host...)
+	} else {
+		buf = append(buf, ip...)
+	}
+	// Port
+	pb := make([]byte, 2)
+	binary.BigEndian.PutUint16(pb, uint16(port))
+	buf = append(buf, pb...)
+	// AuthMessage
+	if len(m.Username) > 0 {
+		buf = append(buf, byte(len(m.Username)))
+		buf = append(buf, byte(len(m.Password)))
+		buf = append(buf, m.Username...)
+		buf = append(buf, m.Password...)
+	}
+	return buf, nil
+}
+
+// 编码
+func (m *RequestMessage) unmarshal(r io.Reader) error {
+	buf := make([]byte, 255)
+	if _, err := io.ReadFull(r, buf[:1]); err != nil {
+		return err
+	}
+	b1 := buf[0]
+	// network
+	if b1&(1<<4) > 0 {
+		m.Network = "udp"
+	} else {
+		m.Network = "tcp"
+	}
+	// host length
+	hl := 4
+	// ipv6
+	if b1&(1<<5) > 0 {
+		hl = 16
+	}
+	ip := true
+	// hostname
+	if b1&(1<<6) > 0 {
+		if _, err := io.ReadFull(r, buf[:1]); err != nil {
+			return err
+		}
+		ip = false
+		hl = int(buf[0])
+	}
+	if _, err := io.ReadFull(r, buf[:hl]); err != nil {
+		return err
+	}
+	host := string(buf[:hl])
+	if ip {
+		host = net.IP(host).String()
+	}
+
+	if _, err := io.ReadFull(r, buf[:2]); err != nil {
+		return err
+	}
+	port := binary.BigEndian.Uint16(buf[:2])
+	// address
+	m.Address = net.JoinHostPort(host, strconv.Itoa(int(port)))
+	// Auth
+	if b1&1 > 0 {
+		if _, err := io.ReadFull(r, buf[:2]); err != nil {
+			return err
+		}
+		ul := buf[0]
+		pl := buf[1]
+		if ul > 0 {
+			if _, err := io.ReadFull(r, buf[:ul]); err != nil {
+				return err
+			} else {
+				m.Username = string(buf[:ul])
+			}
+		}
+		if pl > 0 {
+			if _, err := io.ReadFull(r, buf[:pl]); err != nil {
+				return err
+			} else {
+				m.Password = string(buf[:pl])
+			}
+		}
 	}
 	return nil
 }
 
-// 读字符
-func readString(off int, p []byte) (string, int, error) {
-	l := int(p[off])
-	if l == 0 {
-		return "", off + 1, nil
-	}
-	if len(p) < l {
-		return "", 0, errors.New("sort message")
-	}
-	n := off + int(p[off]) + 1
-	return string(p[off+1 : n]), n, nil
-}
-
-// 响应信息
 type ResponseMessage struct {
-	Code    uint8
-	Message string
+	err error
 }
 
-const (
-	succeeded uint8 = iota
-	serverFailure
-	notAllowed
-	networkUnreachable
-	hostUnreachable
-	connectionRefused
-	unknownError
-)
-
-type tlsError uint8
-
-func (e tlsError) Error() string {
-	switch v := uint8(e); v {
-	case serverFailure:
-		return "serverFailure"
-	case notAllowed:
-		return "notAllowed"
-	case networkUnreachable:
-		return "networkUnreachable"
-	case hostUnreachable:
-		return "hostUnreachable"
-	case connectionRefused:
-		return "connectionRefused"
-	}
-	return "unknown"
+func (m *ResponseMessage) Error() error {
+	return m.err
 }
 
 // 编码
-func (m *ResponseMessage) marshal() []byte {
-	buf := []byte{m.Code, byte(len(m.Message))}
-	buf = append(buf, m.Message...)
-	return buf
-}
-
-// 编码
-func (m *ResponseMessage) unmarshal(p []byte) error {
-	if len(p) < 2 {
-		return errors.New("sort message")
-	}
-	m.Code = p[0]
-	if str, _, err := readString(1, p); err != nil {
-		return err
+func (m *ResponseMessage) marshal() ([]byte, error) {
+	if m.err == nil {
+		return []byte{0}, nil
 	} else {
-		m.Message = str
+		buf := []byte{byte(len(m.err.Error()))}
+		buf = append(buf, m.err.Error()...)
+		return buf, nil
+	}
+}
+
+// 编码
+func (m *ResponseMessage) unmarshal(r io.Reader) error {
+	buf := make([]byte, 255)
+	if _, err := io.ReadFull(r, buf[:1]); err != nil {
+		return err
+	}
+	l := buf[0]
+	if l > 0 {
+		if _, err := io.ReadFull(r, buf[:l]); err != nil {
+			return err
+		} else {
+			m.err = errors.New(string(buf[:l]))
+		}
 	}
 	return nil
 }

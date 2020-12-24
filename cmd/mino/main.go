@@ -9,6 +9,7 @@ import (
 	"dxkite.cn/mino/proto/http"
 	_ "dxkite.cn/mino/proto/http"
 	_ "dxkite.cn/mino/proto/mino"
+	_ "dxkite.cn/mino/proto/mino1"
 	_ "dxkite.cn/mino/proto/socks5"
 	"dxkite.cn/mino/server"
 	"dxkite.cn/mino/transport"
