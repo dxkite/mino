@@ -23,13 +23,16 @@ type Tunnel struct {
 	mtxClosed sync.Mutex
 	// 错误设置
 	mtxErr sync.Mutex
+	// 关闭通知
+	closeCh chan struct{}
 }
 
 // 建立隧道
 func NewTunnel(loc, rmt io.ReadWriteCloser) *Tunnel {
 	return &Tunnel{
-		loc: NewFlow(loc),
-		rmt: rmt,
+		loc:     NewFlow(loc),
+		rmt:     rmt,
+		closeCh: make(chan struct{}),
 	}
 }
 
@@ -52,7 +55,17 @@ func (s *Tunnel) Transport() (up, down int64, err error) {
 	_ = s.close()
 	<-_closed
 	err = s.err
+	// 通知关闭
+	s.notifyClose()
 	return
+}
+
+func (s *Tunnel) notifyClose() {
+	s.closeCh <- struct{}{}
+}
+
+func (s *Tunnel) CloseNotify() <-chan struct{} {
+	return s.closeCh
 }
 
 func (s *Tunnel) close() error {
@@ -124,12 +137,19 @@ func (f *Flow) Close() error {
 	return f.rwc.Close()
 }
 
-type SessionGroup map[string][]*Session
+type SessionGroup map[string]map[string]*Session
 
 func NewSessionGroup() SessionGroup {
-	return map[string][]*Session{}
+	return map[string]map[string]*Session{}
 }
 
-func (sg SessionGroup) AddSession(name string, session *Session) {
-	sg[name] = append(sg[name], session)
+func (sg SessionGroup) AddSession(group, id string, session *Session) {
+	if sg[group] == nil {
+		sg[group] = map[string]*Session{}
+	}
+	sg[group][id] = session
+	go func() {
+		<-session.CloseNotify()
+		delete(sg[group], id)
+	}()
 }

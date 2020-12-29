@@ -222,8 +222,9 @@ func (t *Transporter) conn(c net.Conn) {
 		}
 
 		tunnel := NewTunnel(svr, rmt)
+
 		sess := NewSession(t.NextId(), tunnel, svr.RemoteAddr().String(), address)
-		t.Session.AddSession(svr.User(), sess)
+		t.Session.AddSession(svr.User(), svr.RemoteAddr().String(), sess)
 
 		up, down, err := tunnel.Transport()
 		msg := fmt.Sprintf("transport %s %s via %s up %d down %d", network, address, p.Name(), up, down)
