@@ -23,6 +23,7 @@ import (
 type Transporter struct {
 	Manager *proto.Manager
 	Session SessionGroup
+	Event   Handler
 
 	check      map[string]proto.Checker
 	Config     config.Config
@@ -65,6 +66,9 @@ func (t *Transporter) Init() error {
 	// 输出流使用TLS
 	if t.Config.Bool(mino.KeyTlsEnable) {
 		t.tlsCltCfg = &tls.Config{InsecureSkipVerify: true}
+	}
+	if t.Event == nil {
+		t.Event = &NopHandler{}
 	}
 	return nil
 }
@@ -221,18 +225,38 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = svr.SendSuccess()
 		}
 
-		tunnel := NewTunnel(svr, rmt)
+		sess := NewSession(t.NextId(), svr.User(), svr, rmt, address)
+		t.AddSession(svr, sess)
+		up, down, err := sess.Transport()
 
-		sess := NewSession(t.NextId(), tunnel, svr.RemoteAddr().String(), address)
-		t.Session.AddSession(svr.User(), svr.RemoteAddr().String(), sess)
-
-		up, down, err := tunnel.Transport()
 		msg := fmt.Sprintf("transport %s %s via %s up %d down %d", network, address, p.Name(), up, down)
 		if err != nil {
 			msg += " error: " + err.Error()
 		}
 		log.Println(msg)
 	}
+}
+
+// 添加会话
+func (t *Transporter) AddSession(svr proto.Server, session *Session) {
+	group := svr.User()
+	id := svr.RemoteAddr().String()
+	t.Session.AddSession(group, id, session)
+	t.Event.Event("new", session)
+	go func() {
+		for {
+			select {
+			case <-session.ReadNotify():
+				t.Event.Event("flow-read", session)
+			case <-session.WriteNotify():
+				t.Event.Event("flow-write", session)
+			case <-session.CloseNotify():
+				t.Event.Event("close", session)
+				t.Session.DelSession(group, id)
+				return
+			}
+		}
+	}()
 }
 
 func (t *Transporter) dial(network, address string) (net.Conn, error) {

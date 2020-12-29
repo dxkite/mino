@@ -110,6 +110,8 @@ func main() {
 	cfg.RequiredNotEmpty(mino.KeyAddress)
 	transporter := transport.New(cfg)
 
+	//transporter.Event = &transport.ConsoleHandler{}
+
 	if err := transporter.Init(); err != nil {
 		log.Fatalln("init error", err)
 	}
