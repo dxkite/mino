@@ -97,9 +97,15 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 }
 
 // 获取链接信息
-func (conn *Server) Info() (network, address string, err error) {
+func (conn *Server) Target() (network, address string, err error) {
 	network, address, err = conn.handleCmd()
 	return
+}
+
+// 获取用户名
+func (conn *Server) User() string {
+	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	return ip
 }
 
 // 处理命令

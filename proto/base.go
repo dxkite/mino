@@ -22,7 +22,9 @@ type Server interface {
 	// 握手
 	Handshake(auth BasicAuthFunc) (err error)
 	// 获取链接信息
-	Info() (network, address string, err error)
+	Target() (network, address string, err error)
+	// 用户信息
+	User() string
 	// 发送连接错误
 	SendError(err error) error
 	// 发送连接成功

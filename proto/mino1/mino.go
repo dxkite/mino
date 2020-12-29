@@ -66,7 +66,7 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 }
 
 // 获取链接信息
-func (conn *Server) Info() (network, address string, err error) {
+func (conn *Server) Target() (network, address string, err error) {
 	switch NetworkType(conn.r.Network) {
 	case NetworkUdp:
 		network = "udp"
@@ -74,6 +74,12 @@ func (conn *Server) Info() (network, address string, err error) {
 		network = "tcp"
 	}
 	return network, conn.r.Address, nil
+}
+
+// 获取用户名
+func (conn *Server) User() string {
+	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	return ip
 }
 
 // 发送错误

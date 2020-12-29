@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/url"
 	"strconv"
+	"sync"
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
@@ -20,7 +21,9 @@ import (
 
 // 传输工具
 type Transporter struct {
-	Manager    *proto.Manager
+	Manager *proto.Manager
+	Session SessionGroup
+
 	check      map[string]proto.Checker
 	Config     config.Config
 	AuthFunc   proto.BasicAuthFunc
@@ -29,6 +32,9 @@ type Transporter struct {
 	listen     net.Listener
 	tlsSvrCfg  *tls.Config
 	tlsCltCfg  *tls.Config
+
+	nextSid int
+	mtxSid  sync.Mutex
 }
 
 func New(config config.Config) (t *Transporter) {
@@ -37,6 +43,8 @@ func New(config config.Config) (t *Transporter) {
 		check:      map[string]proto.Checker{},
 		acceptConn: make(chan net.Conn),
 		acceptErr:  make(chan error),
+		Session:    NewSessionGroup(),
+		nextSid:    0,
 	}
 	return t
 }
@@ -59,6 +67,13 @@ func (t *Transporter) Init() error {
 		t.tlsCltCfg = &tls.Config{InsecureSkipVerify: true}
 	}
 	return nil
+}
+
+func (t *Transporter) NextId() int {
+	t.mtxSid.Lock()
+	defer t.mtxSid.Unlock()
+	t.nextSid++
+	return t.nextSid
 }
 
 func (t *Transporter) Listen() error {
@@ -187,7 +202,7 @@ func (t *Transporter) conn(c net.Conn) {
 		return
 	}
 
-	if network, address, err := svr.Info(); err != nil {
+	if network, address, err := svr.Target(); err != nil {
 		log.Println("recv conn info error", err)
 		_ = c.Close()
 	} else {
@@ -206,9 +221,11 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = svr.SendSuccess()
 		}
 
-		sess := NewSession(svr, rmt)
-		up, down, err := sess.Transport()
+		tunnel := NewTunnel(svr, rmt)
+		sess := NewSession(t.NextId(), tunnel, svr.RemoteAddr().String(), address)
+		t.Session.AddSession(svr.User(), sess)
 
+		up, down, err := tunnel.Transport()
 		msg := fmt.Sprintf("transport %s %s via %s up %d down %d", network, address, p.Name(), up, down)
 		if err != nil {
 			msg += " error: " + err.Error()

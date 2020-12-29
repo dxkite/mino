@@ -1,12 +1,16 @@
 package transport
 
 import (
+	"errors"
 	"io"
 	"sync"
 )
 
-// 连接会话
-type Session struct {
+// 建立隧道
+type Tunnel struct {
+	// 流量统计
+	Flow Flow
+
 	// 本地连接
 	loc io.ReadWriteCloser
 	// 远程连接
@@ -21,16 +25,16 @@ type Session struct {
 	mtxErr sync.Mutex
 }
 
-// 创建会话
-func NewSession(loc, rmt io.ReadWriteCloser) *Session {
-	return &Session{
-		loc: loc,
+// 建立隧道
+func NewTunnel(loc, rmt io.ReadWriteCloser) *Tunnel {
+	return &Tunnel{
+		loc: NewFlow(loc),
 		rmt: rmt,
 	}
 }
 
 // 传输数据
-func (s *Session) Transport() (up, down int64, err error) {
+func (s *Tunnel) Transport() (up, down int64, err error) {
 	var _closed = make(chan struct{})
 	go func() {
 		// remote -> local
@@ -38,7 +42,6 @@ func (s *Session) Transport() (up, down int64, err error) {
 		if down, _err = io.Copy(s.loc, s.rmt); _err != nil {
 			s.rwErr("read", _err)
 		}
-		//log.Println("read closed")
 		_closed <- struct{}{}
 	}()
 	// local -> remote
@@ -47,30 +50,86 @@ func (s *Session) Transport() (up, down int64, err error) {
 		s.rwErr("write", _err)
 	}
 	_ = s.close()
-	//log.Println("write closed")
 	<-_closed
 	err = s.err
 	return
 }
 
-func (s *Session) close() error {
+func (s *Tunnel) close() error {
 	if !s.closed {
 		s.mtxClosed.Lock()
 		s.closed = true
 		s.mtxClosed.Unlock()
 		_ = s.loc.Close()
 		_ = s.rmt.Close()
-		//log.Println("session closed")
 	}
 	return s.err
 }
 
-func (s *Session) rwErr(name string, err error) {
+func (s *Tunnel) rwErr(name string, err error) {
 	s.mtxErr.Lock()
 	defer s.mtxErr.Unlock()
 	if !s.closed && err != nil {
-		//log.Println("session", name, "error", err)
-		s.err = err
+		s.err = errors.New("tunnel error:" + name + ":" + err.Error())
 		_ = s.close()
 	}
+}
+
+type Session struct {
+	*Tunnel
+	Id  int    `json:"sid"`
+	Src string `json:"src"`
+	Dst string `json:"dst"`
+}
+
+func NewSession(sid int, tun *Tunnel, src, dst string) *Session {
+	return &Session{
+		Tunnel: tun,
+		Id:     sid,
+		Src:    src,
+		Dst:    dst,
+	}
+}
+
+type Flow struct {
+	rwc io.ReadWriteCloser
+	R   int64 `json:"r"`
+	W   int64 `json:"w"`
+	C   bool  `json:"c"`
+}
+
+func NewFlow(rw io.ReadWriteCloser) *Flow {
+	return &Flow{
+		R:   0,
+		W:   0,
+		C:   false,
+		rwc: rw,
+	}
+}
+
+func (f *Flow) Read(p []byte) (n int, err error) {
+	n, err = f.rwc.Read(p)
+	f.R += int64(n)
+	return
+}
+
+func (f *Flow) Write(p []byte) (n int, err error) {
+	n, err = f.rwc.Write(p)
+	f.W += int64(n)
+	return
+}
+
+func (f *Flow) Close() error {
+	f.C = true
+	return f.rwc.Close()
+}
+
+type SessionGroup map[string][]*Session
+
+func NewSessionGroup() SessionGroup {
+	return map[string][]*Session{}
+}
+
+func (sg SessionGroup) AddSession(name string, session *Session) {
+	sg[name] = append(sg[name], session)
 }

@@ -69,7 +69,7 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 }
 
 // 获取链接信息
-func (conn *Server) Info() (network, address string, err error) {
+func (conn *Server) Target() (network, address string, err error) {
 	if conn.req.Method == http.MethodConnect {
 		address = conn.req.RequestURI
 	}
@@ -78,6 +78,12 @@ func (conn *Server) Info() (network, address string, err error) {
 	}
 	address = fmtHost(conn.req.URL.Scheme, address)
 	return "tcp", address, nil
+}
+
+// 获取用户名
+func (conn *Server) User() string {
+	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	return ip
 }
 
 // 读取流
