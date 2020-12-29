@@ -3,6 +3,7 @@ package server
 import (
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
+	"dxkite.cn/mino/transport"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -45,6 +46,20 @@ func (vc *updateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if b, err := json.Marshal(v); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("ContentType", "application/json")
+		_, _ = w.Write(b)
+	}
+}
+
+type sessionListHandler struct {
+	sg *transport.SessionMap
+}
+
+func (vc *sessionListHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	if b, err := json.Marshal(vc.sg.Group()); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		w.WriteHeader(http.StatusOK)

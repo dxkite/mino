@@ -4,19 +4,29 @@ import (
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/monkey"
+	"dxkite.cn/mino/transport"
 	"log"
-	"net"
 	"net/http"
 )
 
-func StartHttpServer(listener net.Listener, cfg config.Config) {
+type Server struct {
+	tsp *transport.Transporter
+}
+
+func NewServer(tsp *transport.Transporter) *Server {
+	return &Server{tsp: tsp}
+}
+
+func (s *Server) Serve() error {
+	c := s.tsp.Config
 	mux := http.NewServeMux()
-	mux.Handle(mino.PathMinoPac, monkey.NewPacServer(cfg))
-	root := config.GetConfigFile(cfg, cfg.StringOrDefault(mino.KeyWebRoot, "www"))
-	mux.Handle("/check-update", &updateHandler{cfg, root})
-	if len(cfg.String(mino.KeyWebRoot)) > 0 {
+	mux.Handle(mino.PathMinoPac, monkey.NewPacServer(c))
+	root := config.GetConfigFile(c, c.StringOrDefault(mino.KeyWebRoot, "www"))
+	mux.Handle("/check-update", &updateHandler{c, root})
+	mux.Handle("/session-list", &sessionListHandler{s.tsp.Session})
+	if len(c.String(mino.KeyWebRoot)) > 0 {
 		log.Println("start web server with root", root)
 		mux.Handle("/", http.FileServer(http.Dir(root)))
 	}
-	log.Println(http.Serve(listener, mux))
+	return http.Serve(s.tsp.NetListener(), mux)
 }

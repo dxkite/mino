@@ -136,19 +136,27 @@ func (f *Session) Write(p []byte) (n int, err error) {
 	return
 }
 
-type SessionGroup map[string]map[string]*Session
-
-func NewSessionGroup() SessionGroup {
-	return map[string]map[string]*Session{}
+type SessionMap struct {
+	mtx   sync.Mutex
+	group map[string]*Session
 }
 
-func (sg SessionGroup) AddSession(group, id string, session *Session) {
-	if sg[group] == nil {
-		sg[group] = map[string]*Session{}
-	}
-	sg[group][id] = session
+func NewSessionGroup() *SessionMap {
+	return &SessionMap{group: map[string]*Session{}}
 }
 
-func (sg SessionGroup) DelSession(group, id string) {
-	delete(sg[group], id)
+func (sg *SessionMap) AddSession(id string, session *Session) {
+	sg.mtx.Lock()
+	defer sg.mtx.Unlock()
+	sg.group[id] = session
+}
+
+func (sg *SessionMap) DelSession(id string) {
+	sg.mtx.Lock()
+	defer sg.mtx.Unlock()
+	delete(sg.group, id)
+}
+
+func (sg *SessionMap) Group() map[string]*Session {
+	return sg.group
 }

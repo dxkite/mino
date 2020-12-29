@@ -109,6 +109,7 @@ func main() {
 
 	cfg.RequiredNotEmpty(mino.KeyAddress)
 	transporter := transport.New(cfg)
+	svr := server.NewServer(transporter)
 
 	//transporter.Event = &transport.ConsoleHandler{}
 
@@ -137,7 +138,7 @@ func main() {
 		go monkey.AutoUpdate(cfg)
 	}
 
-	go server.StartHttpServer(transporter.NetListener(), cfg)
+	go func() { log.Println(svr.Serve()) }()
 
 	if err := notification.Notification("Mino Agent", "Mino启动成功", "现在可以愉快的访问互联网了~"); err != nil {
 		log.Println("notification error", err)

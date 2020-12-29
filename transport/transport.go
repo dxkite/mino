@@ -22,7 +22,7 @@ import (
 // 传输工具
 type Transporter struct {
 	Manager *proto.Manager
-	Session SessionGroup
+	Session *SessionMap
 	Event   Handler
 
 	check      map[string]proto.Checker
@@ -239,9 +239,8 @@ func (t *Transporter) conn(c net.Conn) {
 
 // 添加会话
 func (t *Transporter) AddSession(svr proto.Server, session *Session) {
-	group := svr.User()
 	id := svr.RemoteAddr().String()
-	t.Session.AddSession(group, id, session)
+	t.Session.AddSession(id, session)
 	t.Event.Event("new", session)
 	go func() {
 		for {
@@ -252,7 +251,7 @@ func (t *Transporter) AddSession(svr proto.Server, session *Session) {
 				t.Event.Event("flow-write", session)
 			case <-session.CloseNotify():
 				t.Event.Event("close", session)
-				t.Session.DelSession(group, id)
+				t.Session.DelSession(id)
 				return
 			}
 		}
