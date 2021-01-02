@@ -26,9 +26,10 @@ const (
 	KeyRootCa          = "tls_root_ca"
 	KeyCertFile        = "tls_cert_file"
 	KeyKeyFile         = "tls_key_file"
-	KeyTlsEnable       = "tls_enable"
+	KeyEncoder         = "encoder"
 	KeyUpdateUrl       = "update_url"
 	KeyLatestVersion   = "latest_version"
+	KeyXorMod          = "xor_mod"
 )
 
 const PathMinoPac = "/mino.pac"

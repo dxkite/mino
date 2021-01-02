@@ -7,10 +7,13 @@ import (
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/notification"
 	"dxkite.cn/mino/proto/http"
+
 	_ "dxkite.cn/mino/proto/http"
 	_ "dxkite.cn/mino/proto/mino"
 	_ "dxkite.cn/mino/proto/mino1"
 	_ "dxkite.cn/mino/proto/socks5"
+	_ "dxkite.cn/mino/stream/tls"
+
 	"dxkite.cn/mino/server"
 	"dxkite.cn/mino/transport"
 	"dxkite.cn/mino/util"
@@ -54,7 +57,7 @@ func main() {
 	var autoStart = flag.Bool("auto_start", false, "auto start")
 	var logFile = flag.String("log", "", "log file")
 	var inputTypes = flag.String("input", "", "input type")
-	var secure = flag.Bool("secure", false, "input type")
+	var secure = flag.String("secure", "", "input encoder")
 
 	flag.Parse()
 	cfg := config.NewConfig()
@@ -93,7 +96,7 @@ func main() {
 	cfg.SetValueDefault(mino.KeyWebRoot, *webRoot, nil)
 	cfg.SetValueDefault(mino.KeyAutoStart, *autoStart, nil)
 	cfg.SetValueDefault(mino.KeyInput, *inputTypes, "mino,http,socks5")
-	cfg.SetValueDefault(mino.KeyTlsEnable, *secure, false)
+	cfg.SetValueDefault(mino.KeyEncoder, *secure, "")
 
 	// 写入日志文件
 	if p := cfg.String(mino.KeyLogFile); len(p) > 0 {
