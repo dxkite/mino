@@ -30,6 +30,7 @@ const (
 	KeyUpdateUrl       = "update_url"
 	KeyLatestVersion   = "latest_version"
 	KeyXorMod          = "xor_mod"
+	KeyDump            = "dump"
 )
 
 const PathMinoPac = "/mino.pac"

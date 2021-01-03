@@ -13,6 +13,7 @@ import (
 	_ "dxkite.cn/mino/proto/mino1"
 	_ "dxkite.cn/mino/proto/socks5"
 	_ "dxkite.cn/mino/stream/tls"
+	_ "dxkite.cn/mino/stream/xor"
 
 	"dxkite.cn/mino/server"
 	"dxkite.cn/mino/transport"

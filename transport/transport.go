@@ -217,7 +217,13 @@ func (t *Transporter) conn(c net.Conn) {
 			_ = svr.SendSuccess()
 		}
 
-		sess := NewSession(t.NextId(), svr.User(), svr, rmt, address)
+		var loc net.Conn = svr
+
+		if t.Config.Bool(mino.KeyDump) {
+			loc = util.NewConnDumper(loc, log.Writer())
+		}
+
+		sess := NewSession(t.NextId(), svr.User(), loc, rmt, address)
 		t.AddSession(svr, sess)
 		up, down, err := sess.Transport()
 
@@ -238,9 +244,9 @@ func (t *Transporter) AddSession(svr proto.Server, session *Session) {
 		for {
 			select {
 			case <-session.ReadNotify():
-				t.Event.Event("flow-read", session)
+				t.Event.Event("read", session)
 			case <-session.WriteNotify():
-				t.Event.Event("flow-write", session)
+				t.Event.Event("write", session)
 			case <-session.CloseNotify():
 				t.Event.Event("close", session)
 				t.Session.DelSession(id)
@@ -271,6 +277,8 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 	if enc, ok := stream.Get(t.Config.String(mino.KeyEncoder)); ok {
 		rmt = enc.Client(rmt, t.Config)
 	}
+
+	//log.Println("connected", network, address, "at", rmt.LocalAddr())
 
 	if UpStream != nil {
 		if cl, ok := t.Manager.Get(UpStream.Scheme); ok {

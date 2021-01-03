@@ -2,9 +2,11 @@ package util
 
 import (
 	"archive/zip"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -206,4 +208,26 @@ func InArrayComma(chk, typ string) bool {
 		}
 	}
 	return false
+}
+
+type connDumper struct {
+	net.Conn
+	w io.Writer
+}
+
+func (c *connDumper) Write(p []byte) (n int, err error) {
+	name := fmt.Sprintf("connection write %s -> %s\n", c.Conn.LocalAddr(), c.Conn.RemoteAddr())
+	_, _ = c.w.Write([]byte(name + hex.Dump(p)))
+	return c.Conn.Write(p)
+}
+
+func (c *connDumper) Read(p []byte) (n int, err error) {
+	name := fmt.Sprintf("connection read %s -> %s\n", c.Conn.RemoteAddr(), c.Conn.LocalAddr())
+	n, err = c.Conn.Read(p)
+	_, _ = c.w.Write([]byte(name + hex.Dump(p)))
+	return
+}
+
+func NewConnDumper(conn net.Conn, w io.Writer) net.Conn {
+	return &connDumper{conn, w}
 }

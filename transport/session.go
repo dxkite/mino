@@ -37,6 +37,8 @@ type Session struct {
 	chClosed chan struct{}
 	chRead   chan int64
 	chWrite  chan int64
+	// 打印数据流
+	dump bool
 }
 
 // 传输数据
@@ -114,23 +116,23 @@ func NewSession(sid int, group string, loc, rmt net.Conn, dst string) *Session {
 	}
 }
 
-func (f *Session) Read(p []byte) (n int, err error) {
-	n, err = f.loc.Read(p)
-	f.Up += int64(n)
+func (s *Session) Read(p []byte) (n int, err error) {
+	n, err = s.loc.Read(p)
+	s.Up += int64(n)
 	go func() {
-		if !f.Closed {
-			f.chRead <- f.Up
+		if !s.Closed {
+			s.chRead <- s.Up
 		}
 	}()
 	return
 }
 
-func (f *Session) Write(p []byte) (n int, err error) {
-	n, err = f.loc.Write(p)
-	f.Down += int64(n)
+func (s *Session) Write(p []byte) (n int, err error) {
+	n, err = s.loc.Write(p)
+	s.Down += int64(n)
 	go func() {
-		if !f.Closed {
-			f.chWrite <- f.Down
+		if !s.Closed {
+			s.chWrite <- s.Down
 		}
 	}()
 	return
