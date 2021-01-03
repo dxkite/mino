@@ -1,15 +1,21 @@
 package server
 
 import (
+	"crypto/rand"
+	"dxkite.cn/go-log"
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/transport"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"path"
 	"runtime"
+	"time"
 )
 
 type updateHandler struct {
@@ -48,8 +54,8 @@ func (vc *updateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if b, err := json.Marshal(v); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("ContentType", "application/json")
 		_, _ = w.Write(b)
 	}
 }
@@ -59,11 +65,102 @@ type sessionListHandler struct {
 }
 
 func (vc *sessionListHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if b, err := json.Marshal(vc.sg.Group()); err != nil {
+	writeMsg(w, 0, "ok", vc.sg.Group())
+}
+
+const runtimeSession = "runtime.session-id"
+const cookieName = "mino-id"
+
+// 权限验证中间件
+func Auth(cfg config.Config, h http.Handler) http.Handler {
+	// 不开启验证
+	if !cfg.Bool(mino.KeyWebAuth) {
+		return h
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sid := cfg.String(runtimeSession)
+		if c, err := r.Cookie(cookieName); err != nil {
+			writeMsg(w, http.StatusUnauthorized, "need login", nil)
+			return
+		} else if len(sid) > 0 && c.Value == sid {
+			h.ServeHTTP(w, r)
+		} else {
+			writeMsg(w, http.StatusUnauthorized, "need login", nil)
+			return
+		}
+	})
+}
+
+type loginHandler struct {
+	cfg         config.Config
+	failedTimes map[string]int
+}
+
+func NewLoginHandler(cfg config.Config) http.Handler {
+	return &loginHandler{cfg, map[string]int{}}
+}
+
+func (lh *loginHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	var ip string
+	username := req.FormValue("username")
+	password := req.FormValue("password")
+
+	if v, _, er := net.SplitHostPort(req.RemoteAddr); er != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
+		ip = v
+	}
+
+	if len(username) > 0 && len(password) > 0 {
+	} else {
+		writeMsg(w, 1, "username or password is empty", nil)
+		return
+	}
+
+	if lh.failedTimes[ip] > lh.cfg.IntOrDefault(mino.KeyWebFailedTimes, 10) {
+		log.Warn(username, "failed time limit", ip)
+		writeMsg(w, 3, "failed time limit", nil)
+		return
+	}
+
+	if username == lh.cfg.String(mino.KeyWebUsername) &&
+		password == lh.cfg.String(mino.KeyWebPassword) {
+	} else {
+		lh.failedTimes[ip]++
+		log.Debug(username, ip, "try login")
+		writeMsg(w, 2, "username or password is error", nil)
+		return
+	}
+
+	sid := make([]byte, 16)
+	_, _ = io.ReadFull(rand.Reader, sid)
+	id := hex.EncodeToString(sid)
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieName,
+		Value:    id,
+		Expires:  time.Now().Add(60 * time.Minute),
+		Secure:   false,
+		HttpOnly: true,
+		SameSite: 0,
+	})
+	lh.cfg.Set(runtimeSession, id)
+	writeMsg(w, 0, "login success", nil)
+	lh.failedTimes[req.RemoteAddr] = 0
+	log.Info(username, "login")
+}
+
+func writeMsg(w http.ResponseWriter, code int, msg string, data interface{}) {
+	p := map[string]interface{}{
+		"code":    code,
+		"message": msg,
+		"data":    data,
+	}
+	if b, err := json.Marshal(p); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Header().Set("ContentType", "application/json")
 		_, _ = w.Write(b)
 	}
 }

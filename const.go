@@ -32,6 +32,11 @@ const (
 	KeyLatestVersion   = "latest_version"
 	KeyXorMod          = "xor_mod"
 	KeyDump            = "dump"
+
+	KeyWebAuth        = "web_auth"
+	KeyWebUsername    = "web_username"
+	KeyWebPassword    = "web_password"
+	KeyWebFailedTimes = "web_failed_times"
 )
 
 const PathMinoPac = "/mino.pac"
