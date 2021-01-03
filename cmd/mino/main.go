@@ -15,12 +15,12 @@ import (
 	_ "dxkite.cn/mino/stream/tls"
 	_ "dxkite.cn/mino/stream/xor"
 
+	"dxkite.cn/mino/log"
 	"dxkite.cn/mino/server"
 	"dxkite.cn/mino/transport"
 	"dxkite.cn/mino/util"
 	"flag"
 	"io"
-	"log"
 	"os"
 )
 
@@ -31,7 +31,7 @@ func errMsg(msg string) {
 }
 
 func main() {
-
+	log.SetOutput(log.NewTextWriter(os.Stdout))
 	log.Println("Mino Agent", "v"+mino.Version)
 
 	if !util.CheckMachineId(mino.MachineId) {
@@ -105,7 +105,7 @@ func main() {
 		if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND, os.ModePerm); err != nil {
 			log.Println("open log file error", p)
 		} else {
-			log.SetOutput(io.MultiWriter(os.Stdout, f))
+			log.SetOutput(log.NewTextWriter(io.MultiWriter(os.Stdout, f)))
 			log.Println("log output", p)
 			defer func() { _ = f.Close() }()
 		}

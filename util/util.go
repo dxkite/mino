@@ -2,10 +2,10 @@ package util
 
 import (
 	"archive/zip"
+	"dxkite.cn/mino/log"
 	"encoding/hex"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/url"
 	"os"

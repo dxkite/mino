@@ -3,9 +3,9 @@
 package monkey
 
 import (
+	"dxkite.cn/mino/log"
 	"golang.org/x/sys/windows/registry"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/signal"
 	"strings"

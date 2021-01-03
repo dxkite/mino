@@ -4,8 +4,8 @@ package daemon
 
 import (
 	"bytes"
+	"dxkite.cn/mino/log"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"strings"

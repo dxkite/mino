@@ -3,6 +3,7 @@ package monkey
 import (
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
+	"dxkite.cn/mino/log"
 	"dxkite.cn/mino/notification"
 	"dxkite.cn/mino/util"
 	"encoding/json"
@@ -10,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path"

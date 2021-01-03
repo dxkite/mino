@@ -1,8 +1,8 @@
 package daemon
 
 import (
+	"dxkite.cn/mino/log"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"strconv"

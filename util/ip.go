@@ -2,8 +2,8 @@ package util
 
 import (
 	"crypto/md5"
+	"dxkite.cn/mino/log"
 	"encoding/hex"
-	"log"
 	"net"
 	"sort"
 	"strings"

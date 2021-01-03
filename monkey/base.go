@@ -3,10 +3,10 @@ package monkey
 import (
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
+	"dxkite.cn/mino/log"
 	"dxkite.cn/mino/util"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"path"
 	"strings"

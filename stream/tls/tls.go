@@ -4,10 +4,10 @@ import (
 	"crypto/tls"
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
+	"dxkite.cn/mino/log"
 	"dxkite.cn/mino/stream"
 	"dxkite.cn/mino/util"
 	"io"
-	"log"
 	"net"
 )
 
