@@ -28,25 +28,25 @@ func AutoSetPac(pacUri, pacBackFile, check string) {
 	if err != nil {
 		exist = false
 		if err != registry.ErrNotExist {
-			log.Println("get pac error", err)
+			log.Warn("get pac error", err)
 			return
 		}
 	} else {
-		log.Println("got raw pac", configUrl)
+		log.Debug("got raw pac", configUrl)
 	}
 
 	var bkPac = exist && !strings.Contains(configUrl, check)
 
 	if bkPac {
 		if err := ioutil.WriteFile(pacBackFile, []byte(configUrl), os.ModePerm); err != nil {
-			log.Println("write pac error", err)
+			log.Warn("write pac error", err)
 		}
 	}
 
 	if err := k.SetStringValue("AutoConfigURL", pacUri); err != nil {
-		log.Println("set pac error", err)
+		log.Error("set pac error", err)
 		signal.Stop(signals)
-		log.Println("pac config process exit")
+		log.Debug("pac config process exit")
 		return
 	}
 
@@ -55,16 +55,16 @@ func AutoSetPac(pacUri, pacBackFile, check string) {
 	log.Println("recover AutoConfigURL")
 
 	if bkPac {
-		log.Println("reset pac config", configUrl)
+		log.Debug("reset pac config", configUrl)
 		if err := k.SetStringValue("AutoConfigURL", configUrl); err != nil {
 			log.Println("reset pac config error", err)
 		}
 	} else {
-		log.Println("remove pac config")
+		log.Debug("remove pac config")
 		if err := k.DeleteValue("AutoConfigURL"); err != nil {
-			log.Println("remove pac config", err)
+			log.Warn("remove pac config", err)
 		}
 	}
-	log.Println("pac config process exit")
+	log.Debug("pac config process exit")
 	os.Exit(0)
 }

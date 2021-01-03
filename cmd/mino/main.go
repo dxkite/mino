@@ -7,6 +7,7 @@ import (
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/notification"
 	"dxkite.cn/mino/proto/http"
+	"path/filepath"
 
 	_ "dxkite.cn/mino/proto/http"
 	_ "dxkite.cn/mino/proto/mino"
@@ -24,14 +25,66 @@ import (
 	"os"
 )
 
+func init() {
+	log.SetOutput(log.NewColorWriter())
+}
+
 func errMsg(msg string) {
 	if err := notification.Notification("Mino Agent", "Mino启动失败", msg); err != nil {
 		log.Println("notification error", err)
 	}
 }
 
+func initLogFile(filename string) io.Closer {
+	if len(filename) < 0 {
+		return nil
+	}
+
+	var w io.Writer
+	var c io.Closer
+	pp := util.ConcatPath(util.GetRuntimePath(), filename)
+	if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND, os.ModePerm); err != nil {
+		log.Warn("log file open error", filename)
+		return nil
+	} else {
+		w = f
+		c = f
+	}
+
+	if filepath.Ext(filename) == ".json" {
+		w = log.NewJsonWriter(w)
+	} else {
+		w = log.NewTextWriter(w)
+	}
+
+	log.SetOutput(io.MultiWriter(w, log.Writer()))
+	return c
+}
+
+func printInfo(cfg config.Config) {
+	if len(cfg.String(mino.KeyUpstream)) > 0 {
+		log.Println("use upstream", cfg.String(mino.KeyUpstream))
+	}
+	if len(cfg.String(mino.KeyEncoder)) > 0 {
+		log.Println("use upstream encoder", cfg.String(mino.KeyEncoder))
+	}
+}
+
+func initMonkey(cfg config.Config) {
+	if len(cfg.String(mino.KeyPacFile)) > 0 {
+		go monkey.AutoPac(cfg)
+	}
+
+	if cfg.Bool(mino.KeyAutoStart) {
+		go monkey.AutoStart(os.Args[0])
+	}
+
+	if cfg.BoolOrDefault(mino.KeyAutoUpdate, true) {
+		go monkey.AutoUpdate(cfg)
+	}
+}
+
 func main() {
-	log.SetOutput(log.NewColorWriter())
 	log.Println("Mino Agent", "v"+mino.Version)
 
 	if !util.CheckMachineId(mino.MachineId) {
@@ -72,16 +125,17 @@ func main() {
 		os.Exit(0)
 	} else {
 		cfg.SetValueDefault(mino.KeyLogFile, *logFile, nil)
-		cfg.SetValueDefault(mino.KeyConfFile, util.GetRelativePath(*confFile), nil)
-		cfg.SetValueDefault(mino.KeyPacFile, *pacFile, nil)
+		cfg.SetValueDefault(mino.KeyConfFile, util.GetRelativePath(*confFile), util.GetRelativePath("mino.yml"))
+		cfg.SetValueDefault(mino.KeyPacFile, *pacFile, util.GetRelativePath("mino.pac"))
 	}
 
-	log.Println("log file at", cfg.String(mino.KeyLogFile))
-	log.Println("config file at", cfg.String(mino.KeyConfFile))
+	if len(cfg.String(mino.KeyConfFile)) > 0 {
+		log.Println("config file at", cfg.String(mino.KeyConfFile))
+	}
 
 	if p := cfg.String(mino.KeyConfFile); len(p) > 0 {
 		if err := cfg.Load(p); err != nil {
-			log.Println("read config error", p, err)
+			log.Error("read config error", p, err)
 			errMsg("配置文件读取失败：" + p)
 			os.Exit(1)
 		}
@@ -98,49 +152,34 @@ func main() {
 	cfg.SetValueDefault(mino.KeyAutoStart, *autoStart, nil)
 	cfg.SetValueDefault(mino.KeyInput, *inputTypes, "mino,http,socks5")
 	cfg.SetValueDefault(mino.KeyEncoder, *secure, "")
+	cfg.SetValueDefault(mino.KeyLogFile, *logFile, nil)
 
-	// 写入日志文件
-	if p := cfg.String(mino.KeyLogFile); len(p) > 0 {
-		pp := util.ConcatPath(util.GetRuntimePath(), p)
-		if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND, os.ModePerm); err != nil {
-			log.Println("open log file error", p)
-		} else {
-			log.SetOutput(log.NewTextWriter(io.MultiWriter(log.Writer(), f)))
-			log.Println("log output", p)
-			defer func() { _ = f.Close() }()
-		}
+	if c := initLogFile(cfg.String(mino.KeyLogFile)); c != nil {
+		defer func() { _ = c.Close() }()
 	}
 
 	cfg.RequiredNotEmpty(mino.KeyAddress)
-	transporter := transport.New(cfg)
-	svr := server.NewServer(transporter)
 
-	//transporter.Event = &transport.ConsoleHandler{}
+	if len(cfg.String(mino.KeyLogFile)) > 0 {
+		log.Println("log file at", cfg.String(mino.KeyLogFile))
+	}
 
-	if err := transporter.Init(); err != nil {
+	t := transport.New(cfg)
+	svr := server.NewServer(t)
+
+	//t.Event = &transport.ConsoleHandler{}
+
+	if err := t.Init(); err != nil {
 		log.Fatalln("init error", err)
 	}
 
-	if err := transporter.Listen(); err != nil {
+	if err := t.Listen(); err != nil {
 		errMsg("网络端口被占用")
 		log.Fatalln("listen port error")
 	}
 
-	if len(cfg.String(mino.KeyUpstream)) > 0 {
-		log.Println("use upstream", cfg.String(mino.KeyUpstream))
-	}
-
-	if len(cfg.String(mino.KeyPacFile)) > 0 {
-		go monkey.AutoPac(cfg)
-	}
-
-	if cfg.Bool(mino.KeyAutoStart) {
-		go monkey.AutoStart(os.Args[0])
-	}
-
-	if cfg.BoolOrDefault(mino.KeyAutoUpdate, true) {
-		go monkey.AutoUpdate(cfg)
-	}
+	printInfo(cfg)
+	initMonkey(cfg)
 
 	go func() { log.Println(svr.Serve()) }()
 
@@ -148,5 +187,5 @@ func main() {
 		log.Println("notification error", err)
 	}
 
-	log.Println("exit", transporter.Serve())
+	log.Println("exit", t.Serve())
 }

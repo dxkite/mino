@@ -86,13 +86,13 @@ func DownloadZip(url string, ui *mino.UpdateInfo) (string, error) {
 
 // 自动更新
 func AutoUpdate(cfg config.Config) {
-	log.Println("check update")
+	log.Debug("check update")
 	fro, ui := GetUpdateInfo(cfg)
 	if ui != nil {
 		dl := util.GetAbsUrl(fro, ui.DownloadUrl)
-		log.Println("got new update", ui.Version, dl)
+		log.Info("got new update", ui.Version, dl)
 		if fn, err := DownloadZip(dl, ui); err != nil {
-			log.Println("download update zip error", err)
+			log.Error("download update zip error", err)
 		} else {
 			overwrite := map[string]string{}
 			if len(ui.Binary) > 0 {
@@ -101,16 +101,16 @@ func AutoUpdate(cfg config.Config) {
 			d := util.GetBinaryPath()
 			bk := path.Join(d, "backup")
 			if err := util.Unzip(fn, d, bk, overwrite); err != nil {
-				log.Println("update unzip error", err)
+				log.Error("update unzip error", err)
 				return
 			}
 			msg := fmt.Sprintf("下次启动生效，更新版本: %s", ui.Version)
 			log.Println("update success")
 			if err := notification.Notification("Mino Agent", "Mino更新成功", msg); err != nil {
-				log.Println("notification error", err)
+				log.Error("notification error", err)
 			}
 		}
 	} else {
-		log.Println("update not found")
+		log.Debug("update not found")
 	}
 }

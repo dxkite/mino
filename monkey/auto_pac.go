@@ -7,5 +7,5 @@ import (
 )
 
 func AutoSetPac(pacUri, pacBackFile, inner string) {
-	log.Println("auto set pac only support windows")
+	log.Warn("auto set pac only support windows")
 }

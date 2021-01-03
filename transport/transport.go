@@ -229,9 +229,10 @@ func (t *Transporter) conn(c net.Conn) {
 
 		msg := fmt.Sprintf("transport %s %s via %s up %d down %d", network, address, p.Name(), up, down)
 		if err != nil {
-			msg += " error: " + err.Error()
+			log.Error(msg, "error", err.Error())
+		} else {
+			log.Println(msg)
 		}
-		log.Println(msg)
 	}
 }
 
@@ -278,8 +279,6 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 		rmt = enc.Client(rmt, t.Config)
 	}
 
-	//log.Println("connected", network, address, "at", rmt.LocalAddr())
-
 	if UpStream != nil {
 		if cl, ok := t.Manager.Get(UpStream.Scheme); ok {
 			cfg := t.Config
@@ -290,6 +289,7 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 			if err := client.Handshake(); err != nil {
 				return nil, errors.New(fmt.Sprint("remote protocol handshake error: ", err))
 			}
+			log.Debug("connecting", network, address, "via", UpStream)
 			if err := client.Connect(_n, _a); err != nil {
 				return nil, errors.New(fmt.Sprint("remote connecting error: ", err))
 			}

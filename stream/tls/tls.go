@@ -45,16 +45,21 @@ const clientRuntimeConfig = "runtime.tls.client-config"
 
 // 创建客户端
 func (stm *tlsStream) init(cfg config.Config) {
-	if val, _ := cfg.Get(serverRuntimeConfig); val == nil {
-		// 服务器自适应 TLS
-		certF := util.GetRelativePath(cfg.String(mino.KeyCertFile))
-		keyF := util.GetRelativePath(cfg.String(mino.KeyKeyFile))
-		if cert, err := tls.LoadX509KeyPair(certF, keyF); err != nil {
-			log.Println("load secure config error", err)
-		} else {
-			cfg.Set(serverRuntimeConfig, &tls.Config{Certificates: []tls.Certificate{cert}})
+
+	var enableServer = len(cfg.String(mino.KeyCertFile)) > 0
+	if enableServer {
+		if val, _ := cfg.Get(serverRuntimeConfig); val == nil {
+			// 服务器自适应 TLS
+			certF := util.GetRelativePath(cfg.String(mino.KeyCertFile))
+			keyF := util.GetRelativePath(cfg.String(mino.KeyKeyFile))
+			if cert, err := tls.LoadX509KeyPair(certF, keyF); err != nil {
+				log.Println("load secure config error", err)
+			} else {
+				cfg.Set(serverRuntimeConfig, &tls.Config{Certificates: []tls.Certificate{cert}})
+			}
 		}
 	}
+
 	if val, _ := cfg.Get(clientRuntimeConfig); val == nil {
 		// 输出流使用TLS
 		cfg.Set(clientRuntimeConfig, &tls.Config{InsecureSkipVerify: true})

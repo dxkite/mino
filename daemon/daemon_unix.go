@@ -35,7 +35,7 @@ func isRunning(pidPath string) bool {
 
 func stop(pidPath string) {
 	if !isRunning(pidPath) {
-		log.Printf("mino is not running")
+		log.Println("mino is not running")
 		return
 	}
 	var c *exec.Cmd

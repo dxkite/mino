@@ -54,7 +54,7 @@ func (c *config) Load(filename string) error {
 func (c *config) RequiredNotEmpty(name string) {
 	v, _ := c.Get(name)
 	if v == nil || reflect.ValueOf(v).IsZero() {
-		log.Println("config", name, "can be empty")
+		log.Error("config", name, "can be empty")
 		os.Exit(1)
 	}
 }

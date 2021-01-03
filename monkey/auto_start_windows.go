@@ -19,7 +19,7 @@ func AutoStart(cmd string) {
 		return
 	}
 	if err := k.SetStringValue("Mino", cmd); err != nil {
-		log.Println("set auto start error", err)
+		log.Warn("set auto start error", err)
 		return
 	}
 	log.Println("auto start is set", cmd)

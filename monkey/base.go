@@ -64,6 +64,6 @@ func fmtHost(host string) string {
 
 func warnError(fun func() (err error)) {
 	if err := fun(); err != nil {
-		log.Println(err)
+		log.Warn(err)
 	}
 }
