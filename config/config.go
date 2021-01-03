@@ -1,8 +1,8 @@
 package config
 
 import (
+	"dxkite.cn/go-log"
 	"dxkite.cn/mino"
-	"dxkite.cn/mino/log"
 	"dxkite.cn/mino/util"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"

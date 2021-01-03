@@ -15,7 +15,7 @@ import (
 	_ "dxkite.cn/mino/stream/tls"
 	_ "dxkite.cn/mino/stream/xor"
 
-	"dxkite.cn/mino/log"
+	"dxkite.cn/go-log"
 	"dxkite.cn/mino/server"
 	"dxkite.cn/mino/transport"
 	"dxkite.cn/mino/util"

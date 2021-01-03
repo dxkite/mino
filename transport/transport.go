@@ -2,7 +2,7 @@ package transport
 
 import (
 	"crypto/tls"
-	"dxkite.cn/mino/log"
+	"dxkite.cn/go-log"
 	"dxkite.cn/mino/stream"
 	"dxkite.cn/mino/util"
 	"encoding/hex"

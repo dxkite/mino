@@ -1,9 +1,9 @@
 package socks5
 
 import (
+	"dxkite.cn/go-log"
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/log"
 	"dxkite.cn/mino/proto"
 	"encoding/binary"
 	"errors"

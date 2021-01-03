@@ -1,7 +1,7 @@
 package transport
 
 import (
-	"dxkite.cn/mino/log"
+	"dxkite.cn/go-log"
 	"encoding/json"
 )
 
