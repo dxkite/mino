@@ -22,6 +22,7 @@ const (
 	KeyAutoStart       = "auto_start"
 	KeyAutoUpdate      = "auto_update"
 	KeyLogFile         = "log_file"
+	KeyLogLevel        = "log_level"
 	KeyConfFile        = "conf_file"
 	KeyRootCa          = "tls_root_ca"
 	KeyCertFile        = "tls_cert_file"

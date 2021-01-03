@@ -7,14 +7,13 @@ import (
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/notification"
 	"dxkite.cn/mino/proto/http"
-	"path/filepath"
-
 	_ "dxkite.cn/mino/proto/http"
 	_ "dxkite.cn/mino/proto/mino"
 	_ "dxkite.cn/mino/proto/mino1"
 	_ "dxkite.cn/mino/proto/socks5"
 	_ "dxkite.cn/mino/stream/tls"
 	_ "dxkite.cn/mino/stream/xor"
+	"path/filepath"
 
 	"dxkite.cn/go-log"
 	"dxkite.cn/mino/server"
@@ -35,13 +34,17 @@ func errMsg(msg string) {
 	}
 }
 
-func initLogFile(filename string) io.Closer {
-	if len(filename) < 0 {
+func initLogger(cfg config.Config) io.Closer {
+	log.SetLevel(log.LogLevel(cfg.IntOrDefault(mino.KeyLogLevel, 0)))
+
+	filename := cfg.String(mino.KeyLogFile)
+	var w io.Writer
+	var c io.Closer
+
+	if len(filename) == 0 {
 		return nil
 	}
 
-	var w io.Writer
-	var c io.Closer
 	pp := util.ConcatPath(util.GetRuntimePath(), filename)
 	if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND, os.ModePerm); err != nil {
 		log.Warn("log file open error", filename)
@@ -49,15 +52,14 @@ func initLogFile(filename string) io.Closer {
 	} else {
 		w = f
 		c = f
+		if filepath.Ext(filename) == ".json" {
+			w = log.NewJsonWriter(w)
+		} else {
+			w = log.NewTextWriter(w)
+		}
 	}
 
-	if filepath.Ext(filename) == ".json" {
-		w = log.NewJsonWriter(w)
-	} else {
-		w = log.NewTextWriter(w)
-	}
-
-	log.SetOutput(io.MultiWriter(w, log.Writer()))
+	log.SetOutput(log.MultiWriter(w, log.Writer()))
 	return c
 }
 
@@ -125,12 +127,14 @@ func main() {
 		os.Exit(0)
 	} else {
 		cfg.SetValueDefault(mino.KeyLogFile, *logFile, nil)
-		cfg.SetValueDefault(mino.KeyConfFile, util.GetRelativePath(*confFile), util.GetRelativePath("mino.yml"))
-		cfg.SetValueDefault(mino.KeyPacFile, *pacFile, util.GetRelativePath("mino.pac"))
+		cfg.SetValueDefault(mino.KeyConfFile, util.GetRelativePath(*confFile), nil)
+		cfg.SetValueDefault(mino.KeyPacFile, *pacFile, nil)
 	}
 
 	if len(cfg.String(mino.KeyConfFile)) > 0 {
-		log.Println("config file at", cfg.String(mino.KeyConfFile))
+		c := util.GetRelativePath(cfg.String(mino.KeyConfFile))
+		cfg.Set(mino.KeyConfFile, c)
+		log.Println("config file at", c)
 	}
 
 	if p := cfg.String(mino.KeyConfFile); len(p) > 0 {
@@ -154,11 +158,11 @@ func main() {
 	cfg.SetValueDefault(mino.KeyEncoder, *secure, "")
 	cfg.SetValueDefault(mino.KeyLogFile, *logFile, nil)
 
-	if c := initLogFile(cfg.String(mino.KeyLogFile)); c != nil {
+	cfg.RequiredNotEmpty(mino.KeyAddress)
+
+	if c := initLogger(cfg); c != nil {
 		defer func() { _ = c.Close() }()
 	}
-
-	cfg.RequiredNotEmpty(mino.KeyAddress)
 
 	if len(cfg.String(mino.KeyLogFile)) > 0 {
 		log.Println("log file at", cfg.String(mino.KeyLogFile))
