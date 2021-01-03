@@ -31,7 +31,7 @@ func errMsg(msg string) {
 }
 
 func main() {
-	log.SetOutput(log.NewTextWriter(os.Stdout))
+	log.SetOutput(log.NewColorWriter())
 	log.Println("Mino Agent", "v"+mino.Version)
 
 	if !util.CheckMachineId(mino.MachineId) {
@@ -105,7 +105,7 @@ func main() {
 		if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND, os.ModePerm); err != nil {
 			log.Println("open log file error", p)
 		} else {
-			log.SetOutput(log.NewTextWriter(io.MultiWriter(os.Stdout, f)))
+			log.SetOutput(log.NewTextWriter(io.MultiWriter(log.Writer(), f)))
 			log.Println("log output", p)
 			defer func() { _ = f.Close() }()
 		}
