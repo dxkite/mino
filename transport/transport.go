@@ -91,7 +91,7 @@ func (t *Transporter) Serve() error {
 	for {
 		c, err := t.listen.Accept()
 		if err != nil {
-			log.Println("accept error", err)
+			log.Warn("accept new conn error", err)
 			continue
 		}
 		go t.conn(c)
@@ -106,10 +106,10 @@ func (l *listen_) Accept() (conn net.Conn, err error) {
 	for {
 		select {
 		case conn = <-l.t.acceptConn:
-			log.Println("accept web conn", conn.RemoteAddr().String())
+			log.Debug("accept web conn", conn.RemoteAddr().String())
 			return
 		case err = <-l.t.acceptErr:
-			log.Println("accept web conn error", err)
+			log.Warn("accept web conn error", err)
 			return
 		}
 	}
@@ -168,37 +168,37 @@ func (t *Transporter) conn(c net.Conn) {
 	conn := rewind.NewRewindConn(c, rwdS)
 
 	if stm, err := encoder.Detect(conn, t.Config); err != nil {
-		log.Println("identify stream type error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
+		log.Error("identify stream type error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
 		_ = c.Close()
 		return
 	} else if stm != nil {
-		log.Println("identified stream " + stm.Name())
+		log.Debug("identified stream " + stm.Name())
 		conn = rewind.NewRewindConn(stm.Server(conn, t.Config), rwdS)
 	}
 
 	p, err := t.Detect(conn)
 
 	if err != nil {
-		log.Println("identify protocol error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
+		log.Error("identify protocol error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
 		_ = c.Close()
 		return
 	}
 
 	if !t.IsEnableProtocol(p.Name()) {
-		log.Println("protocol is disabled", p.Name())
+		log.Warn("protocol is disabled", p.Name())
 		_ = c.Close()
 		return
 	}
 
 	svr := p.Server(conn, t.Config)
 	if err := svr.Handshake(t.AuthFunc); err != nil {
-		log.Println("protocol", p.Name(), "handshake error", err)
+		log.Error("protocol", p.Name(), "handshake error", err)
 		_ = c.Close()
 		return
 	}
 
 	if network, address, err := svr.Target(); err != nil {
-		log.Println("recv conn info error", err)
+		log.Error("recv conn info error", err)
 		_ = c.Close()
 	} else {
 		if util.IsRequestHttp(t.listen.Addr().String(), address) {
@@ -208,7 +208,7 @@ func (t *Transporter) conn(c net.Conn) {
 
 		rmt, rmtErr := t.dial(network, address)
 		if rmtErr != nil {
-			log.Println("dial", network, address, "error", rmtErr)
+			log.Error("dial", network, address, "error", rmtErr)
 			_ = svr.SendError(rmtErr)
 			_ = c.Close()
 			return

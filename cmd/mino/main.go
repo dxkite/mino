@@ -26,6 +26,7 @@ import (
 
 func init() {
 	log.SetOutput(log.NewColorWriter())
+	log.SetLogCaller(false)
 }
 
 func errMsg(msg string) {
@@ -45,7 +46,7 @@ func initLogger(cfg config.Config) io.Closer {
 		return nil
 	}
 
-	pp := util.ConcatPath(util.GetRuntimePath(), filename)
+	pp := util.ConcatPath(util.GetBinaryPath(), filename)
 	if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND, os.ModePerm); err != nil {
 		log.Warn("log file open error", filename)
 		return nil
