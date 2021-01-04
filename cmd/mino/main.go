@@ -4,15 +4,15 @@ import (
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/daemon"
+	_ "dxkite.cn/mino/encoder/tls"
+	_ "dxkite.cn/mino/encoder/xor"
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/notification"
-	"dxkite.cn/mino/proto/http"
-	_ "dxkite.cn/mino/proto/http"
-	_ "dxkite.cn/mino/proto/mino"
-	_ "dxkite.cn/mino/proto/mino1"
-	_ "dxkite.cn/mino/proto/socks5"
-	_ "dxkite.cn/mino/stream/tls"
-	_ "dxkite.cn/mino/stream/xor"
+	"dxkite.cn/mino/stream/http"
+	_ "dxkite.cn/mino/stream/http"
+	_ "dxkite.cn/mino/stream/mino"
+	_ "dxkite.cn/mino/stream/mino1"
+	_ "dxkite.cn/mino/stream/socks5"
 	"path/filepath"
 
 	"dxkite.cn/go-log"
@@ -35,7 +35,7 @@ func errMsg(msg string) {
 }
 
 func initLogger(cfg config.Config) io.Closer {
-	log.SetLevel(log.LogLevel(cfg.IntOrDefault(mino.KeyLogLevel, 0)))
+	log.SetLevel(log.LogLevel(cfg.IntOrDefault(mino.KeyLogLevel, int(log.LMaxLevel))))
 
 	filename := cfg.String(mino.KeyLogFile)
 	var w io.Writer

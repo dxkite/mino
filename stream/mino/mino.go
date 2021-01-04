@@ -3,7 +3,7 @@ package mino
 import (
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/proto"
+	"dxkite.cn/mino/stream"
 	"errors"
 	"io"
 	"net"
@@ -22,7 +22,7 @@ type Server struct {
 var ErrAuth = errors.New("auth error")
 
 // 握手
-func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
+func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 	buf := make([]byte, 1)
 	if _, err := io.ReadFull(conn, buf); err != nil {
 		return err
@@ -35,7 +35,7 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 		return err
 	}
 	if auth != nil {
-		if (auth(&proto.AuthInfo{
+		if (auth(&stream.AuthInfo{
 			Username:   m.Username,
 			Password:   m.Password,
 			RemoteAddr: conn.RemoteAddr().String(),
@@ -122,22 +122,22 @@ func (d *Checker) Check(r io.Reader) (bool, error) {
 	return buf[0] == Version2, nil
 }
 
-type Protocol struct {
+type Stream struct {
 }
 
-func (c *Protocol) Name() string {
+func (c *Stream) Name() string {
 	return "mino"
 }
 
 // 创建HTTP接收器
-func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
+func (c *Stream) Server(conn net.Conn, config config.Config) stream.Server {
 	return &Server{
 		Conn: conn,
 	}
 }
 
 // 创建HTTP请求器
-func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
+func (c *Stream) Client(conn net.Conn, config config.Config) stream.Client {
 	return &Client{
 		Conn:     conn,
 		Username: config.String(mino.KeyUsername),
@@ -145,10 +145,10 @@ func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
 	}
 }
 
-func (c *Protocol) Checker(config config.Config) proto.Checker {
+func (c *Stream) Checker(config config.Config) stream.Checker {
 	return &Checker{}
 }
 
 func init() {
-	proto.Add(&Protocol{})
+	stream.Add(&Stream{})
 }

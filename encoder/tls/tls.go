@@ -5,23 +5,23 @@ import (
 	"dxkite.cn/go-log"
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/stream"
+	"dxkite.cn/mino/encoder"
 	"dxkite.cn/mino/util"
 	"io"
 	"net"
 )
 
-type tlsStream struct {
+type tlsStreamEncoder struct {
 }
 
-func (stm *tlsStream) Name() string {
+func (stm *tlsStreamEncoder) Name() string {
 	return "tls"
 }
 
 const TlsRecordTypeHandshake uint8 = 22
 
 // 判断编码类型
-func (stm *tlsStream) Detect(conn net.Conn, cfg config.Config) (bool, error) {
+func (stm *tlsStreamEncoder) Detect(conn net.Conn, cfg config.Config) (bool, error) {
 	// 读3个字节
 	buf := make([]byte, 3)
 	if _, err := io.ReadFull(conn, buf); err != nil {
@@ -44,7 +44,7 @@ const serverRuntimeConfig = "runtime.tls.server-config"
 const clientRuntimeConfig = "runtime.tls.client-config"
 
 // 创建客户端
-func (stm *tlsStream) init(cfg config.Config) {
+func (stm *tlsStreamEncoder) init(cfg config.Config) {
 
 	var enableServer = len(cfg.String(mino.KeyCertFile)) > 0
 	if enableServer {
@@ -67,7 +67,7 @@ func (stm *tlsStream) init(cfg config.Config) {
 }
 
 // 创建客户端
-func (stm *tlsStream) Client(conn net.Conn, cfg config.Config) net.Conn {
+func (stm *tlsStreamEncoder) Client(conn net.Conn, cfg config.Config) net.Conn {
 	var tlsConfig *tls.Config
 
 	stm.init(cfg)
@@ -83,7 +83,7 @@ func (stm *tlsStream) Client(conn net.Conn, cfg config.Config) net.Conn {
 }
 
 // 创建服务端
-func (stm *tlsStream) Server(conn net.Conn, cfg config.Config) net.Conn {
+func (stm *tlsStreamEncoder) Server(conn net.Conn, cfg config.Config) net.Conn {
 	var tlsConfig *tls.Config
 
 	stm.init(cfg)
@@ -99,5 +99,5 @@ func (stm *tlsStream) Server(conn net.Conn, cfg config.Config) net.Conn {
 }
 
 func init() {
-	stream.Reg(&tlsStream{})
+	encoder.Reg(&tlsStreamEncoder{})
 }

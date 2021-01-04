@@ -3,7 +3,7 @@ package transport
 import (
 	"crypto/tls"
 	"dxkite.cn/go-log"
-	"dxkite.cn/mino/stream"
+	"dxkite.cn/mino/encoder"
 	"dxkite.cn/mino/util"
 	"encoding/hex"
 	"errors"
@@ -16,21 +16,21 @@ import (
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/proto"
 	"dxkite.cn/mino/rewind"
+	"dxkite.cn/mino/stream"
 )
 
 // 传输工具
 type Transporter struct {
-	Manager *proto.Manager
+	Manager *stream.Manager
 	Session *SessionMap
 	Event   Handler
 
-	check       map[string]proto.Checker
+	check       map[string]stream.Checker
 	enableProto map[string]struct{}
 
 	Config     config.Config
-	AuthFunc   proto.BasicAuthFunc
+	AuthFunc   stream.BasicAuthFunc
 	acceptConn chan net.Conn
 	acceptErr  chan error
 	listen     net.Listener
@@ -44,7 +44,7 @@ type Transporter struct {
 func New(config config.Config) (t *Transporter) {
 	t = &Transporter{
 		Config:      config,
-		check:       map[string]proto.Checker{},
+		check:       map[string]stream.Checker{},
 		enableProto: map[string]struct{}{},
 		acceptConn:  make(chan net.Conn),
 		acceptErr:   make(chan error),
@@ -129,14 +129,14 @@ func (t *Transporter) NetListener() net.Listener {
 
 func (t *Transporter) initChecker() {
 	if t.Manager == nil {
-		t.Manager = proto.DefaultManager
+		t.Manager = stream.DefaultManager
 	}
 	for name := range t.Manager.Proto {
 		t.check[name] = t.Manager.Proto[name].Checker(t.Config)
 	}
 }
 
-func (t *Transporter) DetectProto(conn rewind.Conn) (proto proto.Proto, err error) {
+func (t *Transporter) Detect(conn rewind.Conn) (proto stream.Stream, err error) {
 	for name := range t.check {
 		// 重置流位置
 		if err = conn.Rewind(); err != nil {
@@ -167,7 +167,7 @@ func (t *Transporter) conn(c net.Conn) {
 	rwdS := t.Config.IntOrDefault(mino.KeyMaxStreamRewind, 8)
 	conn := rewind.NewRewindConn(c, rwdS)
 
-	if stm, err := stream.Detect(conn, t.Config); err != nil {
+	if stm, err := encoder.Detect(conn, t.Config); err != nil {
 		log.Println("identify stream type error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
 		_ = c.Close()
 		return
@@ -176,7 +176,7 @@ func (t *Transporter) conn(c net.Conn) {
 		conn = rewind.NewRewindConn(stm.Server(conn, t.Config), rwdS)
 	}
 
-	p, err := t.DetectProto(conn)
+	p, err := t.Detect(conn)
 
 	if err != nil {
 		log.Println("identify protocol error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
@@ -237,7 +237,7 @@ func (t *Transporter) conn(c net.Conn) {
 }
 
 // 添加会话
-func (t *Transporter) AddSession(svr proto.Server, session *Session) {
+func (t *Transporter) AddSession(svr stream.Server, session *Session) {
 	id := svr.RemoteAddr().String()
 	t.Session.AddSession(id, session)
 	t.Event.Event("new", session)
@@ -275,7 +275,7 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 	}
 
 	// 数据编码
-	if enc, ok := stream.Get(t.Config.String(mino.KeyEncoder)); ok {
+	if enc, ok := encoder.Get(t.Config.String(mino.KeyEncoder)); ok {
 		rmt = enc.Client(rmt, t.Config)
 	}
 

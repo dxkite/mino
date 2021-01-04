@@ -4,7 +4,7 @@ import (
 	"dxkite.cn/go-log"
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/proto"
+	"dxkite.cn/mino/stream"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -19,7 +19,7 @@ type Server struct {
 }
 
 // 握手
-func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
+func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 	/**
 	 -->
 
@@ -83,7 +83,7 @@ func (conn *Server) Handshake(auth proto.BasicAuthFunc) (err error) {
 		if u, p, err := conn.readUser(); err != nil {
 			_ = conn.Close()
 			return err
-		} else if auth(&proto.AuthInfo{
+		} else if auth(&stream.AuthInfo{
 			Username:   u,
 			Password:   p,
 			RemoteAddr: conn.RemoteAddr().String(),
@@ -461,22 +461,22 @@ func (c *Checker) Check(r io.Reader) (bool, error) {
 	return n == 1 && buf[0] == Version5, nil
 }
 
-type Protocol struct {
+type Stream struct {
 }
 
-func (c *Protocol) Name() string {
+func (c *Stream) Name() string {
 	return "socks5"
 }
 
 // 创建Socks服务器
-func (c *Protocol) Server(conn net.Conn, config config.Config) proto.Server {
+func (c *Stream) Server(conn net.Conn, config config.Config) stream.Server {
 	return &Server{
 		Conn: conn,
 	}
 }
 
 // 创建Socks客户端
-func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
+func (c *Stream) Client(conn net.Conn, config config.Config) stream.Client {
 	return &Client{
 		Conn:     conn,
 		Username: config.String(mino.KeyUsername),
@@ -484,10 +484,10 @@ func (c *Protocol) Client(conn net.Conn, config config.Config) proto.Client {
 	}
 }
 
-func (c *Protocol) Checker(config config.Config) proto.Checker {
+func (c *Stream) Checker(config config.Config) stream.Checker {
 	return &Checker{}
 }
 
 func init() {
-	proto.Add(&Protocol{})
+	stream.Add(&Stream{})
 }
