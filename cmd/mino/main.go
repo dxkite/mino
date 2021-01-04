@@ -1,6 +1,8 @@
 package main
 
 import (
+	"path/filepath"
+
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/daemon"
@@ -13,15 +15,15 @@ import (
 	_ "dxkite.cn/mino/stream/mino"
 	_ "dxkite.cn/mino/stream/mino1"
 	_ "dxkite.cn/mino/stream/socks5"
-	"path/filepath"
+
+	"flag"
+	"io"
+	"os"
 
 	"dxkite.cn/go-log"
 	"dxkite.cn/mino/server"
 	"dxkite.cn/mino/transport"
 	"dxkite.cn/mino/util"
-	"flag"
-	"io"
-	"os"
 )
 
 func init() {
@@ -46,8 +48,8 @@ func initLogger(cfg config.Config) io.Closer {
 		return nil
 	}
 
-	pp := util.ConcatPath(util.GetBinaryPath(), filename)
-	if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND, os.ModePerm); err != nil {
+	pp := util.ConcatPath(cfg.String(config.KeyRuntimeConfigPath), filename)
+	if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModePerm); err != nil {
 		log.Warn("log file open error", filename)
 		return nil
 	} else {
@@ -59,7 +61,6 @@ func initLogger(cfg config.Config) io.Closer {
 			w = log.NewTextWriter(w)
 		}
 	}
-
 	log.SetOutput(log.MultiWriter(w, log.Writer()))
 	return c
 }
@@ -121,7 +122,6 @@ func main() {
 
 	if len(os.Args) == 1 {
 		cfg.Set(mino.KeyConfFile, util.GetRelativePath("mino.yml"))
-		cfg.Set(mino.KeyLogFile, util.GetRelativePath("mino.log"))
 		cfg.Set(mino.KeyPacFile, util.GetRelativePath("mino.pac"))
 	} else if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
 		daemon.Exec(util.ConcatPath(util.GetBinaryPath(), "mino.pid"), os.Args)

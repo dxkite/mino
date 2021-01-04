@@ -31,6 +31,8 @@ type Config interface {
 	BoolOrDefault(name string, val bool) bool
 }
 
+const KeyRuntimeConfigPath = "runtime.ConfigPath"
+
 type config struct {
 	val map[string]interface{}
 	mtx sync.Mutex
@@ -48,6 +50,7 @@ func (c *config) Load(filename string) error {
 	if er := yaml.Unmarshal(in, &c.val); er != nil {
 		return er
 	}
+	c.val[KeyRuntimeConfigPath] = filepath.Dir(filename)
 	return nil
 }
 
