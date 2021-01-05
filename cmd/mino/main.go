@@ -1,16 +1,19 @@
 package main
 
 import (
-	"path/filepath"
+	"dxkite.cn/go-log"
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/daemon"
-	_ "dxkite.cn/mino/encoder/tls"
-	_ "dxkite.cn/mino/encoder/xor"
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/notification"
-	"dxkite.cn/mino/stream/http"
+	"dxkite.cn/mino/server"
+	"dxkite.cn/mino/transport"
+	"dxkite.cn/mino/util"
+
+	_ "dxkite.cn/mino/encoder/tls"
+	_ "dxkite.cn/mino/encoder/xor"
 	_ "dxkite.cn/mino/stream/http"
 	_ "dxkite.cn/mino/stream/mino"
 	_ "dxkite.cn/mino/stream/mino1"
@@ -19,11 +22,7 @@ import (
 	"flag"
 	"io"
 	"os"
-
-	"dxkite.cn/go-log"
-	"dxkite.cn/mino/server"
-	"dxkite.cn/mino/transport"
-	"dxkite.cn/mino/util"
+	"path/filepath"
 )
 
 func init() {
@@ -89,6 +88,7 @@ func initMonkey(cfg config.Config) {
 }
 
 func main() {
+
 	log.Println("Mino Agent", "v"+mino.Version)
 
 	if !util.CheckMachineId(mino.MachineId) {
@@ -150,7 +150,7 @@ func main() {
 	cfg.SetValueDefault(mino.KeyUpstream, *upstream, nil)
 	cfg.SetValueDefault(mino.KeyCertFile, util.GetRelativePath(*certFile), nil)
 	cfg.SetValueDefault(mino.KeyKeyFile, util.GetRelativePath(*keyFile), nil)
-	cfg.SetValueDefault(http.KeyMaxRewindSize, *httpRewind, 2*1024)
+	cfg.SetValueDefault(mino.KeyMaxRewindSize, *httpRewind, 2*1024)
 	cfg.SetValueDefault(mino.KeyDataPath, *data, nil)
 	cfg.SetValueDefault(mino.KeyMaxStreamRewind, *protoRewind, 255)
 	cfg.SetValueDefault(mino.KeyWebRoot, *webRoot, nil)

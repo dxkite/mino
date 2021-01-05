@@ -36,8 +36,6 @@ type Server struct {
 	rwdSize int
 }
 
-const KeyMaxRewindSize = "http_max_rewind_size"
-
 // 握手
 func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 	r := rewind.NewRewindReaderSize(conn.Conn, conn.rwdSize)
@@ -233,7 +231,7 @@ func (c *Stream) Name() string {
 func (c *Stream) Server(conn net.Conn, config config.Config) stream.Server {
 	return &Server{
 		Conn:    conn,
-		rwdSize: config.IntOrDefault(KeyMaxRewindSize, 2*1024),
+		rwdSize: config.IntOrDefault(mino.KeyMaxRewindSize, 2*1024),
 	}
 }
 
