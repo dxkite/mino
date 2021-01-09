@@ -29,5 +29,5 @@ func (s *Server) Serve() error {
 		log.Println("start web server with root", root)
 		mux.Handle("/", http.FileServer(http.Dir(root)))
 	}
-	return http.Serve(s.tsp.NetListener(), mux)
+	return http.Serve(s.tsp.NetListener(), AccessLog(mux))
 }

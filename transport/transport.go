@@ -1,7 +1,6 @@
 package transport
 
 import (
-	"crypto/tls"
 	"dxkite.cn/go-log"
 	"dxkite.cn/mino/encoder"
 	"dxkite.cn/mino/util"
@@ -29,13 +28,11 @@ type Transporter struct {
 	check       map[string]stream.Checker
 	enableProto map[string]struct{}
 
-	Config     config.Config
-	AuthFunc   stream.BasicAuthFunc
-	acceptConn chan net.Conn
-	acceptErr  chan error
-	listen     net.Listener
-	tlsSvrCfg  *tls.Config
-	tlsCltCfg  *tls.Config
+	Config   config.Config
+	AuthFunc stream.BasicAuthFunc
+
+	httpConn chan net.Conn
+	listen   net.Listener
 
 	nextSid int
 	mtxSid  sync.Mutex
@@ -46,8 +43,7 @@ func New(config config.Config) (t *Transporter) {
 		Config:      config,
 		check:       map[string]stream.Checker{},
 		enableProto: map[string]struct{}{},
-		acceptConn:  make(chan net.Conn),
-		acceptErr:   make(chan error),
+		httpConn:    make(chan net.Conn),
 		Session:     NewSessionGroup(),
 		nextSid:     0,
 	}
@@ -94,37 +90,29 @@ func (t *Transporter) Serve() error {
 			log.Warn("accept new conn error", err)
 			continue
 		}
-		go t.conn(c)
+		go t.serve(c)
 	}
 }
 
-type listen_ struct {
+type httpListener struct {
 	t *Transporter
 }
 
-func (l *listen_) Accept() (conn net.Conn, err error) {
-	for {
-		select {
-		case conn = <-l.t.acceptConn:
-			log.Debug("accept web conn", conn.RemoteAddr().String())
-			return
-		case err = <-l.t.acceptErr:
-			log.Warn("accept web conn error", err)
-			return
-		}
-	}
+func (l *httpListener) Accept() (conn net.Conn, err error) {
+	conn = <-l.t.httpConn
+	return
 }
 
-func (l *listen_) Close() error {
+func (l *httpListener) Close() error {
 	return nil
 }
 
-func (l *listen_) Addr() net.Addr {
+func (l *httpListener) Addr() net.Addr {
 	return l.t.listen.Addr()
 }
 
 func (t *Transporter) NetListener() net.Listener {
-	return &listen_{t: t}
+	return &httpListener{t: t}
 }
 
 func (t *Transporter) initChecker() {
@@ -162,77 +150,108 @@ func (t *Transporter) IsEnableProtocol(name string) bool {
 	return ok
 }
 
-func (t *Transporter) conn(c net.Conn) {
-
-	rwdS := t.Config.IntOrDefault(mino.KeyMaxStreamRewind, 8)
-	conn := rewind.NewRewindConn(c, rwdS)
-
-	if stm, err := encoder.Detect(conn, t.Config); err != nil {
-		log.Error("identify stream type error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
-		_ = c.Close()
-		return
+// 解包连接
+func (t *Transporter) unwrapConn(conn net.Conn) (string, rewind.Conn, error) {
+	size := t.Config.IntOrDefault(mino.KeyMaxStreamRewind, 8)
+	rw := rewind.NewRewindConn(conn, size)
+	var name string
+	if stm, err := encoder.Detect(rw, t.Config); err != nil {
+		msg := fmt.Sprint("identify encoder type error", err, "hex", hex.EncodeToString(rw.Cached()), strconv.Quote(string(rw.Cached())), "remote", rw.RemoteAddr())
+		return "", nil, errors.New(msg)
 	} else if stm != nil {
-		log.Debug("identified stream " + stm.Name())
-		conn = rewind.NewRewindConn(stm.Server(conn, t.Config), rwdS)
+		name = stm.Name()
+		rw = rewind.NewRewindConn(stm.Server(rw, t.Config), size)
 	}
+	return name, rw, nil
+}
 
+// 创建流
+func (t *Transporter) createStream(conn rewind.Conn) (string, stream.Server, error) {
 	p, err := t.Detect(conn)
-
 	if err != nil {
-		log.Error("identify protocol error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
-		_ = c.Close()
-		return
+		msg := fmt.Sprint("identify stream type error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
+		return "", nil, errors.New(msg)
 	}
-
 	if !t.IsEnableProtocol(p.Name()) {
 		log.Warn("protocol is disabled", p.Name())
-		_ = c.Close()
-		return
+		return p.Name(), nil, errors.New(fmt.Sprintf("error: stream type %s is disabled", p.Name()))
 	}
-
 	svr := p.Server(conn, t.Config)
 	if err := svr.Handshake(t.AuthFunc); err != nil {
-		log.Error("protocol", p.Name(), "handshake error", err)
-		_ = c.Close()
+		return p.Name(), nil, errors.New(fmt.Sprintf("error: stream %s is handshake error", p.Name()))
+	}
+	return p.Name(), svr, nil
+}
+
+func (t *Transporter) transport(svr stream.Server, network, address, route string) {
+	rmt, rmtErr := t.dial(network, address)
+	if rmtErr != nil {
+		log.Error("dial", network, address, "error", rmtErr)
+		_ = svr.SendError(rmtErr)
+		_ = svr.Close()
 		return
+	} else {
+		log.Debug("connected", route, network, address)
+		_ = svr.SendSuccess()
 	}
 
-	if network, address, err := svr.Target(); err != nil {
-		log.Error("recv conn info error", err)
-		_ = c.Close()
+	var loc net.Conn = svr
+	if t.Config.Bool(mino.KeyDump) {
+		loc = util.NewConnDumper(loc, log.Writer())
+	}
+	sess := NewSession(t.NextId(), svr.User(), loc, rmt, address)
+	t.AddSession(svr, sess)
+	up, down, err := sess.Transport()
+	msg := fmt.Sprintf("transport %s %s up %d down %d via %s", network, address, up, down, route)
+	if err != nil {
+		log.Error(msg, "error", err.Error())
 	} else {
-		if util.IsRequestHttp(t.listen.Addr().String(), address) {
-			t.acceptConn <- svr
+		log.Info(msg)
+	}
+}
+
+// 启用服务
+func (t *Transporter) serve(c net.Conn) {
+	var conn rewind.Conn
+	var svr stream.Server
+	var err error
+	var enc string
+	var stm string
+	name := []string{}
+
+	if enc, conn, err = t.unwrapConn(c); err != nil {
+		log.Error("unwrap error", enc, err)
+		_ = conn.Close()
+		return
+	} else {
+		if len(enc) > 0 {
+			name = append(name, enc)
+		}
+	}
+
+	if stm, svr, err = t.createStream(conn); err != nil {
+		log.Error("create stream error", stm, err)
+		_ = conn.Close()
+		return
+	} else {
+		if len(stm) > 0 {
+			name = append(name, stm)
+		}
+	}
+
+	route := strings.Join(name, "+")
+
+	if network, address, err := svr.Target(); err != nil {
+		log.Error("read connect target error", err)
+		_ = svr.Close()
+	} else {
+		// 作为web请求处理
+		if util.IsRequestListener(t.listen.Addr().String(), address) {
+			t.httpConn <- svr
 			return
 		}
-
-		rmt, rmtErr := t.dial(network, address)
-		if rmtErr != nil {
-			log.Error("dial", network, address, "error", rmtErr)
-			_ = svr.SendError(rmtErr)
-			_ = c.Close()
-			return
-		} else {
-			log.Println("connected", network, address)
-			_ = svr.SendSuccess()
-		}
-
-		var loc net.Conn = svr
-
-		if t.Config.Bool(mino.KeyDump) {
-			loc = util.NewConnDumper(loc, log.Writer())
-		}
-
-		sess := NewSession(t.NextId(), svr.User(), loc, rmt, address)
-		t.AddSession(svr, sess)
-		up, down, err := sess.Transport()
-
-		msg := fmt.Sprintf("transport %s %s via %s up %d down %d", network, address, p.Name(), up, down)
-		if err != nil {
-			log.Error(msg, "error", err.Error())
-		} else {
-			log.Println(msg)
-		}
+		// 传输数据
+		t.transport(svr, network, address, route)
 	}
 }
 

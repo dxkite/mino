@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"path"
 	"runtime"
+	"strconv"
 	"time"
 )
 
@@ -70,6 +71,15 @@ func (vc *sessionListHandler) ServeHTTP(w http.ResponseWriter, req *http.Request
 
 const runtimeSession = "runtime.session-id"
 const cookieName = "mino-id"
+const HttpGroup log.Group = "http"
+
+// 请求日志
+func AccessLog(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Debug(HttpGroup, r.Method, r.RequestURI, r.RemoteAddr, strconv.Quote(r.UserAgent()))
+		h.ServeHTTP(w, r)
+	})
+}
 
 // 权限验证中间件
 func Auth(cfg config.Config, h http.Handler) http.Handler {

@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// 判断是否是本机IP
-func IsRequestHttp(listen, addr string) bool {
+// 判断是否请求本机Web服务器
+func IsRequestListener(listen, addr string) bool {
 	_, at, _ := net.SplitHostPort(listen)
 	if host, port, err := net.SplitHostPort(addr); err == nil {
 		if IsLoopback(host) && port == at {
