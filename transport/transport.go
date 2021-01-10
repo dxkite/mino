@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
@@ -36,6 +37,8 @@ type Transporter struct {
 
 	nextSid int
 	mtxSid  sync.Mutex
+
+	timeout time.Duration
 }
 
 func New(config config.Config) (t *Transporter) {
@@ -61,6 +64,10 @@ func (t *Transporter) Init() error {
 	ts := strings.Split(t.Config.StringOrDefault(mino.KeyInput, "mino"), ",")
 	for _, v := range ts {
 		t.enableProto[v] = struct{}{}
+	}
+	// 连接超时 默认 10s
+	if v := t.Config.IntOrDefault(mino.KeyTimeout, 10*1000); v > 0 {
+		t.timeout = time.Duration(v) * time.Millisecond
 	}
 	return nil
 }
@@ -156,7 +163,7 @@ func (t *Transporter) unwrapConn(conn net.Conn) (string, rewind.Conn, error) {
 	rw := rewind.NewRewindConn(conn, size)
 	var name string
 	if stm, err := encoder.Detect(rw, t.Config); err != nil {
-		msg := fmt.Sprint("identify encoder type error", err, "hex", hex.EncodeToString(rw.Cached()), strconv.Quote(string(rw.Cached())), "remote", rw.RemoteAddr())
+		msg := fmt.Sprintf("identify encoder type error: %s hex=%s text=%s from=%s", err, hex.EncodeToString(rw.Cached()), strconv.Quote(string(rw.Cached())), rw.RemoteAddr())
 		return "", nil, errors.New(msg)
 	} else if stm != nil {
 		name = stm.Name()
@@ -169,7 +176,7 @@ func (t *Transporter) unwrapConn(conn net.Conn) (string, rewind.Conn, error) {
 func (t *Transporter) createStream(conn rewind.Conn) (string, stream.Server, error) {
 	p, err := t.Detect(conn)
 	if err != nil {
-		msg := fmt.Sprint("identify stream type error", err, "hex", hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), "remote", conn.RemoteAddr())
+		msg := fmt.Sprintf("identify stream type error: %s hex=%s text=%s from=%s", err, hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), conn.RemoteAddr())
 		return "", nil, errors.New(msg)
 	}
 	if !t.IsEnableProtocol(p.Name()) {
@@ -191,7 +198,7 @@ func (t *Transporter) transport(svr stream.Server, network, address, route strin
 		_ = svr.Close()
 		return
 	} else {
-		log.Debug("connected", route, network, address)
+		log.Debug("connected", network, address, "via", route)
 		_ = svr.SendSuccess()
 	}
 
@@ -220,8 +227,8 @@ func (t *Transporter) serve(c net.Conn) {
 	name := []string{}
 
 	if enc, conn, err = t.unwrapConn(c); err != nil {
-		log.Error("unwrap error", enc, err)
-		_ = conn.Close()
+		log.Error(fmt.Sprintf("unwrap error %s enc=%s", err, enc))
+		_ = c.Close()
 		return
 	} else {
 		if len(enc) > 0 {
@@ -230,7 +237,7 @@ func (t *Transporter) serve(c net.Conn) {
 	}
 
 	if stm, svr, err = t.createStream(conn); err != nil {
-		log.Error("create stream error", stm, err)
+		log.Error(fmt.Sprintf("create stream error %s stm=%s", err, stm))
 		_ = conn.Close()
 		return
 	} else {
@@ -280,8 +287,8 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 	var rmt net.Conn
 	var rmtErr error
 	var UpStream *url.URL
-	var _n = network
-	var _a = address
+	var targetNetwork = network
+	var targetAddress = address
 
 	if upstream := t.Config.String(mino.KeyUpstream); len(upstream) > 0 {
 		UpStream, _ = url.Parse(upstream)
@@ -289,7 +296,7 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 		address = UpStream.Host
 	}
 
-	if rmt, rmtErr = net.Dial(network, address); rmtErr != nil {
+	if rmt, rmtErr = net.DialTimeout(network, address, t.timeout); rmtErr != nil {
 		return nil, rmtErr
 	}
 
@@ -308,8 +315,8 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 			if err := client.Handshake(); err != nil {
 				return nil, errors.New(fmt.Sprint("remote protocol handshake error: ", err))
 			}
-			log.Debug("connecting", network, address, "via", UpStream)
-			if err := client.Connect(_n, _a); err != nil {
+			log.Debug("connecting", targetNetwork, targetAddress, "via", UpStream)
+			if err := client.Connect(targetNetwork, targetAddress); err != nil {
 				return nil, errors.New(fmt.Sprint("remote connecting error: ", err))
 			}
 			rmt = client

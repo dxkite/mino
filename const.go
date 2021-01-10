@@ -60,6 +60,8 @@ const (
 	KeyWebPassword = "web_password"
 	// 登录失败次数
 	KeyWebFailedTimes = "web_failed_times"
+	// 连接超时
+	KeyTimeout = "timeout"
 )
 
 const PathMinoPac = "/mino.pac"
