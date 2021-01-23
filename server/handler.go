@@ -8,6 +8,7 @@ import (
 	"dxkite.cn/mino/transport"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -66,7 +67,7 @@ type sessionListHandler struct {
 }
 
 func (vc *sessionListHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	writeMsg(w, 0, "ok", vc.sg.Group())
+	writeMsg(w, nil, vc.sg.Group())
 }
 
 const runtimeSession = "runtime.session-id"
@@ -91,12 +92,12 @@ func Auth(cfg config.Config, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sid := cfg.String(runtimeSession)
 		if c, err := r.Cookie(cookieName); err != nil {
-			writeMsg(w, http.StatusUnauthorized, "need login", nil)
+			writeMsg(w, "need login", nil)
 			return
 		} else if len(sid) > 0 && c.Value == sid {
 			h.ServeHTTP(w, r)
 		} else {
-			writeMsg(w, http.StatusUnauthorized, "need login", nil)
+			writeMsg(w, "need login", nil)
 			return
 		}
 	})
@@ -107,31 +108,38 @@ type loginHandler struct {
 	failedTimes map[string]int
 }
 
-func NewLoginHandler(cfg config.Config) http.Handler {
-	return &loginHandler{cfg, map[string]int{}}
+func NewLoginHandler(c config.Config) http.Handler {
+	return NewCallback(&loginHandler{c, map[string]int{}})
 }
 
-func (lh *loginHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	var ip string
-	username := req.FormValue("username")
-	password := req.FormValue("password")
+type LoginReq struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
 
-	if v, _, er := net.SplitHostPort(req.RemoteAddr); er != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+type LoginResp struct {
+}
+
+func (lh *loginHandler) Call(req LoginReq, resp *LoginResp, ctx *HttpContext) error {
+
+	var ip string
+	username := req.Username
+	password := req.Password
+
+	if v, _, er := net.SplitHostPort(ctx.Request.RemoteAddr); er != nil {
+		return errors.New("read address error")
 	} else {
 		ip = v
 	}
 
 	if len(username) > 0 && len(password) > 0 {
 	} else {
-		writeMsg(w, 1, "username or password is empty", nil)
-		return
+		return errors.New("username or password is empty")
 	}
 
 	if lh.failedTimes[ip] > lh.cfg.IntOrDefault(mino.KeyWebFailedTimes, 10) {
 		log.Warn(username, "failed time limit", ip)
-		writeMsg(w, 3, "failed time limit", nil)
-		return
+		return errors.New("failed time limit")
 	}
 
 	if username == lh.cfg.String(mino.KeyWebUsername) &&
@@ -139,14 +147,13 @@ func (lh *loginHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	} else {
 		lh.failedTimes[ip]++
 		log.Debug(username, ip, "try login")
-		writeMsg(w, 2, "username or password is error", nil)
-		return
+		return errors.New("username or password is error")
 	}
 
 	sid := make([]byte, 16)
 	_, _ = io.ReadFull(rand.Reader, sid)
 	id := hex.EncodeToString(sid)
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(ctx.Response, &http.Cookie{
 		Name:     cookieName,
 		Value:    id,
 		Expires:  time.Now().Add(60 * time.Minute),
@@ -155,16 +162,15 @@ func (lh *loginHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		SameSite: 0,
 	})
 	lh.cfg.Set(runtimeSession, id)
-	writeMsg(w, 0, "login success", nil)
-	lh.failedTimes[req.RemoteAddr] = 0
+	lh.failedTimes[ip] = 0
 	log.Info(username, "login")
+	return nil
 }
 
-func writeMsg(w http.ResponseWriter, code int, msg string, data interface{}) {
+func writeMsg(w http.ResponseWriter, err interface{}, data interface{}) {
 	p := map[string]interface{}{
-		"code":    code,
-		"message": msg,
-		"data":    data,
+		"error":  err,
+		"return": data,
 	}
 	if b, err := json.Marshal(p); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
