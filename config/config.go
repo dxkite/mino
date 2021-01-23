@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"sync"
 )
 
@@ -119,6 +120,11 @@ func (c *config) IntOrDefault(name string, val int) int {
 		if v, tok := c.val[name].(int); tok {
 			return v
 		}
+		if v, tok := c.val[name].(string); tok {
+			if v, err := strconv.Atoi(v); err == nil {
+				return v
+			}
+		}
 	}
 	return val
 }
@@ -133,6 +139,9 @@ func (c *config) BoolOrDefault(name string, val bool) bool {
 	if _, ok := c.val[name]; ok {
 		if v, tok := c.val[name].(bool); tok {
 			return v
+		}
+		if v, tok := c.val[name].(string); tok {
+			return v == "true"
 		}
 	}
 	return val

@@ -170,7 +170,7 @@ func (lh *loginHandler) Call(req LoginReq, resp *LoginResp, ctx *HttpContext) er
 func writeMsg(w http.ResponseWriter, err interface{}, data interface{}) {
 	p := map[string]interface{}{
 		"error":  err,
-		"return": data,
+		"result": data,
 	}
 	if b, err := json.Marshal(p); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
