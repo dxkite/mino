@@ -451,7 +451,7 @@ func (conn *Client) conn(network, address string) error {
 type Checker struct {
 }
 
-// 判断是否为HTTP协议
+// 判断是否为socks5协议
 func (c *Checker) Check(r io.Reader) (bool, error) {
 	buf := make([]byte, 1)
 	n, err := io.ReadFull(r, buf)

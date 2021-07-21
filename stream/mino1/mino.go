@@ -142,7 +142,7 @@ func (conn *Client) Connect(network, address string) (err error) {
 type Checker struct {
 }
 
-// 判断是否为HTTP协议
+// 判断是否为mino1协议(v1)
 func (d *Checker) Check(r io.Reader) (bool, error) {
 	buf := make([]byte, 1)
 	if _, err := io.ReadFull(r, buf); err != nil {
