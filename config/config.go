@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+type ConfigChangeCallback func(config *Config)
+
 type Config struct {
 	// upstream 账号密码
 	Username string `yaml:"username" json:"username"`
@@ -66,13 +68,16 @@ type Config struct {
 	// 连接超时
 	Timeout int `yaml:"timeout" json:"timeout"`
 	// Web服务器
-	WebAuth        bool `yaml:"web_auth" json:"web_auth"`
-	WebFailedTimes int  `yaml:"web_failed_times" json:"web_failed_times"`
+	WebAuth        bool   `yaml:"web_auth" json:"web_auth"`
+	WebFailedTimes int    `yaml:"web_failed_times" json:"web_failed_times"`
+	WebUsername    string `yaml:"web_username" json:"web_username"`
+	WebPassword    string `yaml:"web_password" json:"web_password"`
 	// 配置路径
 	ConfPath string `yaml:"-" json:"-"`
 	// 更新时间
 	modifyTime time.Time
 	mtx        sync.Mutex
+	changCb    []ConfigChangeCallback
 }
 
 func (cfg *Config) LoadIfModify(p string) (bool, error) {
@@ -87,6 +92,19 @@ func (cfg *Config) LoadIfModify(p string) (bool, error) {
 		return false, nil
 	}
 	return true, cfg.Load(p)
+}
+
+func (cfg *Config) OnChange(cb ConfigChangeCallback) {
+	if cfg.changCb == nil {
+		cfg.changCb = []ConfigChangeCallback{}
+	}
+	cfg.changCb = append(cfg.changCb, cb)
+}
+
+func (cfg *Config) applyConfig() {
+	for _, cb := range cfg.changCb {
+		cb(cfg)
+	}
 }
 
 func (cfg *Config) HotLoadConfig() {
@@ -120,6 +138,8 @@ func (cfg *Config) Load(p string) error {
 	cfg.ConfFile = p
 	cfg.ConfPath = path.Dir(p)
 	cfg.modifyTime = time.Now()
+	// 通知应用配置
+	go cfg.applyConfig()
 	return nil
 }
 

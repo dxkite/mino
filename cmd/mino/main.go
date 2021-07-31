@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"dxkite.cn/log"
 	"runtime"
 
@@ -38,32 +39,40 @@ func errMsg(msg string) {
 	}
 }
 
-func initLogger(cfg *config.Config) io.Closer {
-	log.SetLevel(cfg.LogLevel)
+func waitForExit(ctx context.Context, cb func()) {
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				cb()
+			}
+		}
+	}()
+}
 
+func applyLogConfig(ctx context.Context, cfg *config.Config) {
+	log.SetLevel(cfg.LogLevel)
 	filename := cfg.LogFile
 	var w io.Writer
-	var c io.Closer
-
 	if len(filename) == 0 {
-		return nil
+		return
 	}
-
-	pp := util.ConcatPath(cfg.ConfFile, filename)
+	pp := util.ConcatPath(cfg.ConfPath, filename)
 	if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModePerm); err != nil {
-		log.Warn("log file open error", filename)
-		return nil
+		log.Warn("log file open error", pp)
+		return
 	} else {
 		w = f
-		c = f
 		if filepath.Ext(filename) == ".json" {
 			w = log.NewJsonWriter(w)
 		} else {
 			w = log.NewTextWriter(w)
 		}
+		waitForExit(ctx, func() {
+			_ = f.Close()
+		})
 	}
 	log.SetOutput(log.MultiWriter(w, log.Writer()))
-	return c
 }
 
 func printInfo(cfg *config.Config) {
@@ -90,7 +99,7 @@ func initMonkey(cfg *config.Config) {
 }
 
 func main() {
-
+	ctx, exit := context.WithCancel(context.Background())
 	log.Println("Mino Agent", "v"+mino.Version)
 
 	if !util.CheckMachineId(mino.MachineId) {
@@ -125,6 +134,9 @@ func main() {
 	flag.Parse()
 	cfg := &config.Config{}
 	cfg.InitDefault()
+	cfg.OnChange(func(config *config.Config) {
+		applyLogConfig(ctx, config)
+	})
 
 	if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
 		daemon.Exec(util.ConcatPath(util.GetBinaryPath(), "mino.pid"), os.Args)
@@ -161,10 +173,6 @@ func main() {
 	cfg.SetValue(&cfg.Encoder, *secure)
 	cfg.SetValue(&cfg.LogFile, *logFile)
 
-	if c := initLogger(cfg); c != nil {
-		defer func() { _ = c.Close() }()
-	}
-
 	if len(cfg.LogFile) > 0 {
 		log.Println("log file at", cfg.LogFile)
 	}
@@ -191,4 +199,5 @@ func main() {
 	}
 
 	log.Println("exit", t.Serve())
+	exit()
 }
