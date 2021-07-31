@@ -5,10 +5,12 @@ import (
 	"dxkite.cn/mino/util"
 	"net/http"
 	"reflect"
+	"strings"
 )
 
 type ConfigProperty struct {
-	Type string `json:"type"`
+	Type     string `json:"type"`
+	ReadOnly bool   `json:"readOnly"`
 }
 
 type ConfigSchema struct {
@@ -41,6 +43,8 @@ func BuildSchemaFromConfig(ctx *context.Context) *ConfigSchema {
 	for i := 0; i < v.NumField(); i++ {
 		f := v.Field(i)
 		tag := t.Field(i).Tag.Get("json")
+		prop := strings.ToLower(t.Field(i).Tag.Get("prop"))
+
 		name := util.TagName(tag)
 		if name == "-" || len(name) == 0 {
 			continue
@@ -54,7 +58,10 @@ func BuildSchemaFromConfig(ctx *context.Context) *ConfigSchema {
 			reflect.Float32, reflect.Float64:
 			typ = "integer"
 		}
-		s.Properties[name] = &ConfigProperty{Type: typ}
+		s.Properties[name] = &ConfigProperty{
+			Type:     typ,
+			ReadOnly: strings.Index(prop, "readonly") >= 0,
+		}
 	}
 	return s
 }

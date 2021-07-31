@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 )
@@ -21,7 +22,7 @@ type Config struct {
 	Username string `yaml:"username" json:"username"`
 	Password string `yaml:"password" json:"password"`
 	// 监听地址
-	Address string `yaml:"address" json:"address"`
+	Address string `yaml:"address" json:"address" prop:"readonly"`
 	// pac文件
 	PacFile string `yaml:"pac_file" json:"pac_file"`
 	// PAC访问路径
@@ -72,11 +73,11 @@ type Config struct {
 	// PID文件位置
 	PidFile string `yaml:"pid_file" json:"pid_file"`
 	// Web服务器
-	WebEnable      bool   `yaml:"web_enable" json:"web_enable"`
-	WebAuth        bool   `yaml:"web_auth" json:"web_auth"`
-	WebFailedTimes int    `yaml:"web_failed_times" json:"web_failed_times"`
-	WebUsername    string `yaml:"web_username" json:"web_username"`
-	WebPassword    string `yaml:"web_password" json:"web_password"`
+	WebEnable      bool   `yaml:"web_enable" json:"web_enable" prop:"readonly"`
+	WebAuth        bool   `yaml:"web_auth" json:"web_auth" conf:"readonly"`
+	WebFailedTimes int    `yaml:"web_failed_times" json:"web_failed_times" prop:"readonly"`
+	WebUsername    string `yaml:"web_username" json:"web_username" prop:"readonly"`
+	WebPassword    string `yaml:"web_password" json:"web_password" prop:"readonly"`
 	// 配置路径
 	ConfPath string `yaml:"-" json:"-"`
 	// 更新时间
@@ -227,6 +228,13 @@ func (cfg *Config) CopyFrom(from map[string]interface{}) (modify []string, err e
 	for i := 0; i < v.Elem().NumField(); i++ {
 		f := v.Elem().Field(i)
 		tag := t.Field(i).Tag.Get("json")
+		prop := strings.ToLower(t.Field(i).Tag.Get("prop"))
+		readOnly := strings.Index(prop, "readonly") >= 0
+
+		if readOnly {
+			continue
+		}
+
 		name := util.TagName(tag)
 
 		if name == "-" || len(name) == 0 {
