@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"dxkite.cn/log"
+	"dxkite.cn/mino/daemon"
 	"runtime"
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/daemon"
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/notification"
 	"dxkite.cn/mino/server"
@@ -73,6 +73,7 @@ func applyLogConfig(ctx context.Context, cfg *config.Config) {
 		})
 	}
 	log.SetOutput(log.MultiWriter(w, log.Writer()))
+	log.SetLogCaller(cfg.LogCaller)
 }
 
 func printInfo(cfg *config.Config) {
@@ -138,11 +139,6 @@ func main() {
 		applyLogConfig(ctx, config)
 	})
 
-	if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
-		daemon.Exec(util.ConcatPath(util.GetBinaryPath(), "mino.pid"), os.Args)
-		os.Exit(0)
-	}
-
 	if len(*confFile) > 0 {
 		c := util.GetRelativePath(*confFile)
 		cfg.ConfFile = c
@@ -175,6 +171,12 @@ func main() {
 
 	if len(cfg.LogFile) > 0 {
 		log.Println("log file at", cfg.LogFile)
+	}
+
+	// 守护进程
+	if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
+		daemon.Exec(cfg.PacFile, os.Args)
+		os.Exit(0)
 	}
 
 	t := transporter.New(cfg)

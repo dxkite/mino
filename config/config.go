@@ -42,6 +42,8 @@ type Config struct {
 	LogFile string `yaml:"log_file" json:"log_file"`
 	// 日志等级
 	LogLevel log.LogLevel `yaml:"log_level" json:"log_level"`
+	// 展示caller
+	LogCaller bool `yaml:"log_caller" json:"log_caller"`
 	// 配置文件路径
 	ConfFile string `yaml:"conf_file" json:"conf_file"`
 	// 更新检擦地址
@@ -67,7 +69,10 @@ type Config struct {
 	HotLoad int `yaml:"hot_load" json:"hot_load"`
 	// 连接超时
 	Timeout int `yaml:"timeout" json:"timeout"`
+	// PID文件位置
+	PidFile string `yaml:"pid_file" json:"pid_file"`
 	// Web服务器
+	WebEnable      bool   `yaml:"web_enable" json:"web_enable"`
 	WebAuth        bool   `yaml:"web_auth" json:"web_auth"`
 	WebFailedTimes int    `yaml:"web_failed_times" json:"web_failed_times"`
 	WebUsername    string `yaml:"web_username" json:"web_username"`
@@ -78,6 +83,31 @@ type Config struct {
 	modifyTime time.Time
 	mtx        sync.Mutex
 	changCb    []ConfigChangeCallback
+}
+
+func (cfg *Config) InitDefault() {
+	cfg.Address = ":1080"
+	cfg.PacFile = "mino.pac"
+	cfg.PidFile = "mino.pid"
+	cfg.PacUrl = "/mino.pac"
+	cfg.AutoStart = true
+	cfg.WebRoot = "www"
+	cfg.DataPath = "data"
+
+	cfg.LogFile = "mino.log"
+	cfg.LogCaller = true
+	cfg.LogLevel = log.LMaxLevel
+
+	cfg.Encoder = "xor"
+	cfg.XorMod = 4
+	cfg.Input = "mino,http,socks5"
+	cfg.DumpStream = false
+	cfg.MaxStreamRewind = 8                 // 最大预读
+	cfg.HttpMaxRewindSize = 2 * 1024 * 1024 // HTTP最大预读 2MB
+	cfg.HotLoad = 60                        // 一分钟
+	cfg.Timeout = 10 * 100                  // 10s
+	cfg.WebFailedTimes = 10
+	cfg.modifyTime = time.Unix(0, 0)
 }
 
 func (cfg *Config) LoadIfModify(p string) (bool, error) {

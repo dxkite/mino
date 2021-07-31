@@ -20,6 +20,7 @@ func (s *Server) Serve() error {
 	c := &Context{Cfg: s.tsp.Config}
 	root := config.GetConfigFile(c.Cfg, c.Cfg.WebRoot)
 	mux := http.NewServeMux()
+
 	mux.Handle(c.Cfg.PacUrl, monkey.NewPacServer(c.Cfg))
 	mux.Handle("/check-update", &updateHandler{c, root})
 
