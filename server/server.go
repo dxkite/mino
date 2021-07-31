@@ -34,6 +34,7 @@ func (s *Server) Serve() error {
 	authApi := http.NewServeMux()
 	authApi.Handle("/session/list", handler.NewSessionListHandler(s.tsp.Session))
 	authApi.Handle("/config/", http.StripPrefix("/config", handler.NewConfigHandler(c)))
+	authApi.Handle("/event", handler.NewEventHandler(s.tsp, s.ctx))
 	authApi.Handle("/log/json", handler.NewJsonLogHandler(s.ctx))
 	authApi.Handle("/log/text", handler.NewTextLogHandler(s.ctx))
 

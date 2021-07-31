@@ -24,7 +24,7 @@ type Transporter struct {
 	// 流列表
 	sts     *stream.Manager
 	Session *SessionGroup
-	Event   Handler
+	evtHdr  GroupHandler
 
 	check       map[string]stream.Checker
 	enableProto map[string]struct{}
@@ -56,8 +56,8 @@ func New(config *config.Config) (t *Transporter) {
 func (t *Transporter) Init() error {
 	// 初始化checker
 	t.initChecker()
-	if t.Event == nil {
-		t.Event = &NopHandler{}
+	if t.evtHdr == nil {
+		t.evtHdr = NewHandlerGroup()
 	}
 
 	// 初始化协议
@@ -68,6 +68,10 @@ func (t *Transporter) Init() error {
 	// 连接超时 默认 10s
 	t.timeout = time.Duration(t.Config.Timeout) * time.Millisecond
 	return nil
+}
+
+func (t *Transporter) AddEventHandler(handler Handler) {
+	t.evtHdr.AddHandler(handler)
 }
 
 func (t *Transporter) NextId() int {
@@ -264,16 +268,16 @@ func (t *Transporter) serve(c net.Conn) {
 func (t *Transporter) AddSession(svr stream.Server, session *Session) {
 	gid := svr.RemoteAddr().String()
 	t.Session.AddSession(gid, session)
-	t.Event.Event("new", session)
+	t.evtHdr.Event("new", session)
 	go func() {
 		for {
 			select {
 			case <-session.ReadNotify():
-				t.Event.Event("read", session)
+				t.evtHdr.Event("read", session)
 			case <-session.WriteNotify():
-				t.Event.Event("write", session)
+				t.evtHdr.Event("write", session)
 			case <-session.CloseNotify():
-				t.Event.Event("close", session)
+				t.evtHdr.Event("close", session)
 				t.Session.DelSession(gid)
 				return
 			}
