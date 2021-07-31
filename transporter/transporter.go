@@ -19,19 +19,6 @@ import (
 	"dxkite.cn/mino/stream"
 )
 
-// HTTP接口
-// CONNECT 用来做HTTP代理用，不属于Web
-var httpMethods = []string{
-	"GE", //GET
-	"HE", //HEAD
-	"PO", //POST
-	"PU", //PUT
-	"PA", //PATCH
-	"DE", //DELETE
-	"OP", //OPTIONS
-	"TR", //TRACE
-}
-
 // 传输工具
 type Transporter struct {
 	// 流列表

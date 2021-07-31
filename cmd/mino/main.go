@@ -39,17 +39,6 @@ func errMsg(msg string) {
 	}
 }
 
-func waitForExit(ctx context.Context, cb func()) {
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				cb()
-			}
-		}
-	}()
-}
-
 func applyLogConfig(ctx context.Context, cfg *config.Config) {
 	log.SetLevel(cfg.LogLevel)
 	filename := cfg.LogFile
@@ -68,9 +57,10 @@ func applyLogConfig(ctx context.Context, cfg *config.Config) {
 		} else {
 			w = log.NewTextWriter(w)
 		}
-		waitForExit(ctx, func() {
+		go func() {
+			<-ctx.Done()
 			_ = f.Close()
-		})
+		}()
 	}
 	log.SetOutput(log.MultiWriter(w, log.Writer()))
 	log.SetLogCaller(cfg.LogCaller)
@@ -180,7 +170,7 @@ func main() {
 	}
 
 	t := transporter.New(cfg)
-	svr := server.NewServer(t)
+	svr := server.NewServer(ctx, t)
 
 	if err := t.Init(); err != nil {
 		log.Fatalln("init error", err)
