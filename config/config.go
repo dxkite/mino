@@ -45,6 +45,8 @@ type Config struct {
 	LogLevel log.LogLevel `yaml:"log_level" json:"log_level"`
 	// 展示caller
 	LogCaller bool `yaml:"log_caller" json:"log_caller"`
+	// 异步日志
+	LogAsync bool `yaml:"log_async" json:"log_async"`
 	// 配置文件路径
 	ConfFile string `yaml:"conf_file" json:"conf_file"`
 	// 更新检擦地址

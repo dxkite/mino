@@ -30,6 +30,7 @@ import (
 func init() {
 	log.SetOutput(log.NewColorWriter())
 	log.SetLogCaller(true)
+	log.SetAsync(true)
 	log.SetLevel(log.LMaxLevel)
 }
 
@@ -41,6 +42,7 @@ func errMsg(msg string) {
 
 func applyLogConfig(ctx context.Context, cfg *config.Config) {
 	log.SetLevel(cfg.LogLevel)
+	log.SetAsync(cfg.LogAsync)
 	filename := cfg.LogFile
 	var w io.Writer
 	if len(filename) == 0 {
