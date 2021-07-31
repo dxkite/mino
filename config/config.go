@@ -76,6 +76,7 @@ type Config struct {
 	PidFile string `yaml:"pid_file" json:"pid_file"`
 	// Web服务器
 	WebEnable      bool   `yaml:"web_enable" json:"web_enable" prop:"readonly"`
+	WebBuildIn     bool   `yaml:"web_build_in" json:"web_build_in"`
 	WebAuth        bool   `yaml:"web_auth" json:"web_auth" conf:"readonly"`
 	WebFailedTimes int    `yaml:"web_failed_times" json:"web_failed_times" prop:"readonly"`
 	WebUsername    string `yaml:"web_username" json:"web_username" prop:"readonly"`
@@ -95,6 +96,8 @@ func (cfg *Config) InitDefault() {
 	cfg.PacUrl = "/mino.pac"
 	cfg.AutoStart = true
 	cfg.WebRoot = "www"
+	cfg.WebFailedTimes = 10
+	cfg.WebBuildIn = true
 	cfg.DataPath = "data"
 
 	cfg.LogFile = "mino.log"
@@ -109,7 +112,7 @@ func (cfg *Config) InitDefault() {
 	cfg.HttpMaxRewindSize = 2 * 1024 * 1024 // HTTP最大预读 2MB
 	cfg.HotLoad = 60                        // 一分钟
 	cfg.Timeout = 10 * 100                  // 10s
-	cfg.WebFailedTimes = 10
+
 	cfg.modifyTime = time.Unix(0, 0)
 }
 

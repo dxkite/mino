@@ -7,6 +7,7 @@ import (
 	"dxkite.cn/mino/server/context"
 	"dxkite.cn/mino/server/handler"
 	"dxkite.cn/mino/transporter"
+	"embed"
 	"net/http"
 )
 
@@ -16,6 +17,13 @@ type Server struct {
 
 func NewServer(tsp *transporter.Transporter) *Server {
 	return &Server{tsp: tsp}
+}
+
+//go:embed webui
+var webStatic embed.FS
+
+func NewWebUiHandler() http.Handler {
+	return http.FileServer(http.FS(webStatic))
 }
 
 func (s *Server) Serve() error {
@@ -38,6 +46,10 @@ func (s *Server) Serve() error {
 
 	api.Handle("/", handler.Auth(c, authApi))
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", api))
+
+	if c.Cfg.WebBuildIn {
+		mux.Handle("/webui/", NewWebUiHandler())
+	}
 
 	if len(c.Cfg.WebRoot) > 0 {
 		log.Println("start web server with root", root)
