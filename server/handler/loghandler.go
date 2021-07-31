@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"dxkite.cn/log"
 	"golang.org/x/net/websocket"
 	"net/http"
@@ -34,26 +33,20 @@ func (ws *WsWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func NewJsonLogHandler(ctx context.Context) http.Handler {
+func NewJsonLogHandler() http.Handler {
 	return websocket.Handler(func(conn *websocket.Conn) {
 		c := NewWebsocketWriter(conn)
 		w := log.NewJsonWriter(c)
 		log.SetOutput(log.MultiWriter(w, log.Writer()))
-		select {
-		case <-ctx.Done():
-		case <-c.Closed():
-		}
+		<-c.Closed()
 	})
 }
 
-func NewTextLogHandler(ctx context.Context) http.Handler {
+func NewTextLogHandler() http.Handler {
 	return websocket.Handler(func(conn *websocket.Conn) {
 		c := NewWebsocketWriter(conn)
 		w := log.NewTextWriter(c)
 		log.SetOutput(log.MultiWriter(w, log.Writer()))
-		select {
-		case <-ctx.Done():
-		case <-c.Closed():
-		}
+		<-c.Closed()
 	})
 }

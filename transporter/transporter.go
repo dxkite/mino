@@ -22,9 +22,9 @@ import (
 // 传输工具
 type Transporter struct {
 	// 流列表
-	sts     *stream.Manager
-	Session *SessionGroup
-	evtHdr  GroupHandler
+	sts          *stream.Manager
+	group        *SessionGroup
+	eventHandler GroupHandler
 
 	check       map[string]stream.Checker
 	enableProto map[string]struct{}
@@ -43,12 +43,13 @@ type Transporter struct {
 
 func New(config *config.Config) (t *Transporter) {
 	t = &Transporter{
-		Config:      config,
-		check:       map[string]stream.Checker{},
-		enableProto: map[string]struct{}{},
-		httpConn:    make(chan net.Conn),
-		Session:     NewSessionGroup(),
-		nextSid:     0,
+		Config:       config,
+		check:        map[string]stream.Checker{},
+		enableProto:  map[string]struct{}{},
+		httpConn:     make(chan net.Conn),
+		group:        NewSessionGroup(),
+		eventHandler: NewHandlerGroup(),
+		nextSid:      0,
 	}
 	return t
 }
@@ -56,10 +57,6 @@ func New(config *config.Config) (t *Transporter) {
 func (t *Transporter) Init() error {
 	// 初始化checker
 	t.initChecker()
-	if t.evtHdr == nil {
-		t.evtHdr = NewHandlerGroup()
-	}
-
 	// 初始化协议
 	ts := strings.Split(t.Config.Input, ",")
 	for _, v := range ts {
@@ -71,7 +68,7 @@ func (t *Transporter) Init() error {
 }
 
 func (t *Transporter) AddEventHandler(handler Handler) {
-	t.evtHdr.AddHandler(handler)
+	t.eventHandler.AddHandler(handler)
 }
 
 func (t *Transporter) NextId() int {
@@ -266,18 +263,18 @@ func (t *Transporter) serve(c net.Conn) {
 
 // 添加会话
 func (t *Transporter) AddSession(session *Session) {
-	t.Session.AddSession(session.Group, session)
-	t.evtHdr.Event("new", session)
+	t.group.AddSession(session.Group, session)
+	t.eventHandler.Event("new", session)
 	go func() {
 		for {
 			select {
 			case <-session.ReadNotify():
-				t.evtHdr.Event("read", session)
+				t.eventHandler.Event("read", session)
 			case <-session.WriteNotify():
-				t.evtHdr.Event("write", session)
+				t.eventHandler.Event("write", session)
 			case <-session.CloseNotify():
-				t.evtHdr.Event("close", session)
-				t.Session.DelSession(session.Group, session.Id)
+				t.eventHandler.Event("close", session)
+				t.group.DelSession(session.Group, session.Id)
 				return
 			}
 		}
@@ -285,11 +282,15 @@ func (t *Transporter) AddSession(session *Session) {
 }
 
 func (t *Transporter) CloseSession(gid string, sid int) (bool, error) {
-	if v, ok := t.Session.Group()[gid][sid]; ok {
+	if v, ok := t.group.Group()[gid][sid]; ok {
 		v.Close()
 		return true, nil
 	}
 	return false, nil
+}
+
+func (t *Transporter) Sessions() *SessionGroup {
+	return t.group
 }
 
 func (t *Transporter) dial(network, address string) (net.Conn, error) {

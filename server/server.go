@@ -1,7 +1,6 @@
 package server
 
 import (
-	ctx "context"
 	"dxkite.cn/log"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/monkey"
@@ -13,11 +12,10 @@ import (
 
 type Server struct {
 	tsp *transporter.Transporter
-	ctx ctx.Context
 }
 
-func NewServer(context ctx.Context, tsp *transporter.Transporter) *Server {
-	return &Server{tsp: tsp, ctx: context}
+func NewServer(tsp *transporter.Transporter) *Server {
+	return &Server{tsp: tsp}
 }
 
 func (s *Server) Serve() error {
@@ -34,9 +32,9 @@ func (s *Server) Serve() error {
 	authApi := http.NewServeMux()
 	authApi.Handle("/session/", http.StripPrefix("/session", handler.NewSessionListHandler(s.tsp)))
 	authApi.Handle("/config/", http.StripPrefix("/config", handler.NewConfigHandler(c)))
-	authApi.Handle("/event", handler.NewEventHandler(s.tsp, s.ctx))
-	authApi.Handle("/log/json", handler.NewJsonLogHandler(s.ctx))
-	authApi.Handle("/log/text", handler.NewTextLogHandler(s.ctx))
+	authApi.Handle("/event", handler.NewEventHandler(s.tsp))
+	authApi.Handle("/log/json", handler.NewJsonLogHandler())
+	authApi.Handle("/log/text", handler.NewTextLogHandler())
 
 	api.Handle("/", handler.Auth(c, authApi))
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", api))

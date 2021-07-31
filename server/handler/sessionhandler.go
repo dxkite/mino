@@ -18,7 +18,7 @@ func NewSessionListHandler(ts *transporter.Transporter) http.Handler {
 	sm := http.NewServeMux()
 
 	sm.HandleFunc("/list", func(writer http.ResponseWriter, request *http.Request) {
-		WriteResp(writer, nil, ts.Session.Group())
+		WriteResp(writer, nil, ts.Sessions().Group())
 	})
 
 	sm.Handle("/close", NewCallbackHandler(func(msg CloseMsg, result *bool) (err error) {

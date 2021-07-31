@@ -172,7 +172,7 @@ func main() {
 	}
 
 	t := transporter.New(cfg)
-	svr := server.NewServer(ctx, t)
+	svr := server.NewServer(t)
 
 	if err := t.Init(); err != nil {
 		log.Fatalln("init error", err)
