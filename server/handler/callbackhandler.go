@@ -1,7 +1,6 @@
-package server
+package handler
 
 import (
-	"dxkite.cn/log"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -18,7 +17,7 @@ type callback struct {
 	f interface{}
 }
 
-func NewCallback(fun interface{}) http.Handler {
+func NewCallbackHandler(fun interface{}) http.Handler {
 	return &callback{fun}
 }
 
@@ -31,7 +30,7 @@ func (fh *callback) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	isStruct := rf.Kind() == reflect.Ptr && rf.Elem().Kind() == reflect.Struct || rf.Kind() == reflect.Struct
 
 	if rf.Kind() != reflect.Func && !isStruct {
-		writeMsg(w, "handler must be function, current is "+rf.String(), nil)
+		WriteResp(w, "handler must be function, current is "+rf.String(), nil)
 		return
 	}
 
@@ -40,7 +39,7 @@ func (fh *callback) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		st := rf
 
 		if st.NumMethod() < 1 {
-			writeMsg(w, "no method: "+st.String(), nil)
+			WriteResp(w, "no method: "+st.String(), nil)
 			return
 		}
 
@@ -52,23 +51,23 @@ func (fh *callback) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 
 		if !rf.IsValid() {
-			writeMsg(w, "call not found: "+method, nil)
+			WriteResp(w, "call not found: "+method, nil)
 			return
 		}
 	}
 
 	if rf.Type().NumOut() < 1 {
-		writeMsg(w, "handler must return error", nil)
+		WriteResp(w, "handler must return error", nil)
 		return
 	}
 
 	if rf.Type().Out(0).ConvertibleTo(reflect.TypeOf(errType)) {
-		writeMsg(w, "handler must return error", nil)
+		WriteResp(w, "handler must return error", nil)
 		return
 	}
 
 	if rf.Type().NumIn() < 1 {
-		writeMsg(w, "handler input must be (in, *out [, http.ResponseWriter ])", nil)
+		WriteResp(w, "handler input must be (in, *out [, http.ResponseWriter ])", nil)
 		return
 	}
 
@@ -80,12 +79,12 @@ func (fh *callback) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 
 	if err != nil {
-		writeMsg(w, err.Error(), nil)
+		WriteResp(w, err.Error(), nil)
 		return
 	}
 
 	if err := json.Unmarshal(body, reqValue.Interface()); err != nil {
-		writeMsg(w, "json decode error:"+err.Error(), map[string]interface{}{
+		WriteResp(w, "json decode error:"+err.Error(), map[string]interface{}{
 			"request":  reqValue.Interface(),
 			"response": respValue.Interface(),
 		})
@@ -105,7 +104,6 @@ func (fh *callback) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		params = append(params, reflect.ValueOf(&HttpContext{req, w}))
 	}
 
-	log.Println(params[1].IsZero())
 	ret := rf.Call(params)
-	writeMsg(w, ret[0].Interface(), params[1].Interface())
+	WriteResp(w, ret[0].Interface(), params[1].Interface())
 }

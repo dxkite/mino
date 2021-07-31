@@ -231,3 +231,10 @@ func (c *connDumper) Read(p []byte) (n int, err error) {
 func NewConnDumper(conn net.Conn, w io.Writer) net.Conn {
 	return &connDumper{conn, w}
 }
+
+func TagName(tag string) string {
+	if idx := strings.Index(tag, ","); idx != -1 {
+		return tag[:idx]
+	}
+	return tag
+}

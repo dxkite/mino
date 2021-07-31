@@ -21,7 +21,7 @@ func AutoPac(cfg *config.Config) {
 	}
 }
 
-func NewPacServer(cfg *config.Config) http.Handler {
+func NewPacHandler(cfg *config.Config) http.Handler {
 	return &pacServer{cfg}
 }
 

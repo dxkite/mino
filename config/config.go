@@ -137,6 +137,10 @@ func (cfg *Config) applyConfig() {
 	}
 }
 
+func (cfg *Config) notifyModify() {
+	go cfg.applyConfig()
+}
+
 func (cfg *Config) HotLoadConfig() {
 	log.Info("enable hot load config", cfg.ConfFile)
 	ticker := time.NewTicker(time.Duration(cfg.HotLoad) * time.Second)
@@ -169,7 +173,7 @@ func (cfg *Config) Load(p string) error {
 	cfg.ConfPath = path.Dir(p)
 	cfg.modifyTime = time.Now()
 	// 通知应用配置
-	go cfg.applyConfig()
+	cfg.notifyModify()
 	return nil
 }
 
@@ -198,6 +202,7 @@ func (cfg *Config) SetValueOrDefault(target interface{}, val, def interface{}) {
 
 	if value.IsValid() && !value.IsZero() {
 		reflect.ValueOf(target).Elem().Set(value)
+		cfg.notifyModify()
 	}
 }
 
@@ -209,5 +214,36 @@ func (cfg *Config) SetValue(target interface{}, val interface{}) {
 
 	if value.IsValid() && !value.IsZero() {
 		reflect.ValueOf(target).Elem().Set(value)
+		cfg.notifyModify()
 	}
+}
+
+func (cfg *Config) CopyFrom(from map[string]interface{}) (modify []string, err error) {
+	cfg.mtx.Lock()
+	defer cfg.mtx.Unlock()
+	v := reflect.ValueOf(cfg)
+	t := v.Elem().Type()
+
+	for i := 0; i < v.Elem().NumField(); i++ {
+		f := v.Elem().Field(i)
+		tag := t.Field(i).Tag.Get("json")
+		name := util.TagName(tag)
+
+		if name == "-" || len(name) == 0 {
+			continue
+		}
+
+		if v, ok := from[name]; ok {
+			rv := reflect.ValueOf(v)
+			if rv.Type().ConvertibleTo(f.Type()) {
+				f.Set(rv.Convert(f.Type()))
+				modify = append(modify, name)
+			}
+		}
+	}
+
+	if len(modify) > 0 {
+		cfg.notifyModify()
+	}
+	return
 }

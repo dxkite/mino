@@ -4,6 +4,8 @@ import (
 	"dxkite.cn/log"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/monkey"
+	"dxkite.cn/mino/server/context"
+	"dxkite.cn/mino/server/handler"
 	"dxkite.cn/mino/transporter"
 	"net/http"
 )
@@ -17,20 +19,21 @@ func NewServer(tsp *transporter.Transporter) *Server {
 }
 
 func (s *Server) Serve() error {
-	c := &Context{Cfg: s.tsp.Config}
+	c := &context.Context{Cfg: s.tsp.Config}
 	root := config.GetConfigFile(c.Cfg, c.Cfg.WebRoot)
 	mux := http.NewServeMux()
 
-	mux.Handle(c.Cfg.PacUrl, monkey.NewPacServer(c.Cfg))
-	mux.Handle("/check-update", &updateHandler{c, root})
+	mux.Handle(c.Cfg.PacUrl, monkey.NewPacHandler(c.Cfg))
+	mux.Handle("/check-update", handler.NewUpdateHandler(c, root))
 
 	api := http.NewServeMux()
-	api.Handle("/login", NewLoginHandler(c))
+	api.Handle("/login", handler.NewLoginHandler(c))
 
 	authApi := http.NewServeMux()
-	authApi.Handle("/session-list", &sessionListHandler{s.tsp.Session})
-	api.Handle("/", Auth(c, authApi))
+	authApi.Handle("/session/list", handler.NewSessionListHandler(s.tsp.Session))
+	authApi.Handle("/config/", http.StripPrefix("/config", handler.NewConfigHandler(c)))
 
+	api.Handle("/", handler.Auth(c, authApi))
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", api))
 
 	if len(c.Cfg.WebRoot) > 0 {
@@ -38,5 +41,5 @@ func (s *Server) Serve() error {
 		mux.Handle("/", http.FileServer(http.Dir(root)))
 	}
 
-	return http.Serve(s.tsp.NetListener(), AccessLog(mux))
+	return http.Serve(s.tsp.NetListener(), handler.AccessLog(mux))
 }

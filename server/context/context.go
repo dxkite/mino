@@ -1,8 +1,8 @@
-package server
+package context
 
 import "dxkite.cn/mino/config"
 
 type Context struct {
 	Cfg            *config.Config
-	runtimeSession string
+	RuntimeSession string
 }
