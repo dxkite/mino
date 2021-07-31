@@ -1,7 +1,7 @@
-package transport
+package transporter
 
 import (
-	"dxkite.cn/go-log"
+	"dxkite.cn/log"
 	"dxkite.cn/mino/encoder"
 	"dxkite.cn/mino/util"
 	"encoding/hex"
@@ -14,22 +14,35 @@ import (
 	"sync"
 	"time"
 
-	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/rewind"
 	"dxkite.cn/mino/stream"
 )
 
+// HTTP接口
+// CONNECT 用来做HTTP代理用，不属于Web
+var httpMethods = []string{
+	"GE", //GET
+	"HE", //HEAD
+	"PO", //POST
+	"PU", //PUT
+	"PA", //PATCH
+	"DE", //DELETE
+	"OP", //OPTIONS
+	"TR", //TRACE
+}
+
 // 传输工具
 type Transporter struct {
-	Manager *stream.Manager
-	Session *SessionMap
+	// 流列表
+	sts     *stream.Manager
+	Session *SessionGroup
 	Event   Handler
 
 	check       map[string]stream.Checker
 	enableProto map[string]struct{}
 
-	Config   config.Config
+	Config   *config.Config
 	AuthFunc stream.BasicAuthFunc
 
 	httpConn chan net.Conn
@@ -41,7 +54,7 @@ type Transporter struct {
 	timeout time.Duration
 }
 
-func New(config config.Config) (t *Transporter) {
+func New(config *config.Config) (t *Transporter) {
 	t = &Transporter{
 		Config:      config,
 		check:       map[string]stream.Checker{},
@@ -61,14 +74,12 @@ func (t *Transporter) Init() error {
 	}
 
 	// 初始化协议
-	ts := strings.Split(t.Config.StringOrDefault(mino.KeyInput, "mino"), ",")
+	ts := strings.Split(t.Config.Input, ",")
 	for _, v := range ts {
 		t.enableProto[v] = struct{}{}
 	}
 	// 连接超时 默认 10s
-	if v := t.Config.IntOrDefault(mino.KeyTimeout, 10*1000); v > 0 {
-		t.timeout = time.Duration(v) * time.Millisecond
-	}
+	t.timeout = time.Duration(t.Config.Timeout) * time.Millisecond
 	return nil
 }
 
@@ -80,7 +91,7 @@ func (t *Transporter) NextId() int {
 }
 
 func (t *Transporter) Listen() error {
-	listen, err := net.Listen("tcp", t.Config.String(mino.KeyAddress))
+	listen, err := net.Listen("tcp", t.Config.Address)
 	if err != nil {
 		return err
 	} else {
@@ -96,6 +107,10 @@ func (t *Transporter) Serve() error {
 		if err != nil {
 			log.Warn("accept new conn error", err)
 			continue
+		}
+		// 调试输出
+		if t.Config.DumpStream {
+			c = util.NewConnDumper(c, log.Writer())
 		}
 		go t.serve(c)
 	}
@@ -123,11 +138,11 @@ func (t *Transporter) NetListener() net.Listener {
 }
 
 func (t *Transporter) initChecker() {
-	if t.Manager == nil {
-		t.Manager = stream.DefaultManager
+	if t.sts == nil {
+		t.sts = stream.DefaultManager
 	}
-	for name := range t.Manager.Proto {
-		t.check[name] = t.Manager.Proto[name].Checker(t.Config)
+	for name := range t.sts.Proto {
+		t.check[name] = t.sts.Proto[name].Checker(t.Config)
 	}
 }
 
@@ -146,7 +161,7 @@ func (t *Transporter) Detect(conn rewind.Conn) (proto stream.Stream, err error) 
 			return nil, er
 		}
 		if ok {
-			return t.Manager.Proto[name], nil
+			return t.sts.Proto[name], nil
 		}
 	}
 	return nil, errors.New("unknown protocol")
@@ -159,7 +174,7 @@ func (t *Transporter) IsEnableProtocol(name string) bool {
 
 // 解包连接
 func (t *Transporter) unwrapConn(conn net.Conn) (string, rewind.Conn, error) {
-	size := t.Config.IntOrDefault(mino.KeyMaxStreamRewind, 8)
+	size := t.Config.MaxStreamRewind
 	rw := rewind.NewRewindConn(conn, size)
 	var name string
 	if stm, err := encoder.Detect(rw, t.Config); err != nil {
@@ -176,16 +191,16 @@ func (t *Transporter) unwrapConn(conn net.Conn) (string, rewind.Conn, error) {
 func (t *Transporter) createStream(conn rewind.Conn) (string, stream.Server, error) {
 	p, err := t.Detect(conn)
 	if err != nil {
-		msg := fmt.Sprintf("identify stream type error: %s hex=%s text=%s from=%s", err, hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), conn.RemoteAddr())
+		msg := fmt.Sprintf("stream type error: %s hex=%s text=%s from=%s", err, hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), conn.RemoteAddr())
 		return "", nil, errors.New(msg)
 	}
 	if !t.IsEnableProtocol(p.Name()) {
 		log.Warn("protocol is disabled", p.Name())
-		return p.Name(), nil, errors.New(fmt.Sprintf("error: stream type %s is disabled", p.Name()))
+		return p.Name(), nil, errors.New(fmt.Sprintf("stream %s is disabled", p.Name()))
 	}
 	svr := p.Server(conn, t.Config)
 	if err := svr.Handshake(t.AuthFunc); err != nil {
-		return p.Name(), nil, errors.New(fmt.Sprintf("error: stream %s is handshake error", p.Name()))
+		return p.Name(), nil, errors.New(fmt.Sprintf("handshake error"))
 	}
 	return p.Name(), svr, nil
 }
@@ -193,7 +208,7 @@ func (t *Transporter) createStream(conn rewind.Conn) (string, stream.Server, err
 func (t *Transporter) transport(svr stream.Server, network, address, route string) {
 	rmt, rmtErr := t.dial(network, address)
 	if rmtErr != nil {
-		log.Error("dial", network, address, "error", rmtErr)
+		log.Error("dial", network, address, "error:", rmtErr)
 		_ = svr.SendError(rmtErr)
 		_ = svr.Close()
 		return
@@ -202,11 +217,7 @@ func (t *Transporter) transport(svr stream.Server, network, address, route strin
 		_ = svr.SendSuccess()
 	}
 
-	var loc net.Conn = svr
-	if t.Config.Bool(mino.KeyDump) {
-		loc = util.NewConnDumper(loc, log.Writer())
-	}
-	sess := NewSession(t.NextId(), svr.User(), loc, rmt, address)
+	sess := NewSession(t.NextId(), svr.User(), svr, rmt, address)
 	t.AddSession(svr, sess)
 	up, down, err := sess.Transport()
 	msg := fmt.Sprintf("transport %s %s up %d down %d via %s", network, address, up, down, route)
@@ -237,7 +248,7 @@ func (t *Transporter) serve(c net.Conn) {
 	}
 
 	if stm, svr, err = t.createStream(conn); err != nil {
-		log.Error(fmt.Sprintf("create stream error %s stm=%s", err, stm))
+		log.Error("create stream", stm, err)
 		_ = conn.Close()
 		return
 	} else {
@@ -249,10 +260,10 @@ func (t *Transporter) serve(c net.Conn) {
 	route := strings.Join(name, "+")
 
 	if network, address, err := svr.Target(); err != nil {
-		log.Error("read connect target error", err)
+		log.Error("read connect target", err)
 		_ = svr.Close()
 	} else {
-		// 作为web请求处理
+		// 请求本机
 		if util.IsRequestListener(t.listen.Addr().String(), address) {
 			t.httpConn <- svr
 			return
@@ -264,8 +275,8 @@ func (t *Transporter) serve(c net.Conn) {
 
 // 添加会话
 func (t *Transporter) AddSession(svr stream.Server, session *Session) {
-	id := svr.RemoteAddr().String()
-	t.Session.AddSession(id, session)
+	gid := svr.RemoteAddr().String()
+	t.Session.AddSession(gid, session)
 	t.Event.Event("new", session)
 	go func() {
 		for {
@@ -276,7 +287,7 @@ func (t *Transporter) AddSession(svr stream.Server, session *Session) {
 				t.Event.Event("write", session)
 			case <-session.CloseNotify():
 				t.Event.Event("close", session)
-				t.Session.DelSession(id)
+				t.Session.DelSession(gid)
 				return
 			}
 		}
@@ -290,7 +301,7 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 	var targetNetwork = network
 	var targetAddress = address
 
-	if upstream := t.Config.String(mino.KeyUpstream); len(upstream) > 0 {
+	if upstream := t.Config.Upstream; len(upstream) > 0 {
 		UpStream, _ = url.Parse(upstream)
 		network = "tcp"
 		address = UpStream.Host
@@ -301,23 +312,23 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 	}
 
 	// 数据编码
-	if enc, ok := encoder.Get(t.Config.String(mino.KeyEncoder)); ok {
+	if enc, ok := encoder.Get(t.Config.Encoder); ok {
 		rmt = enc.Client(rmt, t.Config)
 	}
 
 	if UpStream != nil {
-		if cl, ok := t.Manager.Get(UpStream.Scheme); ok {
+		if cl, ok := t.sts.Get(UpStream.Scheme); ok {
 			cfg := t.Config
-			cfg.Set(mino.KeyUsername, UpStream.User.Username())
+			cfg.Username = UpStream.User.Username()
 			pwd, _ := UpStream.User.Password()
-			cfg.Set(mino.KeyPassword, pwd)
+			cfg.Password = pwd
 			client := cl.Client(rmt, cfg)
 			if err := client.Handshake(); err != nil {
-				return nil, errors.New(fmt.Sprint("remote protocol handshake error: ", err))
+				return nil, errors.New(fmt.Sprint("[remote] protocol handshake error: ", err))
 			}
 			log.Debug("connecting", targetNetwork, targetAddress, "via", UpStream)
 			if err := client.Connect(targetNetwork, targetAddress); err != nil {
-				return nil, errors.New(fmt.Sprint("remote connecting error: ", err))
+				return nil, errors.New(fmt.Sprint("[remote] connecting error: ", err))
 			}
 			rmt = client
 		}

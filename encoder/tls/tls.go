@@ -2,8 +2,7 @@ package tls
 
 import (
 	"crypto/tls"
-	"dxkite.cn/go-log"
-	"dxkite.cn/mino"
+	"dxkite.cn/log"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/encoder"
 	"dxkite.cn/mino/util"
@@ -12,6 +11,8 @@ import (
 )
 
 type tlsStreamEncoder struct {
+	svrCfg *tls.Config
+	cltCfg *tls.Config
 }
 
 func (stm *tlsStreamEncoder) Name() string {
@@ -21,7 +22,7 @@ func (stm *tlsStreamEncoder) Name() string {
 const TlsRecordTypeHandshake uint8 = 22
 
 // 判断编码类型
-func (stm *tlsStreamEncoder) Detect(conn net.Conn, cfg config.Config) (bool, error) {
+func (stm *tlsStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, error) {
 	// 读3个字节
 	buf := make([]byte, 3)
 	if _, err := io.ReadFull(conn, buf); err != nil {
@@ -40,62 +41,30 @@ func (stm *tlsStreamEncoder) Detect(conn net.Conn, cfg config.Config) (bool, err
 	return true, nil
 }
 
-const serverRuntimeConfig = "runtime.tls.server-config"
-const clientRuntimeConfig = "runtime.tls.client-config"
-
 // 创建客户端
-func (stm *tlsStreamEncoder) init(cfg config.Config) {
-
-	var enableServer = len(cfg.String(mino.KeyCertFile)) > 0
+func (stm *tlsStreamEncoder) init(cfg *config.Config) {
+	var enableServer = len(cfg.TlsCertFile) > 0
 	if enableServer {
-		if val, _ := cfg.Get(serverRuntimeConfig); val == nil {
-			// 服务器自适应 TLS
-			certF := util.GetRelativePath(cfg.String(mino.KeyCertFile))
-			keyF := util.GetRelativePath(cfg.String(mino.KeyKeyFile))
-			if cert, err := tls.LoadX509KeyPair(certF, keyF); err != nil {
-				log.Println("load secure config error", err)
-			} else {
-				cfg.Set(serverRuntimeConfig, &tls.Config{Certificates: []tls.Certificate{cert}})
-			}
+		certF := util.GetRelativePath(cfg.TlsCertFile)
+		keyF := util.GetRelativePath(cfg.TlsKeyFile)
+		if cert, err := tls.LoadX509KeyPair(certF, keyF); err != nil {
+			log.Println("load secure config error", err)
+		} else {
+			stm.svrCfg = &tls.Config{Certificates: []tls.Certificate{cert}}
 		}
 	}
-
-	if val, _ := cfg.Get(clientRuntimeConfig); val == nil {
-		// 输出流使用TLS
-		cfg.Set(clientRuntimeConfig, &tls.Config{InsecureSkipVerify: true})
-	}
+	stm.cltCfg = &tls.Config{InsecureSkipVerify: true}
 }
 
 // 创建客户端
-func (stm *tlsStreamEncoder) Client(conn net.Conn, cfg config.Config) net.Conn {
-	var tlsConfig *tls.Config
-
-	stm.init(cfg)
-	if v, ok := cfg.Get(clientRuntimeConfig); ok {
-		if vv, ok := v.(*tls.Config); ok {
-			tlsConfig = vv
-		}
-	}
-	if tlsConfig == nil {
-		log.Println("warning: " + clientRuntimeConfig + " is empty")
-	}
-	return tls.Client(conn, tlsConfig)
+func (stm *tlsStreamEncoder) Client(conn net.Conn, cfg *config.Config) net.Conn {
+	return tls.Client(conn, stm.cltCfg)
 }
 
 // 创建服务端
-func (stm *tlsStreamEncoder) Server(conn net.Conn, cfg config.Config) net.Conn {
-	var tlsConfig *tls.Config
-
+func (stm *tlsStreamEncoder) Server(conn net.Conn, cfg *config.Config) net.Conn {
 	stm.init(cfg)
-	if v, ok := cfg.Get(serverRuntimeConfig); ok {
-		if vv, ok := v.(*tls.Config); ok {
-			tlsConfig = vv
-		}
-	}
-	if tlsConfig == nil {
-		log.Println("warning: " + serverRuntimeConfig + " is empty")
-	}
-	return tls.Server(conn, tlsConfig)
+	return tls.Server(conn, stm.svrCfg)
 }
 
 func init() {

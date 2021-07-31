@@ -1,7 +1,6 @@
 package xor
 
 import (
-	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/encoder"
 	"io"
@@ -18,7 +17,7 @@ func (stm *xorStreamEncoder) Name() string {
 }
 
 // 判断编码类型
-func (stm *xorStreamEncoder) Detect(conn net.Conn, cfg config.Config) (bool, error) {
+func (stm *xorStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, error) {
 	// ABCCCC
 	// A = 'X'
 	// B = version
@@ -38,13 +37,13 @@ func (stm *xorStreamEncoder) Detect(conn net.Conn, cfg config.Config) (bool, err
 }
 
 // 创建客户端
-func (stm *xorStreamEncoder) Client(conn net.Conn, cfg config.Config) net.Conn {
-	return Client(conn, cfg.IntOrDefault(mino.KeyXorMod, 4))
+func (stm *xorStreamEncoder) Client(conn net.Conn, cfg *config.Config) net.Conn {
+	return Client(conn, cfg.XorMod)
 }
 
 // 创建服务端
-func (stm *xorStreamEncoder) Server(conn net.Conn, cfg config.Config) net.Conn {
-	return Server(conn, cfg.IntOrDefault(mino.KeyXorMod, 4))
+func (stm *xorStreamEncoder) Server(conn net.Conn, cfg *config.Config) net.Conn {
+	return Server(conn, cfg.XorMod)
 }
 
 func init() {

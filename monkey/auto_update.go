@@ -1,7 +1,7 @@
 package monkey
 
 import (
-	"dxkite.cn/go-log"
+	"dxkite.cn/log"
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/notification"
@@ -52,8 +52,8 @@ func FetchUpdateInfo(update string) (*mino.UpdateInfo, error) {
 }
 
 // 获取下载信息
-func GetUpdateInfo(cfg config.Config) (string, *mino.UpdateInfo) {
-	fetchUrls := []string{mino.Upload, cfg.String(mino.KeyUpdateUrl)}
+func GetUpdateInfo(cfg *config.Config) (string, *mino.UpdateInfo) {
+	fetchUrls := []string{mino.Upload, cfg.UpdateUrl}
 	for _, url := range fetchUrls {
 		if len(url) > 0 {
 			if vi, err := FetchUpdateInfo(url); err == nil && util.VersionCompare(vi.Version, mino.Version) > 0 {
@@ -85,7 +85,7 @@ func DownloadZip(url string, ui *mino.UpdateInfo) (string, error) {
 }
 
 // 自动更新
-func AutoUpdate(cfg config.Config) {
+func AutoUpdate(cfg *config.Config) {
 	log.Debug("check update")
 	fro, ui := GetUpdateInfo(cfg)
 	if ui != nil {

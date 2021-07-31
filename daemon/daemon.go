@@ -1,7 +1,7 @@
 package daemon
 
 import (
-	"dxkite.cn/go-log"
+	"dxkite.cn/log"
 	"io/ioutil"
 	"os"
 	"os/exec"

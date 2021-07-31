@@ -1,7 +1,7 @@
 package server
 
 import (
-	"dxkite.cn/go-log"
+	"dxkite.cn/log"
 	"encoding/json"
 	"errors"
 	"io/ioutil"

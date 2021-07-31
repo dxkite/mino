@@ -1,7 +1,6 @@
 package mino
 
 import (
-	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/stream"
 	"errors"
@@ -129,23 +128,23 @@ func (c *Stream) Name() string {
 	return "mino"
 }
 
-// 创建HTTP接收器
-func (c *Stream) Server(conn net.Conn, config config.Config) stream.Server {
+// 创建 mino2 接收器
+func (c *Stream) Server(conn net.Conn, config *config.Config) stream.Server {
 	return &Server{
 		Conn: conn,
 	}
 }
 
-// 创建HTTP请求器
-func (c *Stream) Client(conn net.Conn, config config.Config) stream.Client {
+// 创建 mino2 请求器
+func (c *Stream) Client(conn net.Conn, config *config.Config) stream.Client {
 	return &Client{
 		Conn:     conn,
-		Username: config.String(mino.KeyUsername),
-		Password: config.String(mino.KeyPassword),
+		Username: config.Username,
+		Password: config.Password,
 	}
 }
 
-func (c *Stream) Checker(config config.Config) stream.Checker {
+func (c *Stream) Checker(config *config.Config) stream.Checker {
 	return &Checker{}
 }
 

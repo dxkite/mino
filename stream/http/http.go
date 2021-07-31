@@ -2,7 +2,6 @@ package http
 
 import (
 	"bufio"
-	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/rewind"
 	"dxkite.cn/mino/stream"
@@ -192,7 +191,6 @@ func ParseProxyAuth(r *http.Request) (username, password string, ok bool) {
 
 func parseBasicAuth(auth string) (username, password string, ok bool) {
 	const prefix = "Basic "
-	// Case insensitive prefix match. See Issue 22736.
 	if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
 		return
 	}
@@ -228,23 +226,23 @@ func (c *Stream) Name() string {
 }
 
 // 创建HTTP接收器
-func (c *Stream) Server(conn net.Conn, config config.Config) stream.Server {
+func (c *Stream) Server(conn net.Conn, config *config.Config) stream.Server {
 	return &Server{
 		Conn:    conn,
-		rwdSize: config.IntOrDefault(mino.KeyMaxRewindSize, 2*1024),
+		rwdSize: config.HttpMaxRewindSize,
 	}
 }
 
 // 创建HTTP请求器
-func (c *Stream) Client(conn net.Conn, config config.Config) stream.Client {
+func (c *Stream) Client(conn net.Conn, config *config.Config) stream.Client {
 	return &Client{
 		Conn:     conn,
-		Username: config.String(mino.KeyUsername),
-		Password: config.String(mino.KeyPassword),
+		Username: config.Username,
+		Password: config.Password,
 	}
 }
 
-func (c *Stream) Checker(config config.Config) stream.Checker {
+func (c *Stream) Checker(config *config.Config) stream.Checker {
 	return &Checker{}
 }
 

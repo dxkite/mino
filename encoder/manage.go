@@ -29,7 +29,7 @@ func (m *Manage) Get(name string) (stream StreamEncoder, ok bool) {
 }
 
 // 获取传输协议
-func (m *Manage) Detect(conn rewind.Conn, config config.Config) (stream StreamEncoder, err error) {
+func (m *Manage) Detect(conn rewind.Conn, config *config.Config) (stream StreamEncoder, err error) {
 	for name := range m.stm {
 		// 重置流位置
 		if err = conn.Rewind(); err != nil {
@@ -68,6 +68,6 @@ func Get(name string) (stream StreamEncoder, ok bool) {
 }
 
 // 获取传输协议
-func Detect(conn rewind.Conn, config config.Config) (stream StreamEncoder, err error) {
+func Detect(conn rewind.Conn, config *config.Config) (stream StreamEncoder, err error) {
 	return DefaultManage.Detect(conn, config)
 }

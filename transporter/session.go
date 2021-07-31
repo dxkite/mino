@@ -1,4 +1,4 @@
-package transport
+package transporter
 
 import (
 	"errors"
@@ -138,27 +138,27 @@ func (s *Session) Write(p []byte) (n int, err error) {
 	return
 }
 
-type SessionMap struct {
+type SessionGroup struct {
 	mtx   sync.Mutex
 	group map[string]*Session
 }
 
-func NewSessionGroup() *SessionMap {
-	return &SessionMap{group: map[string]*Session{}}
+func NewSessionGroup() *SessionGroup {
+	return &SessionGroup{group: map[string]*Session{}}
 }
 
-func (sg *SessionMap) AddSession(id string, session *Session) {
+func (sg *SessionGroup) AddSession(gid string, session *Session) {
 	sg.mtx.Lock()
 	defer sg.mtx.Unlock()
-	sg.group[id] = session
+	sg.group[gid] = session
 }
 
-func (sg *SessionMap) DelSession(id string) {
+func (sg *SessionGroup) DelSession(gid string) {
 	sg.mtx.Lock()
 	defer sg.mtx.Unlock()
-	delete(sg.group, id)
+	delete(sg.group, gid)
 }
 
-func (sg *SessionMap) Group() map[string]*Session {
+func (sg *SessionGroup) Group() map[string]*Session {
 	return sg.group
 }

@@ -4,7 +4,7 @@ package daemon
 
 import (
 	"bytes"
-	"dxkite.cn/go-log"
+	"dxkite.cn/log"
 	"io/ioutil"
 	"os"
 	"os/exec"

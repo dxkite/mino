@@ -3,7 +3,7 @@
 package monkey
 
 import (
-	"dxkite.cn/go-log"
+	"dxkite.cn/log"
 	"golang.org/x/sys/windows/registry"
 	"io/ioutil"
 	"os"

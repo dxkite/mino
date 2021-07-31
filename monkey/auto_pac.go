@@ -3,7 +3,7 @@
 package monkey
 
 import (
-	"dxkite.cn/go-log"
+	"dxkite.cn/log"
 )
 
 func AutoSetPac(pacUri, pacBackFile, inner string) {

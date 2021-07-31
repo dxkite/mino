@@ -2,7 +2,7 @@ package util
 
 import (
 	"archive/zip"
-	"dxkite.cn/go-log"
+	"dxkite.cn/log"
 	"encoding/hex"
 	"fmt"
 	"io"

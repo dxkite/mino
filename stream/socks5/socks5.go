@@ -1,8 +1,7 @@
 package socks5
 
 import (
-	"dxkite.cn/go-log"
-	"dxkite.cn/mino"
+	"dxkite.cn/log"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/stream"
 	"encoding/binary"
@@ -468,23 +467,23 @@ func (c *Stream) Name() string {
 	return "socks5"
 }
 
-// 创建Socks服务器
-func (c *Stream) Server(conn net.Conn, config config.Config) stream.Server {
+// 创建Socks5服务器
+func (c *Stream) Server(conn net.Conn, config *config.Config) stream.Server {
 	return &Server{
 		Conn: conn,
 	}
 }
 
-// 创建Socks客户端
-func (c *Stream) Client(conn net.Conn, config config.Config) stream.Client {
+// 创建Socks5客户端
+func (c *Stream) Client(conn net.Conn, config *config.Config) stream.Client {
 	return &Client{
 		Conn:     conn,
-		Username: config.String(mino.KeyUsername),
-		Password: config.String(mino.KeyPassword),
+		Username: config.Username,
+		Password: config.Password,
 	}
 }
 
-func (c *Stream) Checker(config config.Config) stream.Checker {
+func (c *Stream) Checker(config *config.Config) stream.Checker {
 	return &Checker{}
 }
 

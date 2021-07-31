@@ -17,8 +17,8 @@ var ErrRewindSize = errors.New("rewind size error")
 type rewindReader struct {
 	r   io.Reader // 读取院
 	buf []byte    // 缓存的位置
-	off int       // 读取到的位置
-	wd  int       // 缓冲区使用的大小
+	rd  int       // 读取到的位置
+	use int       // 缓冲区使用的大小
 	max int       // 缓冲区大小
 }
 
@@ -27,8 +27,8 @@ func NewRewindReaderSize(r io.Reader, size int) Reader {
 	return &rewindReader{
 		r:   r,
 		buf: make([]byte, size),
-		off: 0,
-		wd:  0,
+		rd:  0,
+		use: 0,
 		max: size,
 	}
 }
@@ -41,16 +41,18 @@ func (rr *rewindReader) Read(p []byte) (n int, err error) {
 	if len(rr.buf) == 0 {
 		return rr.r.Read(p)
 	}
-	// 当前数据重置了读取指针
-	if rr.off < rr.wd {
+	// 缓冲区能兜住部分数据
+	if rr.rd < rr.use {
 		lp := len(p)
 		n := 0
-		if rr.off+lp > rr.wd {
-			n = copy(p, rr.buf[rr.off:rr.wd])
+		if rr.rd+lp > rr.use {
+			// 读取的内容超过了缓冲区，只读取缓冲区有的数据
+			n = copy(p, rr.buf[rr.rd:rr.use])
 		} else {
-			n = copy(p, rr.buf[rr.off:rr.off+lp])
+			// 缓冲区能完全兜住
+			n = copy(p, rr.buf[rr.rd:rr.rd+lp])
 		}
-		rr.off += n
+		rr.rd += n
 		return n, err
 	}
 	// 从数据源读取
@@ -58,16 +60,16 @@ func (rr *rewindReader) Read(p []byte) (n int, err error) {
 		return 0, er
 	} else {
 		// 当前读取的数据大于缓冲区的数据
-		if n+rr.off > rr.max {
+		if n+rr.rd > rr.max {
 			// 缓冲区失效
 			// 降级为普通读取
 			rr.buf = rr.buf[0:0]
 			return n, er
 		}
 		// 将数据复制到缓冲区
-		copy(rr.buf[rr.off:], p)
-		rr.off += n
-		rr.wd += n
+		copy(rr.buf[rr.rd:], p)
+		rr.rd += n
+		rr.use += n
 		return n, nil
 	}
 }
@@ -77,11 +79,11 @@ func (rr *rewindReader) Rewind() error {
 	if len(rr.buf) != rr.max {
 		return ErrRewindSize
 	}
-	rr.off = 0
+	rr.rd = 0
 	return nil
 }
 
 // 获取缓存数据
 func (rr *rewindReader) Cached() []byte {
-	return rr.buf[:rr.wd]
+	return rr.buf[:rr.use]
 }

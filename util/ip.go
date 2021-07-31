@@ -2,7 +2,7 @@ package util
 
 import (
 	"crypto/md5"
-	"dxkite.cn/go-log"
+	"dxkite.cn/log"
 	"encoding/hex"
 	"net"
 	"sort"

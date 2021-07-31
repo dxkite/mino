@@ -1,7 +1,8 @@
 package main
 
 import (
-	"dxkite.cn/go-log"
+	"dxkite.cn/log"
+	"runtime"
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
@@ -9,7 +10,7 @@ import (
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/notification"
 	"dxkite.cn/mino/server"
-	"dxkite.cn/mino/transport"
+	"dxkite.cn/mino/transporter"
 	"dxkite.cn/mino/util"
 
 	_ "dxkite.cn/mino/encoder/tls"
@@ -27,7 +28,8 @@ import (
 
 func init() {
 	log.SetOutput(log.NewColorWriter())
-	log.SetLogCaller(false)
+	log.SetLogCaller(true)
+	log.SetLevel(log.LMaxLevel)
 }
 
 func errMsg(msg string) {
@@ -36,10 +38,10 @@ func errMsg(msg string) {
 	}
 }
 
-func initLogger(cfg config.Config) io.Closer {
-	log.SetLevel(log.LogLevel(cfg.IntOrDefault(mino.KeyLogLevel, int(log.LMaxLevel))))
+func initLogger(cfg *config.Config) io.Closer {
+	log.SetLevel(cfg.LogLevel)
 
-	filename := cfg.String(mino.KeyLogFile)
+	filename := cfg.LogFile
 	var w io.Writer
 	var c io.Closer
 
@@ -47,7 +49,7 @@ func initLogger(cfg config.Config) io.Closer {
 		return nil
 	}
 
-	pp := util.ConcatPath(cfg.String(config.KeyRuntimeConfigPath), filename)
+	pp := util.ConcatPath(cfg.ConfFile, filename)
 	if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModePerm); err != nil {
 		log.Warn("log file open error", filename)
 		return nil
@@ -64,25 +66,25 @@ func initLogger(cfg config.Config) io.Closer {
 	return c
 }
 
-func printInfo(cfg config.Config) {
-	if len(cfg.String(mino.KeyUpstream)) > 0 {
-		log.Println("use upstream", cfg.String(mino.KeyUpstream))
+func printInfo(cfg *config.Config) {
+	if len(cfg.Upstream) > 0 {
+		log.Println("use upstream", cfg.Upstream)
 	}
-	if len(cfg.String(mino.KeyEncoder)) > 0 {
-		log.Println("use upstream encoder", cfg.String(mino.KeyEncoder))
+	if len(cfg.Encoder) > 0 {
+		log.Println("use upstream encoder", cfg.Encoder)
 	}
 }
 
-func initMonkey(cfg config.Config) {
-	if len(cfg.String(mino.KeyPacFile)) > 0 {
+func initMonkey(cfg *config.Config) {
+	if len(cfg.PacFile) > 0 {
 		go monkey.AutoPac(cfg)
 	}
 
-	if cfg.Bool(mino.KeyAutoStart) {
+	if cfg.AutoStart {
 		go monkey.AutoStart(os.Args[0])
 	}
 
-	if cfg.BoolOrDefault(mino.KeyAutoUpdate, true) {
+	if cfg.AutoUpdate {
 		go monkey.AutoUpdate(cfg)
 	}
 }
@@ -98,11 +100,14 @@ func main() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Println("panic error", r)
+			buf := make([]byte, 2048)
+			n := runtime.Stack(buf, false)
+			log.Error("[panic error]", r)
+			log.Error(string(buf[:n]))
 		}
 	}()
 
-	var confFile = flag.String("conf", "", "config file")
+	var confFile = flag.String("conf", "mino.yml", "config file")
 	var addr = flag.String("addr", "", "listen addr")
 	var upstream = flag.String("upstream", "", "upstream")
 	var certFile = flag.String("cert_file", "", "tls cert file")
@@ -118,61 +123,54 @@ func main() {
 	var secure = flag.String("secure", "", "input encoder")
 
 	flag.Parse()
-	cfg := config.NewConfig()
+	cfg := &config.Config{}
+	cfg.InitDefault()
 
-	if len(os.Args) == 1 {
-		cfg.Set(mino.KeyConfFile, util.GetRelativePath("mino.yml"))
-		cfg.Set(mino.KeyPacFile, util.GetRelativePath("mino.pac"))
-	} else if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
+	if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
 		daemon.Exec(util.ConcatPath(util.GetBinaryPath(), "mino.pid"), os.Args)
 		os.Exit(0)
-	} else {
-		cfg.SetValueDefault(mino.KeyLogFile, *logFile, nil)
-		cfg.SetValueDefault(mino.KeyConfFile, util.GetRelativePath(*confFile), nil)
-		cfg.SetValueDefault(mino.KeyPacFile, *pacFile, nil)
 	}
 
-	if len(cfg.String(mino.KeyConfFile)) > 0 {
-		c := util.GetRelativePath(cfg.String(mino.KeyConfFile))
-		cfg.Set(mino.KeyConfFile, c)
-		log.Println("config file at", c)
+	if len(*confFile) > 0 {
+		c := util.GetRelativePath(*confFile)
+		cfg.ConfFile = c
+		log.Println("config file at", cfg.ConfFile)
 	}
 
-	if p := cfg.String(mino.KeyConfFile); len(p) > 0 {
-		if err := cfg.Load(p); err != nil {
+	if p := cfg.ConfFile; len(p) > 0 {
+		if _, err := cfg.LoadIfModify(p); err != nil {
 			log.Error("read config error", p, err)
 			errMsg("配置文件读取失败：" + p)
 			os.Exit(1)
 		}
+		go cfg.HotLoadConfig()
 	}
 
-	cfg.SetValueDefault(mino.KeyAddress, *addr, ":1080")
-	cfg.SetValueDefault(mino.KeyUpstream, *upstream, nil)
-	cfg.SetValueDefault(mino.KeyCertFile, util.GetRelativePath(*certFile), nil)
-	cfg.SetValueDefault(mino.KeyKeyFile, util.GetRelativePath(*keyFile), nil)
-	cfg.SetValueDefault(mino.KeyMaxRewindSize, *httpRewind, 2*1024)
-	cfg.SetValueDefault(mino.KeyDataPath, *data, nil)
-	cfg.SetValueDefault(mino.KeyMaxStreamRewind, *protoRewind, 255)
-	cfg.SetValueDefault(mino.KeyWebRoot, *webRoot, nil)
-	cfg.SetValueDefault(mino.KeyAutoStart, *autoStart, nil)
-	cfg.SetValueDefault(mino.KeyInput, *inputTypes, "mino,http,socks5")
-	cfg.SetValueDefault(mino.KeyEncoder, *secure, "")
-	cfg.SetValueDefault(mino.KeyLogFile, *logFile, nil)
-
-	cfg.RequiredNotEmpty(mino.KeyAddress)
+	// 用命令行覆盖
+	cfg.SetValue(&cfg.Address, *addr)
+	cfg.SetValue(&cfg.Upstream, *upstream)
+	cfg.SetValue(&cfg.PacFile, util.GetRelativePath(*pacFile))
+	cfg.SetValue(&cfg.TlsCertFile, util.GetRelativePath(*certFile))
+	cfg.SetValue(&cfg.TlsKeyFile, util.GetRelativePath(*keyFile))
+	cfg.SetValue(&cfg.MaxStreamRewind, *httpRewind)
+	cfg.SetValue(&cfg.DataPath, *data)
+	cfg.SetValue(&cfg.MaxStreamRewind, *protoRewind)
+	cfg.SetValue(&cfg.WebRoot, *webRoot)
+	cfg.SetValue(&cfg.AutoStart, *autoStart)
+	cfg.SetValue(&cfg.Input, *inputTypes)
+	cfg.SetValue(&cfg.Encoder, *secure)
+	cfg.SetValue(&cfg.LogFile, *logFile)
 
 	if c := initLogger(cfg); c != nil {
 		defer func() { _ = c.Close() }()
 	}
 
-	if len(cfg.String(mino.KeyLogFile)) > 0 {
-		log.Println("log file at", cfg.String(mino.KeyLogFile))
+	if len(cfg.LogFile) > 0 {
+		log.Println("log file at", cfg.LogFile)
 	}
 
-	t := transport.New(cfg)
+	t := transporter.New(cfg)
 	svr := server.NewServer(t)
-
-	//t.Event = &transport.ConsoleHandler{}
 
 	if err := t.Init(); err != nil {
 		log.Fatalln("init error", err)
@@ -180,7 +178,7 @@ func main() {
 
 	if err := t.Listen(); err != nil {
 		errMsg("网络端口被占用")
-		log.Fatalln("listen port error")
+		log.Fatalln("listen port error", err)
 	}
 
 	printInfo(cfg)
