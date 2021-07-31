@@ -208,7 +208,7 @@ func (t *Transporter) transport(svr stream.Server, network, address, route strin
 		_ = svr.SendSuccess()
 	}
 
-	sess := NewSession(t.NextId(), svr.User(), svr, rmt, address)
+	sess := NewSession(t.NextId(), svr.User(), svr, rmt, address, route)
 	t.AddSession(sess)
 	up, down, err := sess.Transport()
 	msg := fmt.Sprintf("transport %s %s up %d down %d via %s", network, address, up, down, route)

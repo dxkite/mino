@@ -11,6 +11,8 @@ import (
 type Session struct {
 	// 会话ID
 	Id int `json:"id"`
+	// 协议
+	Proto string `json:"protocol"`
 	// 分组
 	Group string `json:"group"`
 	// 来源
@@ -106,7 +108,7 @@ func (s *Session) rwErr(name string, err error) {
 	}
 }
 
-func NewSession(sid int, group string, loc, rmt net.Conn, dst string) *Session {
+func NewSession(sid int, group string, loc, rmt net.Conn, dst, proto string) *Session {
 	return &Session{
 		loc:      loc,
 		rmt:      rmt,
@@ -120,6 +122,7 @@ func NewSession(sid int, group string, loc, rmt net.Conn, dst string) *Session {
 		Up:       0,
 		Down:     0,
 		Closed:   false,
+		Proto:    proto,
 	}
 }
 
