@@ -17,18 +17,22 @@ func NewServer(tsp *transporter.Transporter) *Server {
 }
 
 func (s *Server) Serve() error {
-	c := s.tsp.Config
-	root := config.GetConfigFile(c, c.WebRoot)
+	c := &Context{Cfg: s.tsp.Config}
+	root := config.GetConfigFile(c.Cfg, c.Cfg.WebRoot)
 	mux := http.NewServeMux()
-	mux.Handle(c.PacUrl, monkey.NewPacServer(c))
+	mux.Handle(c.Cfg.PacUrl, monkey.NewPacServer(c.Cfg))
 	mux.Handle("/check-update", &updateHandler{c, root})
 
 	api := http.NewServeMux()
-	//api.Handle("/login", NewLoginHandler(c))
-	//api.Handle("/session-list", Auth(c, &sessionListHandler{s.tsp.Session}))
+	api.Handle("/login", NewLoginHandler(c))
+
+	authApi := http.NewServeMux()
+	authApi.Handle("/session-list", &sessionListHandler{s.tsp.Session})
+	api.Handle("/", Auth(c, authApi))
+
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", api))
 
-	if len(c.WebRoot) > 0 {
+	if len(c.Cfg.WebRoot) > 0 {
 		log.Println("start web server with root", root)
 		mux.Handle("/", http.FileServer(http.Dir(root)))
 	}

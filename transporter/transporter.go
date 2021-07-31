@@ -264,7 +264,7 @@ func (t *Transporter) serve(c net.Conn) {
 		_ = svr.Close()
 	} else {
 		// 请求本机
-		if util.IsRequestListener(t.listen.Addr().String(), address) {
+		if util.IsRequestSelf(t.listen.Addr().String(), address) {
 			t.httpConn <- svr
 			return
 		}

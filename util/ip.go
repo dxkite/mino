@@ -10,12 +10,19 @@ import (
 )
 
 // 判断是否请求本机Web服务器
-func IsRequestListener(listen, addr string) bool {
+func IsRequestSelf(listen, addr string) bool {
 	_, at, _ := net.SplitHostPort(listen)
 	if host, port, err := net.SplitHostPort(addr); err == nil {
 		if IsLoopback(host) && port == at {
 			return true
 		}
+	}
+	return false
+}
+
+func IsLocalAddr(addr string) bool {
+	if host, _, err := net.SplitHostPort(addr); err == nil {
+		return IsLoopback(host)
 	}
 	return false
 }
