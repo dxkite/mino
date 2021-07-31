@@ -316,6 +316,12 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 		rmt = enc.Client(rmt, t.Config)
 	}
 
+	// 请求本地地址就不走远程
+	if util.IsLocalAddr(targetAddress) {
+		return rmt, nil
+	}
+
+	// 使用远程服务器
 	if UpStream != nil {
 		if cl, ok := t.sts.Get(UpStream.Scheme); ok {
 			cfg := t.Config
