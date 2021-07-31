@@ -79,6 +79,13 @@ func (s *Session) WriteNotify() <-chan int64 {
 	return s.chWrite
 }
 
+func (s *Session) Close() {
+	_ = s.rmt.Close()
+	_ = s.loc.Close()
+	_ = s.close()
+	s.notifyClose()
+}
+
 func (s *Session) close() error {
 	if !s.Closed {
 		s.mtxClosed.Lock()
@@ -140,25 +147,28 @@ func (s *Session) Write(p []byte) (n int, err error) {
 
 type SessionGroup struct {
 	mtx   sync.Mutex
-	group map[string]*Session
+	group map[string]map[int]*Session
 }
 
 func NewSessionGroup() *SessionGroup {
-	return &SessionGroup{group: map[string]*Session{}}
+	return &SessionGroup{group: map[string]map[int]*Session{}}
 }
 
 func (sg *SessionGroup) AddSession(gid string, session *Session) {
 	sg.mtx.Lock()
 	defer sg.mtx.Unlock()
-	sg.group[gid] = session
+	if sg.group[gid] == nil {
+		sg.group[gid] = map[int]*Session{}
+	}
+	sg.group[gid][session.Id] = session
 }
 
-func (sg *SessionGroup) DelSession(gid string) {
+func (sg *SessionGroup) DelSession(gid string, sid int) {
 	sg.mtx.Lock()
 	defer sg.mtx.Unlock()
-	delete(sg.group, gid)
+	delete(sg.group[gid], sid)
 }
 
-func (sg *SessionGroup) Group() map[string]*Session {
+func (sg *SessionGroup) Group() map[string]map[int]*Session {
 	return sg.group
 }

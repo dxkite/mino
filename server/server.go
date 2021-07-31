@@ -32,7 +32,7 @@ func (s *Server) Serve() error {
 	api.Handle("/login", handler.NewLoginHandler(c))
 
 	authApi := http.NewServeMux()
-	authApi.Handle("/session/list", handler.NewSessionListHandler(s.tsp.Session))
+	authApi.Handle("/session/", http.StripPrefix("/session", handler.NewSessionListHandler(s.tsp)))
 	authApi.Handle("/config/", http.StripPrefix("/config", handler.NewConfigHandler(c)))
 	authApi.Handle("/event", handler.NewEventHandler(s.tsp, s.ctx))
 	authApi.Handle("/log/json", handler.NewJsonLogHandler(s.ctx))

@@ -5,7 +5,6 @@ import (
 	"dxkite.cn/log"
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/server/context"
-	"dxkite.cn/mino/transporter"
 	"dxkite.cn/mino/util"
 	"encoding/hex"
 	"encoding/json"
@@ -65,18 +64,6 @@ func (vc *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(b)
 	}
-}
-
-type SessionListHandler struct {
-	sg *transporter.SessionGroup
-}
-
-func NewSessionListHandler(group *transporter.SessionGroup) *SessionListHandler {
-	return &SessionListHandler{sg: group}
-}
-
-func (vc *SessionListHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	WriteResp(w, nil, vc.sg.Group())
 }
 
 const cookieName = "mino-id"

@@ -209,7 +209,7 @@ func (t *Transporter) transport(svr stream.Server, network, address, route strin
 	}
 
 	sess := NewSession(t.NextId(), svr.User(), svr, rmt, address)
-	t.AddSession(svr, sess)
+	t.AddSession(sess)
 	up, down, err := sess.Transport()
 	msg := fmt.Sprintf("transport %s %s up %d down %d via %s", network, address, up, down, route)
 	if err != nil {
@@ -265,9 +265,8 @@ func (t *Transporter) serve(c net.Conn) {
 }
 
 // 添加会话
-func (t *Transporter) AddSession(svr stream.Server, session *Session) {
-	gid := svr.RemoteAddr().String()
-	t.Session.AddSession(gid, session)
+func (t *Transporter) AddSession(session *Session) {
+	t.Session.AddSession(session.Group, session)
 	t.evtHdr.Event("new", session)
 	go func() {
 		for {
@@ -278,11 +277,19 @@ func (t *Transporter) AddSession(svr stream.Server, session *Session) {
 				t.evtHdr.Event("write", session)
 			case <-session.CloseNotify():
 				t.evtHdr.Event("close", session)
-				t.Session.DelSession(gid)
+				t.Session.DelSession(session.Group, session.Id)
 				return
 			}
 		}
 	}()
+}
+
+func (t *Transporter) CloseSession(gid string, sid int) (bool, error) {
+	if v, ok := t.Session.Group()[gid][sid]; ok {
+		v.Close()
+		return true, nil
+	}
+	return false, nil
 }
 
 func (t *Transporter) dial(network, address string) (net.Conn, error) {
