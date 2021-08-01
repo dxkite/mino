@@ -194,21 +194,21 @@ func (t *Transporter) createStream(conn rewind.Conn) (string, stream.Server, err
 }
 
 func (t *Transporter) transport(svr stream.Server, network, address, route string) {
-	rmt, rmtErr := t.dial(network, address)
+	rmt, via, rmtErr := t.dial(network, address)
 	if rmtErr != nil {
 		log.Error("dial", network, address, "error:", rmtErr)
 		_ = svr.SendError(rmtErr)
 		_ = svr.Close()
 		return
 	} else {
-		log.Debug("connected", network, address, "via", route)
+		log.Debug("connected", network, address, "route", route, "via", via)
 		_ = svr.SendSuccess()
 	}
 
 	sess := NewSession(t.NextId(), svr.User(), svr, rmt, address, route)
 	t.AddSession(sess)
 	up, down, err := sess.Transport()
-	msg := fmt.Sprintf("transport %s %s up %d down %d via %s", network, address, up, down, route)
+	msg := fmt.Sprintf("transport %s %s up %d down %d route %s via %s", network, address, up, down, route, via)
 	if err != nil {
 		log.Error(msg, "error", err.Error())
 	} else {
@@ -293,31 +293,34 @@ func (t *Transporter) Sessions() *SessionGroup {
 	return t.group
 }
 
-func (t *Transporter) dial(network, address string) (net.Conn, error) {
+func (t *Transporter) dial(network, address string) (net.Conn, string, error) {
 	var rmt net.Conn
 	var rmtErr error
 	var UpStream *url.URL
 	var targetNetwork = network
 	var targetAddress = address
+	var via = ""
 
-	if upstream := t.Config.Upstream; len(upstream) > 0 {
+	isRaw := util.IsLocalAddr(targetAddress)
+
+	if upstream := t.Config.Upstream; !isRaw && len(upstream) > 0 {
 		UpStream, _ = url.Parse(upstream)
 		network = "tcp"
 		address = UpStream.Host
 	}
 
 	if rmt, rmtErr = net.DialTimeout(network, address, t.timeout); rmtErr != nil {
-		return nil, rmtErr
+		return nil, via, rmtErr
+	}
+
+	// 请求本地地址就不走远程
+	if isRaw {
+		return rmt, "raw", nil
 	}
 
 	// 数据编码
 	if enc, ok := encoder.Get(t.Config.Encoder); ok {
 		rmt = enc.Client(rmt, t.Config)
-	}
-
-	// 请求本地地址就不走远程
-	if util.IsLocalAddr(targetAddress) {
-		return rmt, nil
 	}
 
 	// 使用远程服务器
@@ -329,14 +332,15 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 			cfg.Password = pwd
 			client := cl.Client(rmt, cfg)
 			if err := client.Handshake(); err != nil {
-				return nil, errors.New(fmt.Sprint("[remote] protocol handshake error: ", err))
+				return nil, "", errors.New(fmt.Sprint("[remote] protocol handshake error: ", err))
 			}
 			log.Debug("connecting", targetNetwork, targetAddress, "via", UpStream)
 			if err := client.Connect(targetNetwork, targetAddress); err != nil {
-				return nil, errors.New(fmt.Sprint("[remote] connecting error: ", err))
+				return nil, "", errors.New(fmt.Sprint("[remote] connecting error: ", err))
 			}
 			rmt = client
+			via = t.Config.Upstream
 		}
 	}
-	return rmt, nil
+	return rmt, via, nil
 }
