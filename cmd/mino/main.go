@@ -5,6 +5,7 @@ import (
 	"dxkite.cn/log"
 	"dxkite.cn/mino/daemon"
 	"runtime"
+	"strconv"
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
@@ -30,7 +31,7 @@ import (
 func init() {
 	log.SetOutput(log.NewColorWriter())
 	log.SetLogCaller(true)
-	log.SetAsync(true)
+	log.SetAsync(false)
 	log.SetLevel(log.LMaxLevel)
 }
 
@@ -94,6 +95,7 @@ func initMonkey(cfg *config.Config) {
 func main() {
 	ctx, exit := context.WithCancel(context.Background())
 	log.Println("Mino Agent", "v"+mino.Version)
+	log.Debug("Args", os.Args)
 
 	if !util.CheckMachineId(mino.MachineId) {
 		errMsg("当前机器非白名单机器")
@@ -109,7 +111,7 @@ func main() {
 		}
 	}()
 
-	var confFile = flag.String("conf", "mino.yml", "config file")
+	var confFile = flag.String("conf", "", "config file")
 	var addr = flag.String("addr", "", "listen addr")
 	var upstream = flag.String("upstream", "", "upstream")
 	var certFile = flag.String("cert_file", "", "tls cert file")
@@ -138,7 +140,7 @@ func main() {
 	}
 
 	if p := cfg.ConfFile; len(p) > 0 {
-		if _, err := cfg.LoadIfModify(p); err != nil {
+		if err := cfg.Load(p); err != nil {
 			log.Error("read config error", p, err)
 			errMsg("配置文件读取失败：" + p)
 			os.Exit(1)
@@ -162,14 +164,26 @@ func main() {
 	cfg.SetValue(&cfg.LogFile, *logFile)
 
 	if len(cfg.LogFile) > 0 {
+		cfg.LogFile = util.ConcatPath(cfg.ConfPath, cfg.LogFile)
 		log.Println("log file at", cfg.LogFile)
+	}
+
+	if len(cfg.PidFile) > 0 {
+		log.Println("pid file at", cfg.PidFile)
 	}
 
 	// 守护进程
 	if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
-		daemon.Exec(cfg.PacFile, os.Args)
+		daemon.Exec(cfg.PidFile, os.Args)
 		os.Exit(0)
 	}
+
+	// 写入PID
+	if err := daemon.SavePidInfo(cfg.PidFile, strconv.Itoa(os.Getpid()), os.Args); err != nil {
+		log.Error("write pid error", err)
+	}
+
+	log.Info("current pid", os.Getpid())
 
 	t := transporter.New(cfg)
 	svr := server.NewServer(t)
@@ -186,7 +200,7 @@ func main() {
 	printInfo(cfg)
 	initMonkey(cfg)
 
-	go func() { log.Println(svr.Serve()) }()
+	go func() { log.Println(svr.Serve(os.Args)) }()
 
 	if err := notification.Notification("Mino Agent", "Mino启动成功", "现在可以愉快的访问互联网了~"); err != nil {
 		log.Println("notification error", err)

@@ -27,7 +27,7 @@ func NewWebUiHandler() http.Handler {
 	return http.FileServer(http.FS(webStatic))
 }
 
-func (s *Server) Serve() error {
+func (s *Server) Serve(args []string) error {
 	c := &context.Context{Cfg: s.tsp.Config}
 	root := config.GetConfigFile(c.Cfg, c.Cfg.WebRoot)
 	mux := http.NewServeMux()
@@ -41,6 +41,7 @@ func (s *Server) Serve() error {
 	authApi := http.NewServeMux()
 	authApi.Handle("/session/", http.StripPrefix("/session", handler.NewSessionListHandler(s.tsp)))
 	authApi.Handle("/config/", http.StripPrefix("/config", handler.NewConfigHandler(c)))
+	authApi.Handle("/control/", http.StripPrefix("/control", handler.NewCtrlHandler(s.tsp.Config.PidFile, args)))
 	authApi.Handle("/event", handler.NewEventHandler(s.tsp))
 	authApi.Handle("/log/json", handler.NewJsonLogHandler())
 	authApi.Handle("/log/text", handler.NewTextLogHandler())

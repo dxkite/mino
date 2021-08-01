@@ -7,7 +7,6 @@ import (
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -92,7 +91,7 @@ type Config struct {
 func (cfg *Config) InitDefault() {
 	cfg.Address = ":1080"
 	cfg.PacFile = "mino.pac"
-	cfg.PidFile = "mino.pid"
+	cfg.PidFile = util.ConcatPath(util.GetBinaryPath(), "mino.pid")
 	cfg.PacUrl = "/mino.pac"
 	cfg.AutoStart = true
 	cfg.WebRoot = "www"
@@ -176,7 +175,7 @@ func (cfg *Config) Load(p string) error {
 		return er
 	}
 	cfg.ConfFile = p
-	cfg.ConfPath = path.Dir(p)
+	cfg.ConfPath = filepath.Dir(p)
 	cfg.modifyTime = time.Now()
 	// 通知应用配置
 	cfg.notifyModify()

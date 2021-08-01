@@ -45,11 +45,11 @@ func ConcatPath(root, name string) string {
 	if IsAbs(name) {
 		return name
 	}
-	return path.Join(root, name)
+	return filepath.Join(root, name)
 }
 
 func IsAbs(name string) bool {
-	if path.IsAbs(name) {
+	if filepath.IsAbs(name) {
 		return true
 	}
 	if strings.Index(name, ":") > 0 {
