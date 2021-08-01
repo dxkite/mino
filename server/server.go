@@ -9,6 +9,7 @@ import (
 	"dxkite.cn/mino/server/middleware"
 	"dxkite.cn/mino/transporter"
 	"embed"
+	"io/fs"
 	"net/http"
 )
 
@@ -21,10 +22,14 @@ func NewServer(tsp *transporter.Transporter) *Server {
 }
 
 //go:embed webui
-var webStatic embed.FS
+var webUiEmbed embed.FS
 
-func NewWebUiHandler() http.Handler {
-	return http.FileServer(http.FS(webStatic))
+func CreateWebUiHandler() (http.Handler, error) {
+	if webUi, err := fs.Sub(webUiEmbed, "webui"); err != nil {
+		return nil, err
+	} else {
+		return http.FileServer(http.FS(webUi)), nil
+	}
 }
 
 func (s *Server) Serve(args []string) error {
@@ -50,10 +55,13 @@ func (s *Server) Serve(args []string) error {
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", api))
 
 	if c.Cfg.WebBuildIn {
-		mux.Handle("/webui/", NewWebUiHandler())
-	}
-
-	if len(c.Cfg.WebRoot) > 0 {
+		log.Println("start web server with build-in")
+		if h, err := CreateWebUiHandler(); err != nil {
+			log.Println("start build-in web error", err)
+		} else {
+			mux.Handle("/", h)
+		}
+	} else if len(c.Cfg.WebRoot) > 0 {
 		log.Println("start web server with root", root)
 		mux.Handle("/", http.FileServer(http.Dir(root)))
 	}
