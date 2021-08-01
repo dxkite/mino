@@ -238,3 +238,15 @@ func TagName(tag string) string {
 	}
 	return tag
 }
+
+func FmtHost(host string) string {
+	if host[0] == '[' {
+		if i := strings.Index(host, "]"); i > 0 {
+			return host
+		}
+	}
+	if i := strings.Index(host, ":"); i > 0 {
+		return host
+	}
+	return "127.0.0.1" + host
+}

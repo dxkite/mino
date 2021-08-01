@@ -11,15 +11,19 @@ import (
 )
 
 func Notification(appId, title, message string) error {
+	return NotificationLaunch(appId, title, message, "")
+}
+
+func NotificationLaunch(appId, title, message, launch string) error {
 	xml := fmt.Sprintf(`
-<toast activationType="protocol" launch="" duration="short">
+<toast activationType="protocol" launch="%s" duration="short">
 <visual>
 	<binding template="ToastGeneric">
 		<text><![CDATA[%s]]></text>
 		<text><![CDATA[%s]]></text>
 	</binding>
 	</visual>
-</toast>`, title, message)
+</toast>`, launch, title, message)
 	return invokeWindowsNotificationXml(appId, xml)
 }
 

@@ -202,7 +202,7 @@ func main() {
 
 	go func() { log.Println(svr.Serve(os.Args)) }()
 
-	if err := notification.Notification("Mino Agent", "Mino启动成功", "现在可以愉快的访问互联网了~"); err != nil {
+	if err := notification.NotificationLaunch("Mino Agent", "Mino启动成功", "现在可以愉快的访问互联网了~", "http://"+util.FmtHost(cfg.Address)+"/webui"); err != nil {
 		log.Println("notification error", err)
 	}
 
