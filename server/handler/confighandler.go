@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"dxkite.cn/mino/server/comm"
 	"dxkite.cn/mino/server/context"
 	"dxkite.cn/mino/util"
 	"net/http"
@@ -22,11 +23,11 @@ func NewConfigHandler(ctx *context.Context) http.Handler {
 
 	schema := BuildSchemaFromConfig(ctx)
 	sm.HandleFunc("/get", func(w http.ResponseWriter, r *http.Request) {
-		WriteResp(w, nil, ctx.Cfg)
+		comm.WriteResp(w, nil, ctx.Cfg)
 	})
 
 	sm.HandleFunc("/schema", func(w http.ResponseWriter, r *http.Request) {
-		WriteResp(w, nil, schema)
+		comm.WriteResp(w, nil, schema)
 	})
 
 	sm.Handle("/set", NewCallbackHandler(func(from map[string]interface{}, success *[]string) (err error) {

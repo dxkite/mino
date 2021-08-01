@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"dxkite.cn/mino/server/comm"
 	"dxkite.cn/mino/transporter"
 	"net/http"
 )
@@ -18,7 +19,7 @@ func NewSessionListHandler(ts *transporter.Transporter) http.Handler {
 	sm := http.NewServeMux()
 
 	sm.HandleFunc("/list", func(writer http.ResponseWriter, request *http.Request) {
-		WriteResp(writer, nil, ts.Sessions().Group())
+		comm.WriteResp(writer, nil, ts.Sessions().Group())
 	})
 
 	sm.Handle("/close", NewCallbackHandler(func(msg CloseMsg, result *bool) (err error) {

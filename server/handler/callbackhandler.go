@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"dxkite.cn/mino/server/comm"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -30,7 +31,7 @@ func (fh *callback) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	isStruct := rf.Kind() == reflect.Ptr && rf.Elem().Kind() == reflect.Struct || rf.Kind() == reflect.Struct
 
 	if rf.Kind() != reflect.Func && !isStruct {
-		WriteResp(w, "handler must be function, current is "+rf.String(), nil)
+		comm.WriteResp(w, "handler must be function, current is "+rf.String(), nil)
 		return
 	}
 
@@ -39,7 +40,7 @@ func (fh *callback) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		st := rf
 
 		if st.NumMethod() < 1 {
-			WriteResp(w, "no method: "+st.String(), nil)
+			comm.WriteResp(w, "no method: "+st.String(), nil)
 			return
 		}
 
@@ -51,23 +52,23 @@ func (fh *callback) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 
 		if !rf.IsValid() {
-			WriteResp(w, "call not found: "+method, nil)
+			comm.WriteResp(w, "call not found: "+method, nil)
 			return
 		}
 	}
 
 	if rf.Type().NumOut() < 1 {
-		WriteResp(w, "handler must return error", nil)
+		comm.WriteResp(w, "handler must return error", nil)
 		return
 	}
 
 	if rf.Type().Out(0).ConvertibleTo(reflect.TypeOf(errType)) {
-		WriteResp(w, "handler must return error", nil)
+		comm.WriteResp(w, "handler must return error", nil)
 		return
 	}
 
 	if rf.Type().NumIn() < 1 {
-		WriteResp(w, "handler input must be (in, *out [, http.ResponseWriter ])", nil)
+		comm.WriteResp(w, "handler input must be (in, *out [, http.ResponseWriter ])", nil)
 		return
 	}
 
@@ -79,12 +80,12 @@ func (fh *callback) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 
 	if err != nil {
-		WriteResp(w, err.Error(), nil)
+		comm.WriteResp(w, err.Error(), nil)
 		return
 	}
 
 	if err := json.Unmarshal(body, reqValue.Interface()); err != nil {
-		WriteResp(w, "json decode error:"+err.Error(), map[string]interface{}{
+		comm.WriteResp(w, "json decode error:"+err.Error(), map[string]interface{}{
 			"request":  reqValue.Interface(),
 			"response": respValue.Interface(),
 		})
@@ -105,5 +106,5 @@ func (fh *callback) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	ret := rf.Call(params)
-	WriteResp(w, ret[0].Interface(), params[1].Interface())
+	comm.WriteResp(w, ret[0].Interface(), params[1].Interface())
 }

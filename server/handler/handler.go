@@ -4,8 +4,8 @@ import (
 	"crypto/rand"
 	"dxkite.cn/log"
 	"dxkite.cn/mino"
+	"dxkite.cn/mino/server/comm"
 	"dxkite.cn/mino/server/context"
-	"dxkite.cn/mino/util"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,7 +16,6 @@ import (
 	"net/http"
 	"path"
 	"runtime"
-	"strconv"
 	"time"
 )
 
@@ -64,51 +63,6 @@ func (vc *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(b)
 	}
-}
-
-const cookieName = "mino-id"
-const MinoExtHeader = "Mino-Ext"
-const HttpGroup log.Group = "http"
-
-// 请求日志
-func AccessLog(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		h.ServeHTTP(w, r)
-		authType := w.Header().Get(MinoExtHeader)
-		log.Info(HttpGroup, r.Method, r.RequestURI, r.RemoteAddr, strconv.Quote(r.UserAgent()), authType)
-	})
-}
-
-// 权限验证中间件
-func Auth(ctx *context.Context, h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// 不开启验证
-		if !ctx.Cfg.WebAuth {
-			w.Header().Set(MinoExtHeader, "auth=none")
-			h.ServeHTTP(w, r)
-			return
-		}
-
-		// 本机地址不验证权限
-		if util.IsLocalAddr(r.RemoteAddr) {
-			w.Header().Set(MinoExtHeader, "auth=localhost")
-			h.ServeHTTP(w, r)
-			return
-		}
-
-		w.Header().Set(MinoExtHeader, "auth=cookie")
-		// 会话ID
-		sid := ctx.RuntimeSession
-		if c, err := r.Cookie(cookieName); err != nil {
-			WriteResp(w, "need login", nil)
-			return
-		} else if len(sid) > 0 && c.Value == sid {
-			h.ServeHTTP(w, r)
-		} else {
-			WriteResp(w, "need login", nil)
-			return
-		}
-	})
 }
 
 type LoginHandler struct {
@@ -160,7 +114,7 @@ func (lh *LoginHandler) Call(req LoginReq, result *bool, ctx *HttpContext) error
 	_, _ = io.ReadFull(rand.Reader, sid)
 	id := hex.EncodeToString(sid)
 	http.SetCookie(ctx.Response, &http.Cookie{
-		Name:     cookieName,
+		Name:     comm.CookieName,
 		Value:    id,
 		Expires:  time.Now().Add(60 * time.Minute),
 		Secure:   false,
@@ -171,18 +125,4 @@ func (lh *LoginHandler) Call(req LoginReq, result *bool, ctx *HttpContext) error
 	lh.failedTimes[ip] = 0
 	log.Info(username, "login")
 	return nil
-}
-
-func WriteResp(w http.ResponseWriter, err interface{}, data interface{}) {
-	p := map[string]interface{}{
-		"error":  err,
-		"result": data,
-	}
-	if b, err := json.Marshal(p); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-	} else {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(b)
-	}
 }

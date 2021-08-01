@@ -6,6 +6,7 @@ import (
 	"dxkite.cn/mino/monkey"
 	"dxkite.cn/mino/server/context"
 	"dxkite.cn/mino/server/handler"
+	"dxkite.cn/mino/server/middleware"
 	"dxkite.cn/mino/transporter"
 	"embed"
 	"net/http"
@@ -44,7 +45,7 @@ func (s *Server) Serve() error {
 	authApi.Handle("/log/json", handler.NewJsonLogHandler())
 	authApi.Handle("/log/text", handler.NewTextLogHandler())
 
-	api.Handle("/", handler.Auth(c, authApi))
+	api.Handle("/", middleware.Auth(c, authApi))
 	mux.Handle("/api/v1/", http.StripPrefix("/api/v1", api))
 
 	if c.Cfg.WebBuildIn {
@@ -56,5 +57,5 @@ func (s *Server) Serve() error {
 		mux.Handle("/", http.FileServer(http.Dir(root)))
 	}
 
-	return http.Serve(s.tsp.NetListener(), handler.AccessLog(mux))
+	return http.Serve(s.tsp.NetListener(), middleware.AccessLog(middleware.AccessControl(mux)))
 }
