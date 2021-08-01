@@ -22,7 +22,6 @@ import (
 	_ "dxkite.cn/mino/stream/mino1"
 	_ "dxkite.cn/mino/stream/socks5"
 
-	"flag"
 	"io"
 	"os"
 	"path/filepath"
@@ -42,7 +41,7 @@ func errMsg(msg string) {
 }
 
 func applyLogConfig(ctx context.Context, cfg *config.Config) {
-	log.SetLevel(cfg.LogLevel)
+	log.SetLevel(log.LogLevel(cfg.LogLevel))
 	log.SetAsync(cfg.LogAsync)
 	filename := cfg.LogFile
 	var w io.Writer
@@ -111,30 +110,25 @@ func main() {
 		}
 	}()
 
-	var confFile = flag.String("conf", "", "config file")
-	var addr = flag.String("addr", "", "listen addr")
-	var upstream = flag.String("upstream", "", "upstream")
-	var certFile = flag.String("cert_file", "", "tls cert file")
-	var keyFile = flag.String("key_file", "", "tls key file")
-	var httpRewind = flag.Int("http_rewind", 0, "http rewind cache size")
-	var protoRewind = flag.Int("proto_rewind", 0, "http rewind cache size")
-	var pacFile = flag.String("pac_file", "", "http pac file")
-	var webRoot = flag.String("web_root", "", "http web root")
-	var data = flag.String("data", "", "data path")
-	var autoStart = flag.Bool("auto_start", false, "auto start")
-	var logFile = flag.String("log", "", "log file")
-	var inputTypes = flag.String("input", "", "input type")
-	var secure = flag.String("secure", "", "input encoder")
-
-	flag.Parse()
 	cfg := &config.Config{}
 	cfg.InitDefault()
 	cfg.OnChange(func(config *config.Config) {
 		applyLogConfig(ctx, config)
 	})
 
-	if len(*confFile) > 0 {
-		c := util.GetRelativePath(*confFile)
+	isCmd := len(os.Args) >= 2 && daemon.IsCmd(os.Args[1])
+	cmd := config.CreateFlagSet(os.Args[0], cfg)
+	args := os.Args[1:]
+	if isCmd {
+		args = args[1:]
+	}
+
+	if err := cmd.Parse(args); err != nil {
+		log.Fatalln("parse command error", err)
+	}
+
+	if len(cfg.ConfFile) > 0 {
+		c := util.GetRelativePath(cfg.ConfFile)
 		cfg.ConfFile = c
 		log.Println("config file at", cfg.ConfFile)
 	}
@@ -148,21 +142,6 @@ func main() {
 		go cfg.HotLoadConfig()
 	}
 
-	// 用命令行覆盖
-	cfg.SetValue(&cfg.Address, *addr)
-	cfg.SetValue(&cfg.Upstream, *upstream)
-	cfg.SetValue(&cfg.PacFile, util.GetRelativePath(*pacFile))
-	cfg.SetValue(&cfg.TlsCertFile, util.GetRelativePath(*certFile))
-	cfg.SetValue(&cfg.TlsKeyFile, util.GetRelativePath(*keyFile))
-	cfg.SetValue(&cfg.MaxStreamRewind, *httpRewind)
-	cfg.SetValue(&cfg.DataPath, *data)
-	cfg.SetValue(&cfg.MaxStreamRewind, *protoRewind)
-	cfg.SetValue(&cfg.WebRoot, *webRoot)
-	cfg.SetValue(&cfg.AutoStart, *autoStart)
-	cfg.SetValue(&cfg.Input, *inputTypes)
-	cfg.SetValue(&cfg.Encoder, *secure)
-	cfg.SetValue(&cfg.LogFile, *logFile)
-
 	if len(cfg.LogFile) > 0 {
 		cfg.LogFile = util.ConcatPath(cfg.ConfPath, cfg.LogFile)
 		log.Println("log file at", cfg.LogFile)
@@ -173,7 +152,7 @@ func main() {
 	}
 
 	// 守护进程
-	if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
+	if isCmd {
 		daemon.Exec(cfg.PidFile, os.Args)
 		os.Exit(0)
 	}

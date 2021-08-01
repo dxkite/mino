@@ -4,6 +4,7 @@ import (
 	"dxkite.cn/log"
 	"dxkite.cn/mino/util"
 	"encoding/json"
+	"flag"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
@@ -21,9 +22,9 @@ type Config struct {
 	Username string `yaml:"username" json:"username"`
 	Password string `yaml:"password" json:"password"`
 	// 监听地址
-	Address string `yaml:"address" json:"address" prop:"readonly"`
+	Address string `yaml:"address" json:"address" prop:"readonly" flag:"addr"`
 	// pac文件
-	PacFile string `yaml:"pac_file" json:"pac_file"`
+	PacFile string `yaml:"pac_file" json:"pac_file" prop:"path"`
 	// PAC访问路径
 	PacUrl string `yaml:"pac_url" json:"pac_url"`
 	// 上传流
@@ -31,23 +32,23 @@ type Config struct {
 	// 输入流
 	Input string `yaml:"input" json:"input"`
 	// 数据存储位置
-	DataPath string `yaml:"data_path" json:"data_path"`
+	DataPath string `yaml:"data_path" json:"data_path" path:"path" flag:"data"`
 	// web服务器根目录
-	WebRoot string `yaml:"web_root" json:"web_root"`
+	WebRoot string `yaml:"web_root" json:"web_root" path:"path"`
 	// 自动重启(windows)
 	AutoStart bool `yaml:"auto_start" json:"auto_start"`
 	// 自动更新
 	AutoUpdate bool `yaml:"auto_update" json:"auto_update"`
 	// 日志文件
-	LogFile string `yaml:"log_file" json:"log_file"`
+	LogFile string `yaml:"log_file" json:"log_file" path:"v-path"`
 	// 日志等级
-	LogLevel log.LogLevel `yaml:"log_level" json:"log_level"`
+	LogLevel int `yaml:"log_level" json:"log_level"`
 	// 展示caller
 	LogCaller bool `yaml:"log_caller" json:"log_caller"`
 	// 异步日志
 	LogAsync bool `yaml:"log_async" json:"log_async"`
 	// 配置文件路径
-	ConfFile string `yaml:"conf_file" json:"conf_file"`
+	ConfFile string `yaml:"conf_file" json:"conf_file" path:"path" flag:"conf"`
 	// 更新检擦地址
 	UpdateUrl string `yaml:"update_url" json:"update_url"`
 	// 作为更新服务器使用，指明最后版本
@@ -57,22 +58,22 @@ type Config struct {
 	// xor 长度，默认4
 	XorMod int `yaml:"xor_mod" json:"xor_mod"`
 	// TLS连接CA
-	TlsRootCa string `yaml:"tls_root_ca" json:"tls_root_ca"`
+	TlsRootCa string `yaml:"tls_root_ca" json:"tls_root_ca" path:"path"`
 	// TLS密钥
-	TlsCertFile string `yaml:"tls_cert_file" json:"tls_cert_file"`
-	TlsKeyFile  string `yaml:"tls_key_file" json:"tls_key_file"`
+	TlsCertFile string `yaml:"tls_cert_file" json:"tls_cert_file" path:"path" flag:"cert_file"`
+	TlsKeyFile  string `yaml:"tls_key_file" json:"tls_key_file" path:"path" flag:"key_file"`
 	// dump 数据流，默认false
 	DumpStream bool `yaml:"dump_stream" json:"dump_stream"`
 	// HTTP预读
-	HttpMaxRewindSize int `yaml:"http_max_rewind_size" json:"http_max_rewind_size"`
+	HttpMaxRewindSize int `yaml:"http_max_rewind_size" json:"http_max_rewind_size" flag:"http_rewind"`
 	// 流预读，默认 8
-	MaxStreamRewind int `yaml:"max_stream_rewind" json:"max_stream_rewind"`
+	MaxStreamRewind int `yaml:"max_stream_rewind" json:"max_stream_rewind" flag:"proto_rewind"`
 	// 热更新时间（秒）
 	HotLoad int `yaml:"hot_load" json:"hot_load"`
 	// 连接超时
 	Timeout int `yaml:"timeout" json:"timeout"`
 	// PID文件位置
-	PidFile string `yaml:"pid_file" json:"pid_file"`
+	PidFile string `yaml:"pid_file" json:"pid_file" path:"bin-path"`
 	// Web服务器
 	WebEnable      bool   `yaml:"web_enable" json:"web_enable" prop:"readonly"`
 	WebBuildIn     bool   `yaml:"web_build_in" json:"web_build_in"`
@@ -90,6 +91,7 @@ type Config struct {
 
 func (cfg *Config) InitDefault() {
 	cfg.Address = ":1080"
+	cfg.ConfFile = "mino.yml"
 	cfg.PacFile = "mino.pac"
 	cfg.PidFile = util.ConcatPath(util.GetBinaryPath(), "mino.pid")
 	cfg.PacUrl = "/mino.pac"
@@ -101,7 +103,7 @@ func (cfg *Config) InitDefault() {
 
 	cfg.LogFile = "mino.log"
 	cfg.LogCaller = true
-	cfg.LogLevel = log.LMaxLevel
+	cfg.LogLevel = int(log.LMaxLevel)
 
 	cfg.Encoder = "xor"
 	cfg.XorMod = 4
@@ -258,4 +260,83 @@ func (cfg *Config) CopyFrom(from map[string]interface{}) (modify []string, err e
 		cfg.notifyModify()
 	}
 	return
+}
+
+type pathValue struct {
+	cfg *Config
+	def string
+	typ string
+	val *string
+}
+
+func NewPathValue(cfg *Config, typ string, val *string, def string) flag.Value {
+	return &pathValue{
+		cfg: cfg,
+		def: def,
+		typ: typ,
+		val: val,
+	}
+}
+
+func (p *pathValue) String() string {
+	return p.def
+}
+
+func (p *pathValue) Set(val string) error {
+	switch p.typ {
+	case "bin-path":
+		*p.val = util.ConcatPath(util.GetBinaryPath(), val)
+	case "v-path":
+		*p.val = util.ConcatPath(p.cfg.ConfPath, val)
+	default:
+		*p.val = util.GetRelativePath(val)
+	}
+	return nil
+}
+
+var usage = map[string]string{
+	"conf": "config file path",
+	"addr": "listen address",
+}
+
+func CreateFlagSet(name string, cfg *Config) *flag.FlagSet {
+	v := reflect.ValueOf(cfg)
+	t := v.Elem().Type()
+	set := flag.NewFlagSet(name, flag.ExitOnError)
+
+	for i := 0; i < v.Elem().NumField(); i++ {
+		f := v.Elem().Field(i)
+		tg := t.Field(i).Tag
+		tag := tg.Get("json")
+
+		name := util.TagName(tag)
+		if name == "-" || len(name) == 0 {
+			continue
+		}
+
+		if v := util.TagName(tg.Get("flag")); len(v) > 0 {
+			name = v
+		}
+
+		desc := name
+		if v, ok := usage[name]; ok {
+			desc = v
+		}
+
+		switch f.Kind() {
+		case reflect.Int:
+			set.IntVar(f.Addr().Interface().(*int), name, int(f.Int()), desc)
+		case reflect.String:
+			pathTyp := util.TagName(tg.Get("path"))
+			if len(pathTyp) > 0 {
+				pv := NewPathValue(cfg, pathTyp, f.Addr().Interface().(*string), f.String())
+				set.Var(pv, name, desc)
+			} else {
+				set.StringVar(f.Addr().Interface().(*string), name, f.String(), desc)
+			}
+		case reflect.Bool:
+			set.BoolVar(f.Addr().Interface().(*bool), name, f.Bool(), desc)
+		}
+	}
+	return set
 }
