@@ -2,6 +2,7 @@ package util
 
 import (
 	"archive/zip"
+	"bytes"
 	"dxkite.cn/log"
 	"encoding/hex"
 	"fmt"
@@ -249,4 +250,52 @@ func FmtHost(host string) string {
 		return host
 	}
 	return "127.0.0.1" + host
+}
+
+func GetPidByRemoteAddr(addr string) string {
+	cmd := exec.Command("netstat", "-ano", "-p", "tcp")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+
+	getPid := func(str string) string {
+		lns := strings.Split(str, "\n")
+		for _, ln := range lns {
+			txt := strings.Fields(ln)
+			if len(txt) > 1 && strings.Index(txt[1], addr) >= 0 {
+				return txt[4]
+			}
+		}
+		return ""
+	}
+
+	if err := cmd.Run(); err == nil {
+		if str := buf.String(); strings.Index(str, addr) >= 0 {
+			return getPid(str)
+		}
+	}
+	return ""
+}
+
+func GetProgramByPid(pid string) string {
+	cmd := exec.Command("wmic", "process", "where", "processid="+pid, "get", "processid,executablepath,name")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	if err := cmd.Run(); err != nil {
+		return ""
+	} else {
+		str := buf.String()
+		if strings.Index(str, pid) >= 0 {
+			lns := strings.Split(str, "\n")
+			fls := strings.Fields(lns[1])
+			return fls[0]
+		}
+	}
+	return ""
+}
+
+func GetProgramByRemoteAddr(addr string) string {
+	pid := GetPidByRemoteAddr(addr)
+	return GetProgramByPid(pid)
 }

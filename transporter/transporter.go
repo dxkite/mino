@@ -196,7 +196,7 @@ func (t *Transporter) createStream(conn rewind.Conn) (string, stream.Server, err
 func (t *Transporter) transport(svr stream.Server, network, address, route string) {
 	rmt, via, rmtErr := t.dial(network, address)
 	if rmtErr != nil {
-		log.Error("dial", network, address, "error:", rmtErr)
+		log.Error("dial", network, address, "from", svr.RemoteAddr(), "error:", rmtErr)
 		_ = svr.SendError(rmtErr)
 		_ = svr.Close()
 		return
