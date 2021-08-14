@@ -383,16 +383,16 @@ func (t *Transporter) dialDirect(network, address string) (net.Conn, VisitMode, 
 }
 
 // 调用上流请求
-func (t *Transporter) dialUpstream(UpStream *url.URL, network, address string) (net.Conn, VisitMode, error) {
+func (t *Transporter) dialUpstream(upstream *url.URL, network, address string) (net.Conn, VisitMode, error) {
 	var rmt net.Conn
 	var rmtErr error
 
 	var targetNetwork = network
 	var targetAddress = address
 
-	vm := VisitMode(UpStream.String())
+	vm := VisitMode(upstream.String())
 	// 连接远程服务器
-	if rmt, _, rmtErr = t.dialDirect(network, UpStream.Host); rmtErr != nil {
+	if rmt, _, rmtErr = t.dialDirect(network, upstream.Host); rmtErr != nil {
 		return nil, vm, rmtErr
 	}
 
@@ -402,16 +402,16 @@ func (t *Transporter) dialUpstream(UpStream *url.URL, network, address string) (
 	}
 
 	// 使用远程服务器
-	if cl, ok := t.sts.Get(UpStream.Scheme); ok {
+	if cl, ok := t.sts.Get(upstream.Scheme); ok {
 		cfg := t.Config
-		cfg.Username = UpStream.User.Username()
-		pwd, _ := UpStream.User.Password()
+		cfg.Username = upstream.User.Username()
+		pwd, _ := upstream.User.Password()
 		cfg.Password = pwd
 		client := cl.Client(rmt, cfg)
 		if err := client.Handshake(); err != nil {
 			return nil, "", errors.New(fmt.Sprint("[remote] protocol handshake error: ", err))
 		}
-		log.Debug("connecting", targetNetwork, targetAddress, "via", UpStream)
+		log.Debug("connecting", targetNetwork, targetAddress, "via", upstream)
 		if err := client.Connect(targetNetwork, targetAddress); err != nil {
 			return nil, "", errors.New(fmt.Sprint("[remote] connecting error: ", err))
 		}
