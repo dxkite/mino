@@ -39,6 +39,9 @@ type Transporter struct {
 	mtxSid  sync.Mutex
 
 	timeout time.Duration
+
+	// 访问控制
+	HostConf *HostConf
 }
 
 func New(config *config.Config) (t *Transporter) {
@@ -50,6 +53,7 @@ func New(config *config.Config) (t *Transporter) {
 		group:        NewSessionGroup(),
 		eventHandler: NewHandlerGroup(),
 		nextSid:      0,
+		HostConf:     NewHostConf(),
 	}
 	return t
 }
@@ -194,7 +198,8 @@ func (t *Transporter) createStream(conn rewind.Conn) (string, stream.Server, err
 }
 
 func (t *Transporter) transport(svr stream.Server, network, address, route string) {
-	rmt, via, rmtErr := t.dial(network, address)
+	rmt, mode, rmtErr := t.dial(network, address)
+	via := mode
 	if rmtErr != nil {
 		log.Error("dial", network, address, "from", svr.RemoteAddr(), "error:", rmtErr)
 		_ = svr.SendError(rmtErr)
@@ -293,29 +298,102 @@ func (t *Transporter) Sessions() *SessionGroup {
 	return t.group
 }
 
-func (t *Transporter) dial(network, address string) (net.Conn, string, error) {
+func (t *Transporter) AddrAction(addr string) VisitMode {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return ""
+	}
+
+	// 环回地址直接请求
+	if util.IsLoopback(host) {
+		return Direct
+	}
+
+	// 配置
+	if act := t.HostConf.Detect(host); len(act) > 0 {
+		return act
+	}
+
+	return ""
+}
+
+func (t *Transporter) dial(network, address string) (net.Conn, VisitMode, error) {
+	act := t.AddrAction(address)
+
+	// 无配置
+	if len(act) == 0 {
+		// 白名单模式
+		if t.Config.HostMode == ModeWhite {
+			// 白名单模式默认直连
+			act = Direct
+		} else {
+			// 默认全部流量走远程
+			act = Upstream
+		}
+	}
+
+	// 禁止
+	if act == Block {
+		return nil, "", errors.New(fmt.Sprintf("host %s is %s", address, act))
+	}
+
+	// 默认直连
+	if act == Direct {
+		return t.dialDirect(network, address)
+	}
+
+	// 使用上游
+	if act == Upstream {
+		act = VisitMode(t.Config.Upstream)
+	}
+
+	// 使用协议
+	if strings.Index(string(act), "://") > 0 {
+		// 解析
+		if up, err := url.Parse(string(act)); err != nil {
+			return nil, "", errors.New(fmt.Sprintf("invalid upstream %s", act))
+		} else {
+			// 上游
+			return t.dialUpstream(up, network, address)
+		}
+	}
+
+	// 域名替换
+	return t.dialHost(string(act), network, address)
+}
+
+// 调用上流请求
+func (t *Transporter) dialHost(host, network, address string) (net.Conn, VisitMode, error) {
+	_, port, _ := net.SplitHostPort(address)
+	address = host + ":" + port
+	if rmt, rmtErr := net.DialTimeout(network, address, t.timeout); rmtErr != nil {
+		return nil, VisitMode(host), rmtErr
+	} else {
+		return rmt, VisitMode(host), nil
+	}
+}
+
+// 调用上流请求
+func (t *Transporter) dialDirect(network, address string) (net.Conn, VisitMode, error) {
+	if rmt, rmtErr := net.DialTimeout(network, address, t.timeout); rmtErr != nil {
+		return nil, Direct, rmtErr
+	} else {
+		return rmt, Direct, nil
+	}
+}
+
+// 调用上流请求
+func (t *Transporter) dialUpstream(UpStream *url.URL, network, address string) (net.Conn, VisitMode, error) {
 	var rmt net.Conn
 	var rmtErr error
-	var UpStream *url.URL
+
 	var targetNetwork = network
 	var targetAddress = address
-	var via = ""
 
-	isRaw := util.IsLocalAddr(targetAddress)
-
-	if upstream := t.Config.Upstream; !isRaw && len(upstream) > 0 {
-		UpStream, _ = url.Parse(upstream)
-		network = "tcp"
-		address = UpStream.Host
-	}
-
-	if rmt, rmtErr = net.DialTimeout(network, address, t.timeout); rmtErr != nil {
-		return nil, via, rmtErr
-	}
-
-	// 请求本地地址就不走远程
-	if isRaw {
-		return rmt, "raw", nil
+	vm := VisitMode(UpStream.String())
+	// 连接远程服务器
+	if rmt, _, rmtErr = t.dialDirect(network, UpStream.Host); rmtErr != nil {
+		return nil, vm, rmtErr
 	}
 
 	// 数据编码
@@ -324,23 +402,21 @@ func (t *Transporter) dial(network, address string) (net.Conn, string, error) {
 	}
 
 	// 使用远程服务器
-	if UpStream != nil {
-		if cl, ok := t.sts.Get(UpStream.Scheme); ok {
-			cfg := t.Config
-			cfg.Username = UpStream.User.Username()
-			pwd, _ := UpStream.User.Password()
-			cfg.Password = pwd
-			client := cl.Client(rmt, cfg)
-			if err := client.Handshake(); err != nil {
-				return nil, "", errors.New(fmt.Sprint("[remote] protocol handshake error: ", err))
-			}
-			log.Debug("connecting", targetNetwork, targetAddress, "via", UpStream)
-			if err := client.Connect(targetNetwork, targetAddress); err != nil {
-				return nil, "", errors.New(fmt.Sprint("[remote] connecting error: ", err))
-			}
-			rmt = client
-			via = t.Config.Upstream
+	if cl, ok := t.sts.Get(UpStream.Scheme); ok {
+		cfg := t.Config
+		cfg.Username = UpStream.User.Username()
+		pwd, _ := UpStream.User.Password()
+		cfg.Password = pwd
+		client := cl.Client(rmt, cfg)
+		if err := client.Handshake(); err != nil {
+			return nil, "", errors.New(fmt.Sprint("[remote] protocol handshake error: ", err))
 		}
+		log.Debug("connecting", targetNetwork, targetAddress, "via", UpStream)
+		if err := client.Connect(targetNetwork, targetAddress); err != nil {
+			return nil, "", errors.New(fmt.Sprint("[remote] connecting error: ", err))
+		}
+		return rmt, vm, nil
 	}
-	return rmt, via, nil
+
+	return rmt, vm, errors.New("upstream is not supported")
 }

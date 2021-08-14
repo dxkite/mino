@@ -27,6 +27,12 @@ type Config struct {
 	PacFile string `yaml:"pac_file" json:"pac_file" prop:"path"`
 	// PAC访问路径
 	PacUrl string `yaml:"pac_url" json:"pac_url"`
+	// 域名配置
+	HostConf string `yaml:"host_conf" json:"host_conf" prop:"path"`
+	// 访问模式
+	// transport.ModeWhite 白名单模式默认情况直连
+	// transport.ModeAll 默认使用远程连接
+	HostMode string `yaml:"host_mode" json:"host_mode"`
 	// 上传流
 	Upstream string `yaml:"upstream" json:"upstream"`
 	// 输入流
@@ -93,6 +99,7 @@ func (cfg *Config) InitDefault() {
 	cfg.Address = ":1080"
 	cfg.ConfFile = "mino.yml"
 	cfg.PacFile = "mino.pac"
+	cfg.HostConf = "hostconf.txt"
 	cfg.PidFile = util.ConcatPath(util.GetBinaryPath(), "mino.pid")
 	cfg.PacUrl = "/mino.pac"
 	cfg.AutoStart = true
@@ -182,6 +189,11 @@ func (cfg *Config) Load(p string) error {
 	// 通知应用配置
 	cfg.notifyModify()
 	return nil
+}
+
+// 重新加载配置
+func (cfg *Config) Reload() error {
+	return cfg.Load(cfg.ConfFile)
 }
 
 func GetPacFile(cfg *Config) string {

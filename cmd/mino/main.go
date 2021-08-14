@@ -165,6 +165,16 @@ func main() {
 	log.Info("current pid", os.Getpid())
 
 	t := transporter.New(cfg)
+	cfg.OnChange(func(config *config.Config) {
+		if err := t.HostConf.Load(config.HostConf); err != nil {
+			log.Error("load", config.HostConf, "error", err)
+		}
+	})
+
+	if err := cfg.Reload(); err != nil {
+		log.Error("reload config error", err)
+	}
+
 	svr := server.NewServer(t)
 
 	if err := t.Init(); err != nil {
