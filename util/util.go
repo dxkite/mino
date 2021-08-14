@@ -212,24 +212,32 @@ func InArrayComma(chk, typ string) bool {
 
 type connDumper struct {
 	net.Conn
-	w io.Writer
 }
 
 func (c *connDumper) Write(p []byte) (n int, err error) {
-	name := fmt.Sprintf("connection write %s -> %s\n", c.Conn.LocalAddr(), c.Conn.RemoteAddr())
-	_, _ = c.w.Write([]byte(name + hex.Dump(p)))
-	return c.Conn.Write(p)
-}
-
-func (c *connDumper) Read(p []byte) (n int, err error) {
-	name := fmt.Sprintf("connection read %s -> %s\n", c.Conn.RemoteAddr(), c.Conn.LocalAddr())
-	n, err = c.Conn.Read(p)
-	_, _ = c.w.Write([]byte(name + hex.Dump(p)))
+	name := fmt.Sprintf("connection write %s -> %s", c.Conn.LocalAddr(), c.Conn.RemoteAddr())
+	n, err = c.Conn.Write(p)
+	if err == nil {
+		log.Debug(name + "\n" + hex.Dump(p[:n]))
+	} else {
+		log.Error(name, err)
+	}
 	return
 }
 
-func NewConnDumper(conn net.Conn, w io.Writer) net.Conn {
-	return &connDumper{conn, w}
+func (c *connDumper) Read(p []byte) (n int, err error) {
+	name := fmt.Sprintf("connection read %s -> %s", c.Conn.RemoteAddr(), c.Conn.LocalAddr())
+	n, err = c.Conn.Read(p)
+	if err == nil {
+		log.Debug(name + "\n" + hex.Dump(p[:n]))
+	} else {
+		log.Error(name, err)
+	}
+	return
+}
+
+func NewConnDumper(conn net.Conn) net.Conn {
+	return &connDumper{conn}
 }
 
 func TagName(tag string) string {

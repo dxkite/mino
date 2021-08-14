@@ -102,7 +102,7 @@ func (t *Transporter) Serve() error {
 		}
 		// 调试输出
 		if t.Config.DumpStream {
-			c = util.NewConnDumper(c, log.Writer())
+			c = util.NewConnDumper(c)
 		}
 		go t.serve(c)
 	}
