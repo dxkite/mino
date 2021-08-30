@@ -71,12 +71,21 @@ mino
 
 指定配置文件：
 ```
-mino -c config.yaml
+mino -conf config.yaml
 ```
 
 ### 配置文件示例
 
+**客户端**
+
 ```yaml
 address: ":1080"
-upstream: "mino://199.115.229.64:28648"
+upstream: "mino://127.0.0.1:28648"
+```
+
+**服务端**
+```yaml
+address: ":28648"
+tls_cert_file: "conf/server.crt"
+tls_key_file: "conf/server.key"
 ```

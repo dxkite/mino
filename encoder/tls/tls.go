@@ -2,17 +2,16 @@ package tls
 
 import (
 	"crypto/tls"
-	"dxkite.cn/log"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/encoder"
 	"dxkite.cn/mino/util"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 )
 
 type tlsStreamEncoder struct {
-	svrCfg *tls.Config
-	cltCfg *tls.Config
 }
 
 func (stm *tlsStreamEncoder) Name() string {
@@ -42,29 +41,24 @@ func (stm *tlsStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, er
 }
 
 // 创建客户端
-func (stm *tlsStreamEncoder) init(cfg *config.Config) {
-	var enableServer = len(cfg.TlsCertFile) > 0
-	if enableServer {
-		certF := util.GetRelativePath(cfg.TlsCertFile)
-		keyF := util.GetRelativePath(cfg.TlsKeyFile)
-		if cert, err := tls.LoadX509KeyPair(certF, keyF); err != nil {
-			log.Println("load secure config error", err)
-		} else {
-			stm.svrCfg = &tls.Config{Certificates: []tls.Certificate{cert}}
-		}
-	}
-	stm.cltCfg = &tls.Config{InsecureSkipVerify: true}
-}
-
-// 创建客户端
-func (stm *tlsStreamEncoder) Client(conn net.Conn, cfg *config.Config) net.Conn {
-	return tls.Client(conn, stm.cltCfg)
+func (stm *tlsStreamEncoder) Client(conn net.Conn, cfg *config.Config) (net.Conn, error) {
+	cltCfg := &tls.Config{InsecureSkipVerify: true}
+	return tls.Client(conn, cltCfg), nil
 }
 
 // 创建服务端
-func (stm *tlsStreamEncoder) Server(conn net.Conn, cfg *config.Config) net.Conn {
-	stm.init(cfg)
-	return tls.Server(conn, stm.svrCfg)
+func (stm *tlsStreamEncoder) Server(conn net.Conn, cfg *config.Config) (net.Conn, error) {
+	if len(cfg.TlsCertFile) > 0 {
+		certF := util.GetRelativePath(cfg.TlsCertFile)
+		keyF := util.GetRelativePath(cfg.TlsKeyFile)
+		if cert, err := tls.LoadX509KeyPair(certF, keyF); err != nil {
+			return nil, errors.New(fmt.Sprint("load tls config error", err))
+		} else {
+			svrCfg := &tls.Config{Certificates: []tls.Certificate{cert}}
+			return tls.Server(conn, svrCfg), nil
+		}
+	}
+	return nil, errors.New(fmt.Sprint("tls config error"))
 }
 
 func init() {

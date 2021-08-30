@@ -16,7 +16,7 @@ type Detector interface {
 type StreamEncoder interface {
 	Detector
 	// 编码客户端
-	Client(conn net.Conn, cfg *config.Config) net.Conn
+	Client(conn net.Conn, cfg *config.Config) (net.Conn, error)
 	// 编码服务端
-	Server(conn net.Conn, cfg *config.Config) net.Conn
+	Server(conn net.Conn, cfg *config.Config) (net.Conn, error)
 }

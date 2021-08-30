@@ -174,7 +174,11 @@ func (t *Transporter) unwrapConn(conn net.Conn) (string, rewind.Conn, error) {
 		return "", nil, errors.New(msg)
 	} else if stm != nil {
 		name = stm.Name()
-		rw = rewind.NewRewindConn(stm.Server(rw, t.Config), size)
+		if svr, err := stm.Server(rw, t.Config); err != nil {
+			return name, nil, err
+		} else {
+			rw = rewind.NewRewindConn(svr, size)
+		}
 	}
 	return name, rw, nil
 }
@@ -359,7 +363,12 @@ func (t *Transporter) dial(network, address string) (net.Conn, VisitMode, error)
 	}
 
 	// 域名替换
-	return t.dialHost(string(act), network, address)
+	if len(act) > 0 {
+		return t.dialHost(string(act), network, address)
+	}
+
+	// 直接请求
+	return t.dialDirect(network, address)
 }
 
 // 调用上流请求
@@ -398,7 +407,10 @@ func (t *Transporter) dialUpstream(upstream *url.URL, network, address string) (
 
 	// 数据编码
 	if enc, ok := encoder.Get(t.Config.Encoder); ok {
-		rmt = enc.Client(rmt, t.Config)
+		rmt, rmtErr = enc.Client(rmt, t.Config)
+		if rmtErr != nil {
+			return nil, "", rmtErr
+		}
 	}
 
 	// 使用远程服务器

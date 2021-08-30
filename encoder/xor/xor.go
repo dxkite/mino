@@ -37,13 +37,13 @@ func (stm *xorStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, er
 }
 
 // 创建客户端
-func (stm *xorStreamEncoder) Client(conn net.Conn, cfg *config.Config) net.Conn {
-	return Client(conn, cfg.XorMod)
+func (stm *xorStreamEncoder) Client(conn net.Conn, cfg *config.Config) (net.Conn, error) {
+	return Client(conn, cfg.XorMod), nil
 }
 
 // 创建服务端
-func (stm *xorStreamEncoder) Server(conn net.Conn, cfg *config.Config) net.Conn {
-	return Server(conn, cfg.XorMod)
+func (stm *xorStreamEncoder) Server(conn net.Conn, cfg *config.Config) (net.Conn, error) {
+	return Server(conn, cfg.XorMod), nil
 }
 
 func init() {
