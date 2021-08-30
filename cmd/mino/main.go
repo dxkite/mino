@@ -123,14 +123,17 @@ func main() {
 		args = args[1:]
 	}
 
-	if err := cmd.Parse(args); err != nil {
-		log.Fatalln("parse command error", err)
-	}
-
-	if len(cfg.ConfFile) > 0 {
-		c := util.GetRelativePath(cfg.ConfFile)
-		cfg.ConfFile = c
-		log.Println("config file at", cfg.ConfFile)
+	if len(args) != 0 {
+		// 有参数情况下优先使用参数，不自动读取配置
+		cfg.ConfFile = ""
+		if err := cmd.Parse(args); err != nil {
+			log.Fatalln("parse command error", err)
+		}
+		if len(cfg.ConfFile) > 0 {
+			c := util.GetRelativePath(cfg.ConfFile)
+			cfg.ConfFile = c
+			log.Println("config file at", cfg.ConfFile)
+		}
 	}
 
 	if p := cfg.ConfFile; len(p) > 0 {

@@ -193,7 +193,10 @@ func (cfg *Config) Load(p string) error {
 
 // 重新加载配置
 func (cfg *Config) Reload() error {
-	return cfg.Load(cfg.ConfFile)
+	if len(cfg.ConfFile) > 0 {
+		return cfg.Load(cfg.ConfFile)
+	}
+	return nil
 }
 
 func GetPacFile(cfg *Config) string {
