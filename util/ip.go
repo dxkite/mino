@@ -71,6 +71,7 @@ func IsLoopback(host string) bool {
 	if ips, err := net.LookupIP(host); err != nil {
 		log.Println("LookupIP", err)
 	} else {
+		log.Debug("lookup", host, ips)
 		for _, ip := range ips {
 			if ip.IsLoopback() {
 				return true

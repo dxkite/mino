@@ -33,6 +33,8 @@ type Config struct {
 	// transport.ModeWhite 白名单模式默认情况直连
 	// transport.ModeAll 默认使用远程连接
 	HostMode string `yaml:"host_mode" json:"host_mode"`
+	// 自动检测环回地址
+	HostDetectLoopback bool `yaml:"host_detect_loopback" json:"host_detect_loopback"`
 	// 上传流
 	Upstream string `yaml:"upstream" json:"upstream"`
 	// 输入流
@@ -121,6 +123,8 @@ func (cfg *Config) InitDefault() {
 	cfg.HotLoad = 60                        // 一分钟
 	cfg.Timeout = 10 * 100                  // 10s
 
+	// 自动检测环回地址
+	cfg.HostDetectLoopback = true
 	cfg.modifyTime = time.Unix(0, 0)
 }
 

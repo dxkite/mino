@@ -309,7 +309,7 @@ func (t *Transporter) AddrAction(addr string) VisitMode {
 	}
 
 	// 环回地址直接请求
-	if util.IsLoopback(host) {
+	if t.Config.HostDetectLoopback && util.IsLoopback(host) {
 		return Direct
 	}
 
