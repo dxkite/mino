@@ -42,7 +42,11 @@
 ```bash
 go install dxkite.cn/mino/cmd/mino
 ```
-
+### Docker支持
+Docker一键启动服务端
+```bash
+docker run -d -p 28648:28648 w4ter/mino:2.0.2
+```
 ### 命令行
 
 `-addr :1080` 监听 `1080` 端口 支持 http/socks5 协议
