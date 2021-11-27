@@ -22,11 +22,11 @@ type Config struct {
 	Username string `yaml:"username" json:"username"`
 	Password string `yaml:"password" json:"password"`
 	// 监听地址
-	Address string `yaml:"address" json:"address" prop:"readonly" flag:"addr"`
+	Address string `yaml:"address" json:"address" prop:"readonly" flag:"addr" title:"监听地址"`
 	// pac文件
-	PacFile string `yaml:"pac_file" json:"pac_file" prop:"path"`
+	PacFile string `yaml:"pac_file" json:"pac_file" prop:"path" title:"PAC文件"`
 	// PAC访问路径
-	PacUrl string `yaml:"pac_url" json:"pac_url"`
+	PacUrl string `yaml:"pac_url" json:"pac_url" title:"PAC可访问URL"`
 	// 域名配置
 	HostConf string `yaml:"host_conf" json:"host_conf" prop:"path"`
 	// 访问模式
@@ -34,9 +34,9 @@ type Config struct {
 	// transport.ModeAll 默认使用远程连接
 	HostMode string `yaml:"host_mode" json:"host_mode"`
 	// 自动检测环回地址
-	HostDetectLoopback bool `yaml:"host_detect_loopback" json:"host_detect_loopback"`
+	HostDetectLoopback bool `yaml:"host_detect_loopback" json:"host_detect_loopback" title:"自动环回地址检测" desc:"通过查询DNS检测环回地址，如果是环回地址则不通过远程服务器处理，受环境DNS影响"`
 	// 上传流
-	Upstream string `yaml:"upstream" json:"upstream"`
+	Upstream string `yaml:"upstream" json:"upstream" title:"远程服务器" desc:"支持mino,http,https协议"`
 	// 输入流
 	Input string `yaml:"input" json:"input"`
 	// 数据存储位置
@@ -44,7 +44,7 @@ type Config struct {
 	// web服务器根目录
 	WebRoot string `yaml:"web_root" json:"web_root" path:"path"`
 	// 自动重启(windows)
-	AutoStart bool `yaml:"auto_start" json:"auto_start"`
+	AutoStart bool `yaml:"auto_start" json:"auto_start" title:"自动重启(windows)"`
 	// 自动更新
 	AutoUpdate bool `yaml:"auto_update" json:"auto_update"`
 	// 日志文件

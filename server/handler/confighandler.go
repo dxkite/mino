@@ -10,8 +10,10 @@ import (
 )
 
 type ConfigProperty struct {
-	Type     string `json:"type"`
-	ReadOnly bool   `json:"readOnly"`
+	Type        string `json:"type"`
+	Title       string `json:"title"`
+	ReadOnly    bool   `json:"readOnly"`
+	Description string `json:"description"`
 }
 
 type ConfigSchema struct {
@@ -50,6 +52,14 @@ func BuildSchemaFromConfig(ctx *context.Context) *ConfigSchema {
 		if name == "-" || len(name) == 0 {
 			continue
 		}
+
+		title := t.Field(i).Tag.Get("title")
+		if len(title) == 0 {
+			title = name
+		}
+
+		desc := t.Field(i).Tag.Get("desc")
+
 		typ := "string"
 		switch f.Kind() {
 		case reflect.Bool:
@@ -60,8 +70,10 @@ func BuildSchemaFromConfig(ctx *context.Context) *ConfigSchema {
 			typ = "integer"
 		}
 		s.Properties[name] = &ConfigProperty{
-			Type:     typ,
-			ReadOnly: strings.Index(prop, "readonly") >= 0,
+			Type:        typ,
+			Title:       title,
+			ReadOnly:    strings.Index(prop, "readonly") >= 0,
+			Description: desc,
 		}
 	}
 	return s
