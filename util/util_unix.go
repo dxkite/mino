@@ -21,3 +21,7 @@ func GetProgramByRemoteAddr(addr string) string {
 		return buf.String()
 	}
 }
+
+func QuotePathString(p string) string {
+	return p
+}

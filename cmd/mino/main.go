@@ -6,6 +6,7 @@ import (
 	"dxkite.cn/mino/daemon"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
@@ -83,7 +84,11 @@ func initMonkey(cfg *config.Config) {
 	}
 
 	if cfg.AutoStart {
-		go monkey.AutoStart(os.Args[0])
+		cmd := []string{
+			util.QuotePathString(os.Args[0]),
+		}
+		cmd = append(cmd, cfg.ToFlags()...)
+		go monkey.AutoStart(strings.Join(cmd, " "))
 	}
 
 	if cfg.AutoUpdate {
@@ -125,18 +130,19 @@ func main() {
 
 	if len(args) != 0 {
 		// 有参数情况下优先使用参数，不自动读取配置
-		cfg.ConfFile = ""
 		if err := cmd.Parse(args); err != nil {
 			log.Fatalln("parse command error", err)
 		}
-		if len(cfg.ConfFile) > 0 {
-			c := util.GetRelativePath(cfg.ConfFile)
-			cfg.ConfFile = c
-			log.Println("config file at", cfg.ConfFile)
-		}
+	} else {
+		// 无参数自动尝试读取配置文件
+		cfg.ConfFile = util.GetRelativePath("mino.yml")
 	}
 
+	//fmt.Println(cfg.ToFlags())
+
 	if p := cfg.ConfFile; len(p) > 0 {
+		// 配置文件盖命令行的参数
+		log.Println("config file at", cfg.ConfFile)
 		if err := cfg.Load(p); err != nil {
 			log.Error("read config error", p, err)
 			errMsg("配置文件读取失败：" + p)

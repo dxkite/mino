@@ -5,6 +5,7 @@ import (
 	"dxkite.cn/mino/util"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"gopkg.in/yaml.v3"
 	"io/ioutil"
 	"os"
@@ -99,7 +100,7 @@ type Config struct {
 
 func (cfg *Config) InitDefault() {
 	cfg.Address = ":1080"
-	cfg.ConfFile = "mino.yml"
+	cfg.ConfFile = ""
 	cfg.PacFile = "mino.pac"
 	cfg.HostConf = "hostconf.txt"
 	cfg.PidFile = util.ConcatPath(util.GetBinaryPath(), "mino.pid")
@@ -358,4 +359,34 @@ func CreateFlagSet(name string, cfg *Config) *flag.FlagSet {
 		}
 	}
 	return set
+}
+
+func (cfg *Config) ToFlags() (flags []string) {
+	v := reflect.ValueOf(cfg)
+	t := v.Elem().Type()
+	for i := 0; i < v.Elem().NumField(); i++ {
+		tg := t.Field(i).Tag
+		tag := tg.Get("json")
+		name := util.TagName(tag)
+		if name == "-" || len(name) == 0 {
+			continue
+		}
+		if v := util.TagName(tg.Get("flag")); len(v) > 0 {
+			name = v
+		}
+		f := v.Elem().Field(i)
+		if f.IsValid() && !f.IsZero() {
+			switch f.Kind() {
+			case reflect.Int:
+				flags = append(flags, fmt.Sprintf("-%s %d", name, f.Int()))
+			case reflect.String:
+				flags = append(flags, fmt.Sprintf("-%s %s", name, util.QuotePathString(f.String())))
+			case reflect.Bool:
+				if f.Bool() {
+					flags = append(flags, fmt.Sprintf("-%s", name))
+				}
+			}
+		}
+	}
+	return
 }

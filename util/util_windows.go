@@ -4,6 +4,7 @@ package util
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -57,4 +58,11 @@ func GetProgramByRemoteAddr(addr string) string {
 		return getProgramByPid(pid)
 	}
 	return ""
+}
+
+func QuotePathString(p string) string {
+	if strings.Index(p, " ") > -1 {
+		return fmt.Sprintf(`"%s"`, p)
+	}
+	return p
 }
