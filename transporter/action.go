@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-type HostConf struct {
+type HostAction struct {
 	Host map[string]string
 	mtx  sync.Mutex
 }
@@ -26,8 +26,8 @@ const (
 	ModeAll   = "all"
 )
 
-func NewHostConf() *HostConf {
-	return &HostConf{
+func NewActionConf() *HostAction {
+	return &HostAction{
 		Host: map[string]string{},
 		mtx:  sync.Mutex{},
 	}
@@ -52,7 +52,7 @@ var mStr = map[string]VisitMode{
 	"direct":   Direct,
 }
 
-func (h *HostConf) Add(name, action string) {
+func (h *HostAction) Add(name, action string) {
 	h.mtx.Lock()
 	defer h.mtx.Unlock()
 	if v, ok := mStr[action]; ok {
@@ -61,7 +61,7 @@ func (h *HostConf) Add(name, action string) {
 	h.Host[name] = action
 }
 
-func (h *HostConf) Detect(name string) VisitMode {
+func (h *HostAction) Detect(name string) VisitMode {
 	n := name
 	for {
 		if a, ok := h.Host[n]; ok {
@@ -75,7 +75,7 @@ func (h *HostConf) Detect(name string) VisitMode {
 	}
 }
 
-func (h *HostConf) Load(p string) error {
+func (h *HostAction) Load(p string) error {
 	if r, err := os.OpenFile(p, os.O_RDONLY, os.ModePerm); err != nil {
 		return err
 	} else {

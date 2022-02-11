@@ -58,22 +58,28 @@ func init() {
 	machineId = hex.EncodeToString(h.Sum(nil))
 }
 
+func IsLoopbackIP(ip net.IP) bool {
+	if ip.IsLoopback() {
+		return true
+	}
+	if _, ok := localIpAddr[string(ip)]; ok {
+		return true
+	}
+	return false
+}
+
 // 环回地址
 func IsLoopback(host string) bool {
 	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsLoopback() {
-			return true
-		}
-		if _, ok := localIpAddr[string(ip)]; ok {
-			return true
-		}
+		return IsLoopbackIP(ip)
 	}
+
 	if ips, err := net.LookupIP(host); err != nil {
 		log.Println("LookupIP", err)
 	} else {
 		log.Debug("lookup", host, ips)
 		for _, ip := range ips {
-			if ip.IsLoopback() {
+			if IsLoopbackIP(ip) {
 				return true
 			}
 		}

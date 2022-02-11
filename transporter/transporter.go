@@ -41,7 +41,7 @@ type Transporter struct {
 	timeout time.Duration
 
 	// 访问控制
-	HostConf *HostConf
+	HostConf *HostAction
 }
 
 func New(config *config.Config) (t *Transporter) {
@@ -53,7 +53,7 @@ func New(config *config.Config) (t *Transporter) {
 		group:        NewSessionGroup(),
 		eventHandler: NewHandlerGroup(),
 		nextSid:      0,
-		HostConf:     NewHostConf(),
+		HostConf:     NewActionConf(),
 	}
 	return t
 }
