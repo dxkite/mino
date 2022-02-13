@@ -59,7 +59,9 @@ type Config struct {
 	// 异步日志
 	LogAsync bool `yaml:"log_async" json:"log_async"`
 	// 配置文件路径
-	ConfFile string `yaml:"conf_file" json:"conf_file" path:"path" flag:"conf"`
+	ConfFile string `yaml:"-" json:"-" path:"path" flag:"conf"`
+	// 配置JSON
+	ConfJson string `yaml:"-" json:"-" flag:"json"`
 	// 更新检擦地址
 	UpdateUrl string `yaml:"update_url" json:"update_url"`
 	// 作为更新服务器使用，指明最后版本
@@ -251,6 +253,27 @@ func (cfg *Config) SetValue(target interface{}, val interface{}) {
 	}
 }
 
+func (cfg *Config) CopyObject(c *Config) {
+	cfg.mtx.Lock()
+	defer cfg.mtx.Unlock()
+	v := reflect.ValueOf(cfg)
+	from := reflect.ValueOf(c)
+	t := v.Elem().Type()
+
+	for i := 0; i < v.Elem().NumField(); i++ {
+		f := v.Elem().Field(i)
+		tag := t.Field(i).Tag.Get("json")
+		name := util.TagName(tag)
+		if name == "-" || len(name) == 0 {
+			continue
+		}
+		f.Set(from.Elem().Field(i))
+	}
+
+	cfg.notifyModify()
+	return
+}
+
 func (cfg *Config) CopyFrom(from map[string]interface{}) (modify []string, err error) {
 	cfg.mtx.Lock()
 	defer cfg.mtx.Unlock()
@@ -333,15 +356,13 @@ func CreateFlagSet(name string, cfg *Config) *flag.FlagSet {
 	for i := 0; i < v.Elem().NumField(); i++ {
 		f := v.Elem().Field(i)
 		tg := t.Field(i).Tag
-		tag := tg.Get("json")
-
-		name := util.TagName(tag)
+		name := util.TagName(tg.Get("flag"))
 		if name == "-" || len(name) == 0 {
-			continue
-		}
-
-		if v := util.TagName(tg.Get("flag")); len(v) > 0 {
-			name = v
+			if v := util.TagName(tg.Get("json")); len(v) > 0 {
+				name = v
+			} else {
+				continue
+			}
 		}
 
 		desc := name
@@ -365,6 +386,20 @@ func CreateFlagSet(name string, cfg *Config) *flag.FlagSet {
 		}
 	}
 	return set
+}
+
+func (cfg *Config) ToJson() string {
+	if f, er := json.Marshal(cfg); er == nil {
+		return string(f)
+	}
+	return ""
+}
+
+func (cfg *Config) FromJson(j string) {
+	c := &Config{}
+	if err := json.Unmarshal([]byte(j), c); err == nil {
+		cfg.CopyObject(c)
+	}
 }
 
 func (cfg *Config) ToFlags() (flags []string) {

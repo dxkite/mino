@@ -4,6 +4,7 @@ import (
 	"context"
 	"dxkite.cn/log"
 	"dxkite.cn/mino/daemon"
+	"fmt"
 	"runtime"
 	"strconv"
 	"strings"
@@ -87,7 +88,7 @@ func initMonkey(cfg *config.Config) {
 		cmd := []string{
 			util.QuotePathString(os.Args[0]),
 		}
-		cmd = append(cmd, cfg.ToFlags()...)
+		cmd = append(cmd, fmt.Sprintf("-json %s", strconv.Quote(cfg.ToJson())))
 		go monkey.AutoStart(strings.Join(cmd, " "))
 	}
 
@@ -132,6 +133,10 @@ func main() {
 		// 有参数情况下优先使用参数，不自动读取配置
 		if err := cmd.Parse(args); err != nil {
 			log.Fatalln("parse command error", err)
+		}
+		if len(cfg.ConfJson) > 0 {
+			log.Info("parse config from json", cfg.ConfJson)
+			cfg.FromJson(cfg.ConfJson)
 		}
 	} else {
 		// 无参数自动尝试读取配置文件
