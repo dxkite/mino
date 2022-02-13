@@ -178,6 +178,7 @@ func main() {
 		if err := t.HostConf.Load(config.HostConf); err != nil {
 			log.Error("load", config.HostConf, "error", err)
 		}
+		t.RemoteHolder.LoadConfig(config)
 	})
 
 	if err := cfg.Reload(); err != nil {
@@ -199,6 +200,7 @@ func main() {
 	initMonkey(cfg)
 
 	go func() { log.Println(svr.Serve(os.Args)) }()
+	go func() { t.RemoteHolder.Update() }()
 
 	if err := notification.NotificationLaunch("Mino Agent", "Mino启动成功", "现在可以愉快的访问互联网了~", "http://"+util.FmtHost(cfg.Address)+"/"); err != nil {
 		log.Println("notification error", err)

@@ -42,6 +42,9 @@ type Transporter struct {
 
 	// 访问控制
 	HostConf *HostAction
+
+	// 远程服务
+	RemoteHolder *RemoteHolder
 }
 
 func New(config *config.Config) (t *Transporter) {
@@ -54,6 +57,7 @@ func New(config *config.Config) (t *Transporter) {
 		eventHandler: NewHandlerGroup(),
 		nextSid:      0,
 		HostConf:     NewActionConf(),
+		RemoteHolder: NewRemote(60 * time.Second),
 	}
 	return t
 }
@@ -205,7 +209,7 @@ func (t *Transporter) transport(svr stream.Server, network, address, route strin
 	rmt, mode, rmtErr := t.dial(network, address)
 	via := mode
 	if rmtErr != nil {
-		log.Error("dial", network, address, "from", svr.RemoteAddr(), "error:", rmtErr)
+		log.Error("dial", network, address, "from", svr.RemoteAddr(), "via", via, "error:", rmtErr)
 		_ = svr.SendError(rmtErr)
 		_ = svr.Close()
 		return
@@ -348,23 +352,11 @@ func (t *Transporter) dial(network, address string) (net.Conn, VisitMode, error)
 
 	// 使用上游
 	if act == Upstream {
-		act = VisitMode(t.Config.Upstream)
-	}
-
-	// 使用协议
-	if strings.Index(string(act), "://") > 0 {
-		// 解析
-		if up, err := url.Parse(string(act)); err != nil {
-			return nil, "", errors.New(fmt.Sprintf("invalid upstream %s", act))
-		} else {
-			// 上游
-			return t.dialUpstream(up, network, address)
+		id, upstream, err := t.RemoteHolder.GetProxy()
+		if err == nil {
+			return t.dialUpstream(id, upstream, network, address)
 		}
-	}
-
-	// 域名替换
-	if len(act) > 0 {
-		return t.dialHost(string(act), network, address)
+		log.Info("use direct with upstream error:", err)
 	}
 
 	// 直接请求
@@ -392,7 +384,7 @@ func (t *Transporter) dialDirect(network, address string) (net.Conn, VisitMode, 
 }
 
 // 调用上流请求
-func (t *Transporter) dialUpstream(upstream *url.URL, network, address string) (net.Conn, VisitMode, error) {
+func (t *Transporter) dialUpstream(id int, upstream *url.URL, network, address string) (net.Conn, VisitMode, error) {
 	var rmt net.Conn
 	var rmtErr error
 
@@ -402,6 +394,7 @@ func (t *Transporter) dialUpstream(upstream *url.URL, network, address string) (
 	vm := VisitMode(upstream.String())
 	// 连接远程服务器
 	if rmt, _, rmtErr = t.dialDirect(network, upstream.Host); rmtErr != nil {
+		t.RemoteHolder.MarkState(id, false) // 标记远程服务不可用
 		return nil, vm, rmtErr
 	}
 
@@ -409,7 +402,7 @@ func (t *Transporter) dialUpstream(upstream *url.URL, network, address string) (
 	if enc, ok := encoder.Get(t.Config.Encoder); ok {
 		rmt, rmtErr = enc.Client(rmt, t.Config)
 		if rmtErr != nil {
-			return nil, "", rmtErr
+			return nil, vm, rmtErr
 		}
 	}
 
@@ -421,11 +414,11 @@ func (t *Transporter) dialUpstream(upstream *url.URL, network, address string) (
 		cfg.Password = pwd
 		client := cl.Client(rmt, cfg)
 		if err := client.Handshake(); err != nil {
-			return nil, "", errors.New(fmt.Sprint("[remote] protocol handshake error: ", err))
+			return nil, vm, errors.New(fmt.Sprint("[remote] protocol handshake error: ", err))
 		}
 		log.Debug("connecting", targetNetwork, targetAddress, "via", upstream)
 		if err := client.Connect(targetNetwork, targetAddress); err != nil {
-			return nil, "", errors.New(fmt.Sprint("[remote] connecting error: ", err))
+			return nil, vm, errors.New(fmt.Sprint("[remote] connecting error: ", err))
 		}
 		return rmt, vm, nil
 	}

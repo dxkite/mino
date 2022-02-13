@@ -38,6 +38,8 @@ type Config struct {
 	HostDetectLoopback bool `yaml:"host_detect_loopback" json:"host_detect_loopback" title:"自动环回地址检测" desc:"通过查询DNS检测环回地址，如果是环回地址则不通过远程服务器处理，受环境DNS影响"`
 	// 上传流
 	Upstream string `yaml:"upstream" json:"upstream" title:"远程服务器" desc:"支持mino,http,https协议"`
+	// 上有服务器
+	UpstreamList []string `yaml:"upstream_list" json:"upstream_list" title:"远程服务器" desc:"支持mino,http,https协议"`
 	// 输入流
 	Input string `yaml:"input" json:"input"`
 	// 数据存储位置
@@ -90,6 +92,10 @@ type Config struct {
 	WebFailedTimes int    `yaml:"web_failed_times" json:"web_failed_times" prop:"readonly"`
 	WebUsername    string `yaml:"web_username" json:"web_username" prop:"readonly"`
 	WebPassword    string `yaml:"web_password" json:"web_password" prop:"readonly"`
+
+	//TestUrl string `yaml:"test_url" json:"test_url" title:"测试链接" desc:"用于测试远程服务是否可用"`
+	TestRetryInterval int `yaml:"test_retry_interval" json:"test_retry_interval" title:"测试间隔" desc:"服务不可用情况下多久重试一次"`
+
 	// 配置路径
 	ConfPath string `yaml:"-" json:"-"`
 	// 更新时间
@@ -123,7 +129,7 @@ func (cfg *Config) InitDefault() {
 	cfg.HttpMaxRewindSize = 2 * 1024 * 1024 // HTTP最大预读 2MB
 	cfg.HotLoad = 60                        // 一分钟
 	cfg.Timeout = 10 * 100                  // 10s
-
+	cfg.TestRetryInterval = 60              // 检查服务是否可用 60s 一次
 	// 自动检测环回地址
 	cfg.HostDetectLoopback = true
 	cfg.modifyTime = time.Unix(0, 0)
