@@ -164,7 +164,7 @@ func (cfg *Config) applyConfig() {
 	}
 }
 
-func (cfg *Config) notifyModify() {
+func (cfg *Config) NotifyModify() {
 	go cfg.applyConfig()
 }
 
@@ -200,7 +200,7 @@ func (cfg *Config) Load(p string) error {
 	cfg.ConfPath = filepath.Dir(p)
 	cfg.modifyTime = time.Now()
 	// 通知应用配置
-	cfg.notifyModify()
+	cfg.NotifyModify()
 	return nil
 }
 
@@ -237,7 +237,7 @@ func (cfg *Config) SetValueOrDefault(target interface{}, val, def interface{}) {
 
 	if value.IsValid() && !value.IsZero() {
 		reflect.ValueOf(target).Elem().Set(value)
-		cfg.notifyModify()
+		cfg.NotifyModify()
 	}
 }
 
@@ -249,7 +249,7 @@ func (cfg *Config) SetValue(target interface{}, val interface{}) {
 
 	if value.IsValid() && !value.IsZero() {
 		reflect.ValueOf(target).Elem().Set(value)
-		cfg.notifyModify()
+		cfg.NotifyModify()
 	}
 }
 
@@ -270,7 +270,7 @@ func (cfg *Config) CopyObject(c *Config) {
 		f.Set(from.Elem().Field(i))
 	}
 
-	cfg.notifyModify()
+	cfg.NotifyModify()
 	return
 }
 
@@ -306,7 +306,7 @@ func (cfg *Config) CopyFrom(from map[string]interface{}) (modify []string, err e
 	}
 
 	if len(modify) > 0 {
-		cfg.notifyModify()
+		cfg.NotifyModify()
 	}
 	return
 }

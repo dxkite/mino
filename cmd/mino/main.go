@@ -186,9 +186,8 @@ func main() {
 		t.RemoteHolder.LoadConfig(config)
 	})
 
-	if err := cfg.Reload(); err != nil {
-		log.Error("reload config error", err)
-	}
+	// 触发一次配置初始化
+	cfg.NotifyModify()
 
 	svr := server.NewServer(t)
 
