@@ -354,8 +354,11 @@ func (t *Transporter) dial(network, address string) (net.Conn, VisitMode, error)
 	if act == Upstream && t.RemoteHolder.Size() > 0 {
 		if c, v, err := t.dialUpstream(network, address); err == nil {
 			return c, v, nil
+		} else if t.Config.UpstreamToDirect {
+			log.Info("use direct, upstream error:", err)
 		} else {
-			log.Info("use direct with upstream error:", err)
+			log.Info("upstream error:", err)
+			return nil, "", err
 		}
 	}
 

@@ -40,6 +40,8 @@ type Config struct {
 	Upstream string `yaml:"upstream" json:"upstream" title:"远程服务器" desc:"支持mino,http,https协议"`
 	// 上有服务器
 	UpstreamList []string `yaml:"upstream_list" json:"upstream_list" title:"远程服务器" desc:"支持mino,http,https协议"`
+	// 不可用转直连
+	UpstreamToDirect bool `yaml:"upstream_to_direct" json:"upstream_to_direct" desc:"线路不可用的情况下转直连模式"`
 	// 输入流
 	Input string `yaml:"input" json:"input"`
 	// 数据存储位置
@@ -134,6 +136,8 @@ func (cfg *Config) InitDefault() {
 	cfg.Timeout = 10 * int(time.Second)           // 10s
 	cfg.TestRetryInterval = 60 * int(time.Second) // 检查服务是否可用 60s 一次
 	cfg.TestTimeout = 3 * int(time.Second)        // 超时3秒
+	// 自动转直连
+	cfg.UpstreamToDirect = true
 	// 自动检测环回地址
 	cfg.HostDetectLoopback = true
 	cfg.modifyTime = time.Unix(0, 0)
