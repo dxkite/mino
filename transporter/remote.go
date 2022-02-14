@@ -17,19 +17,22 @@ type RemoteHolder struct {
 	s        []bool
 	mtx      sync.Mutex
 	interval time.Duration
+	timeout  time.Duration
 }
 
-func NewRemote(interval time.Duration) *RemoteHolder {
+func NewRemote(interval, timeout time.Duration) *RemoteHolder {
 	return &RemoteHolder{
 		svr:      []*url.URL{},
 		s:        []bool{},
 		mtx:      sync.Mutex{},
 		interval: interval,
+		timeout:  timeout,
 	}
 }
 
 func (r *RemoteHolder) LoadConfig(cfg *config.Config) {
-	r.interval = time.Second * time.Duration(cfg.TestRetryInterval)
+	r.interval = time.Millisecond * time.Duration(cfg.TestRetryInterval)
+	r.timeout = time.Millisecond * time.Duration(cfg.TestTimeout)
 	rmt := []string{cfg.Upstream}
 	rmt = append(rmt, cfg.UpstreamList...)
 	log.Info("load remote", cfg.TestRetryInterval)
@@ -87,15 +90,15 @@ func (r *RemoteHolder) Update() {
 func (r *RemoteHolder) updateState() {
 	for id, v := range r.svr {
 		if !r.s[id] {
-			state := test(v)
+			state := test(v, r.timeout)
 			r.MarkState(id, state)
 		}
 	}
 }
 
 // 检查服务器是否可以响应
-func test(rmt *url.URL) bool {
-	conn, er := net.DialTimeout("tcp", rmt.Host, 3*time.Second)
+func test(rmt *url.URL, timeout time.Duration) bool {
+	conn, er := net.DialTimeout("tcp", rmt.Host, timeout)
 	if er != nil {
 		return false
 	}

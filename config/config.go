@@ -82,9 +82,9 @@ type Config struct {
 	// 流预读，默认 8
 	MaxStreamRewind int `yaml:"max_stream_rewind" json:"max_stream_rewind" flag:"proto_rewind"`
 	// 热更新时间（秒）
-	HotLoad int `yaml:"hot_load" json:"hot_load"`
+	HotLoad int `yaml:"hot_load" json:"hot_load" desc:"配置热加载，单位秒"`
 	// 连接超时
-	Timeout int `yaml:"timeout" json:"timeout"`
+	Timeout int `yaml:"timeout" json:"timeout" desc:"服务连接超时时间，单位毫秒"`
 	// PID文件位置
 	PidFile string `yaml:"pid_file" json:"pid_file" path:"bin-path"`
 	// Web服务器
@@ -96,7 +96,8 @@ type Config struct {
 	WebPassword    string `yaml:"web_password" json:"web_password" prop:"readonly"`
 
 	//TestUrl string `yaml:"test_url" json:"test_url" title:"测试链接" desc:"用于测试远程服务是否可用"`
-	TestRetryInterval int `yaml:"test_retry_interval" json:"test_retry_interval" title:"测试间隔" desc:"服务不可用情况下多久重试一次"`
+	TestRetryInterval int `yaml:"test_retry_interval" json:"test_retry_interval" title:"测试间隔" desc:"服务不可用情况下多久重试一次，单位毫秒"`
+	TestTimeout       int `yaml:"test_timeout" json:"test_timeout" title:"测试超时" desc:"服务不可用情况下多久重试一次，单位毫秒"`
 
 	// 配置路径
 	ConfPath string `yaml:"-" json:"-"`
@@ -127,11 +128,12 @@ func (cfg *Config) InitDefault() {
 	cfg.XorMod = 4
 	cfg.Input = "mino,http,socks5"
 	cfg.DumpStream = false
-	cfg.MaxStreamRewind = 8                 // 最大预读
-	cfg.HttpMaxRewindSize = 2 * 1024 * 1024 // HTTP最大预读 2MB
-	cfg.HotLoad = 60                        // 一分钟
-	cfg.Timeout = 10 * 100                  // 10s
-	cfg.TestRetryInterval = 60              // 检查服务是否可用 60s 一次
+	cfg.MaxStreamRewind = 8                       // 最大预读
+	cfg.HttpMaxRewindSize = 2 * 1024 * 1024       // HTTP最大预读 2MB
+	cfg.HotLoad = 60                              // 一分钟
+	cfg.Timeout = 10 * int(time.Second)           // 10s
+	cfg.TestRetryInterval = 60 * int(time.Second) // 检查服务是否可用 60s 一次
+	cfg.TestTimeout = 3 * int(time.Second)        // 超时3秒
 	// 自动检测环回地址
 	cfg.HostDetectLoopback = true
 	cfg.modifyTime = time.Unix(0, 0)
