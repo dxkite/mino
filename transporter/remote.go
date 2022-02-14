@@ -62,6 +62,10 @@ func (r *RemoteHolder) GetProxy() (int, *url.URL, error) {
 	return -1, nil, errors.New("all remote unavailable")
 }
 
+func (r *RemoteHolder) Size() int {
+	return len(r.svr)
+}
+
 // 标记不可用
 func (r *RemoteHolder) MarkState(id int, state bool) {
 	r.mtx.Lock()

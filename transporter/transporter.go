@@ -351,12 +351,12 @@ func (t *Transporter) dial(network, address string) (net.Conn, VisitMode, error)
 	}
 
 	// 使用上游
-	if act == Upstream {
-		id, upstream, err := t.RemoteHolder.GetProxy()
-		if err == nil {
-			return t.dialUpstream(id, upstream, network, address)
+	if act == Upstream && t.RemoteHolder.Size() > 0 {
+		if c, v, err := t.dialUpstream(network, address); err == nil {
+			return c, v, nil
+		} else {
+			log.Info("use direct with upstream error:", err)
 		}
-		log.Info("use direct with upstream error:", err)
 	}
 
 	// 直接请求
@@ -384,19 +384,31 @@ func (t *Transporter) dialDirect(network, address string) (net.Conn, VisitMode, 
 }
 
 // 调用上流请求
-func (t *Transporter) dialUpstream(id int, upstream *url.URL, network, address string) (net.Conn, VisitMode, error) {
+func (t *Transporter) dialUpstream(network, address string) (net.Conn, VisitMode, error) {
 	var rmt net.Conn
 	var rmtErr error
+	var id int
+	var upstream *url.URL
+	var err error
+
+	for {
+		id, upstream, err = t.RemoteHolder.GetProxy()
+		if err != nil {
+			return nil, "", err
+		}
+		// 连接远程服务器
+		if rmt, _, rmtErr = t.dialDirect(network, upstream.Host); rmtErr != nil {
+			t.RemoteHolder.MarkState(id, false) // 标记远程服务不可用
+			continue
+		} else {
+			break
+		}
+	}
 
 	var targetNetwork = network
 	var targetAddress = address
 
 	vm := VisitMode(upstream.String())
-	// 连接远程服务器
-	if rmt, _, rmtErr = t.dialDirect(network, upstream.Host); rmtErr != nil {
-		t.RemoteHolder.MarkState(id, false) // 标记远程服务不可用
-		return nil, vm, rmtErr
-	}
 
 	// 数据编码
 	if enc, ok := encoder.Get(t.Config.Encoder); ok {
