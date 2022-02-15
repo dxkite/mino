@@ -45,7 +45,7 @@ go install dxkite.cn/mino/cmd/mino
 ### Docker支持
 Docker一键启动服务端
 ```bash
-docker run --restart=always -d -p 28648:28648 w4ter/mino:2.0.2
+docker run --restart=always -d -p 28648:28648 w4ter/mino:v0.2.3
 ```
 ### 命令行
 
