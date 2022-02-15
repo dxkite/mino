@@ -362,13 +362,20 @@ func CreateFlagSet(name string, cfg *Config) *flag.FlagSet {
 	for i := 0; i < v.Elem().NumField(); i++ {
 		f := v.Elem().Field(i)
 		tg := t.Field(i).Tag
-		name := util.TagName(tg.Get("flag"))
-		if name == "-" || len(name) == 0 {
-			if v := util.TagName(tg.Get("json")); len(v) > 0 {
+
+		var name string
+		names := []string{
+			util.TagName(tg.Get("flag")),
+			util.TagName(tg.Get("json")),
+			util.TagName(tg.Get("yaml")),
+		}
+		for _, v := range names {
+			if v != "-" && len(v) > 0 {
 				name = v
-			} else {
-				continue
 			}
+		}
+		if len(name) == 0 {
+			continue
 		}
 
 		desc := name
