@@ -126,6 +126,8 @@ func (cfg *Config) InitDefault() {
 	cfg.LogCaller = true
 	cfg.LogLevel = int(log.LMaxLevel)
 
+	cfg.WebAuth = true // 默认开启 webui 验证
+
 	cfg.Encoder = "xor"
 	cfg.XorMod = 4
 	cfg.Input = "mino,http,socks5"
