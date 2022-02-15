@@ -31,7 +31,7 @@ import (
 
 func init() {
 	log.SetOutput(log.NewColorWriter())
-	log.SetLogCaller(true)
+	log.SetLogCaller(false)
 	log.SetAsync(false)
 	log.SetLevel(log.LMaxLevel)
 }
@@ -45,6 +45,15 @@ func errMsg(msg string) {
 func applyLogConfig(ctx context.Context, cfg *config.Config) {
 	log.SetLevel(log.LogLevel(cfg.LogLevel))
 	log.SetAsync(cfg.LogAsync)
+	log.SetLogCaller(cfg.LogCaller)
+	if !cfg.LogEnable {
+		return
+	}
+
+	if len(cfg.LogFile) > 0 {
+		cfg.LogFile = util.ConcatPath(cfg.ConfPath, cfg.LogFile)
+		log.Println("log output file", cfg.LogFile)
+	}
 	filename := cfg.LogFile
 	var w io.Writer
 	if len(filename) == 0 {
@@ -67,7 +76,6 @@ func applyLogConfig(ctx context.Context, cfg *config.Config) {
 		}()
 	}
 	log.SetOutput(log.MultiWriter(w, log.Writer()))
-	log.SetLogCaller(cfg.LogCaller)
 }
 
 func printInfo(cfg *config.Config) {
@@ -154,11 +162,6 @@ func main() {
 			os.Exit(1)
 		}
 		go cfg.HotLoadConfig()
-	}
-
-	if len(cfg.LogFile) > 0 {
-		cfg.LogFile = util.ConcatPath(cfg.ConfPath, cfg.LogFile)
-		log.Println("log file at", cfg.LogFile)
 	}
 
 	if len(cfg.PidFile) > 0 {

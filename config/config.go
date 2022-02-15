@@ -54,6 +54,8 @@ type Config struct {
 	AutoUpdate bool `yaml:"auto_update" json:"auto_update"`
 	// 日志文件
 	LogFile string `yaml:"log_file" json:"log_file" path:"v-path"`
+	// 日志开启
+	LogEnable bool `yaml:"log_enable" json:"log_enable"`
 	// 日志等级
 	LogLevel int `yaml:"log_level" json:"log_level"`
 	// 展示caller
@@ -122,8 +124,9 @@ func (cfg *Config) InitDefault() {
 	cfg.WebBuildIn = true
 	cfg.DataPath = "data"
 
+	cfg.LogEnable = false
 	cfg.LogFile = "mino.log"
-	cfg.LogCaller = true
+	cfg.LogCaller = false
 	cfg.LogLevel = int(log.LMaxLevel)
 
 	cfg.WebAuth = true // 默认开启 webui 验证
@@ -132,12 +135,12 @@ func (cfg *Config) InitDefault() {
 	cfg.XorMod = 4
 	cfg.Input = "mino,http,socks5"
 	cfg.DumpStream = false
-	cfg.MaxStreamRewind = 8                       // 最大预读
-	cfg.HttpMaxRewindSize = 2 * 1024 * 1024       // HTTP最大预读 2MB
-	cfg.HotLoad = 60                              // 一分钟
-	cfg.Timeout = 10 * int(time.Second)           // 10s
-	cfg.TestRetryInterval = 60 * int(time.Second) // 检查服务是否可用 60s 一次
-	cfg.TestTimeout = 3 * int(time.Second)        // 超时3秒
+	cfg.MaxStreamRewind = 8                 // 最大预读
+	cfg.HttpMaxRewindSize = 2 * 1024 * 1024 // HTTP最大预读 2MB
+	cfg.HotLoad = 60                        // 一分钟
+	cfg.Timeout = 10 * 1000                 // 10s
+	cfg.TestRetryInterval = 60 * 1000       // 检查服务是否可用 60s 一次
+	cfg.TestTimeout = 3 * 1000              // 超时3秒
 	// 自动转直连
 	cfg.UpstreamToDirect = true
 	// 自动检测环回地址
