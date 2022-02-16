@@ -262,8 +262,9 @@ func (t *Transporter) serve(c net.Conn) {
 	route := strings.Join(name, "+")
 
 	if network, address, err := svr.Target(); err != nil {
-		log.Error("read connect target", err)
-		_ = svr.Close()
+		log.Error("connect target error, try as simple http", err)
+		t.httpConn <- svr
+		return
 	} else {
 		// 请求本机
 		if util.IsRequestSelf(t.listen.Addr().String(), address) {
