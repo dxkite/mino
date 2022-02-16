@@ -179,7 +179,8 @@ func (t *Transporter) unwrapConn(conn net.Conn) (string, rewind.Conn, error) {
 	} else if stm != nil {
 		name = stm.Name()
 		if svr, err := stm.Server(rw, t.Config); err != nil {
-			return name, nil, err
+			msg := fmt.Sprintf("unwrap error: %v", err)
+			return name, nil, errors.New(msg)
 		} else {
 			rw = rewind.NewRewindConn(svr, size)
 		}

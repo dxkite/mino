@@ -67,11 +67,16 @@ func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 
 // 获取链接信息
 func (conn *Server) Target() (network, address string, err error) {
-	if conn.req.Method == http.MethodConnect {
-		address = conn.req.RequestURI
+	req := conn.req
+	hostFrom := []string{req.URL.Host, req.Host}
+	for _, host := range hostFrom {
+		if len(host) > 0 {
+			address = host
+			break
+		}
 	}
 	if len(address) == 0 {
-		address = conn.req.Host
+		return "", "", errors.New("missing target address")
 	}
 	address = fmtHost(conn.req.URL.Scheme, address)
 	return "tcp", address, nil
