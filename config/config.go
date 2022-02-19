@@ -73,7 +73,8 @@ type Config struct {
 	// 加密传输类型，xor/tls 默认不开启
 	Encoder string `yaml:"encoder" json:"encoder"`
 	// xor 长度，默认4
-	XorMod int `yaml:"xor_mod" json:"xor_mod"`
+	XorMod         int    `yaml:"xor_mod" json:"xor_mod"`
+	MinoEncoderKey string `yaml:"mino_encoder_key" json:"mino_encoder_key"`
 	// TLS连接CA
 	TlsRootCa string `yaml:"tls_root_ca" json:"tls_root_ca" path:"path"`
 	// TLS密钥
@@ -131,11 +132,13 @@ func (cfg *Config) InitDefault() {
 
 	cfg.WebAuth = true // 默认开启 webui 验证
 
-	cfg.Encoder = "xor"
+	cfg.Encoder = "mino"
 	cfg.XorMod = 4
+	cfg.MinoEncoderKey = "mino"
+
 	cfg.Input = "mino,http,socks5"
 	cfg.DumpStream = false
-	cfg.MaxStreamRewind = 8                 // 最大预读
+	cfg.MaxStreamRewind = 32                // 最大预读
 	cfg.HttpMaxRewindSize = 2 * 1024 * 1024 // HTTP最大预读 2MB
 	cfg.HotLoad = 60                        // 一分钟
 	cfg.Timeout = 10 * 1000                 // 10s
