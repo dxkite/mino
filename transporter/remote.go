@@ -3,8 +3,8 @@ package transporter
 import (
 	"dxkite.cn/log"
 	"dxkite.cn/mino/config"
+	"dxkite.cn/mino/proxy"
 	"errors"
-	"net"
 	"net/url"
 	"sync"
 	"time"
@@ -18,15 +18,17 @@ type RemoteHolder struct {
 	mtx      sync.Mutex
 	interval time.Duration
 	timeout  time.Duration
+	testUrl  string
 }
 
-func NewRemote(interval, timeout time.Duration) *RemoteHolder {
+func NewRemote(testUrl string, interval, timeout time.Duration) *RemoteHolder {
 	return &RemoteHolder{
 		svr:      []*url.URL{},
 		s:        []bool{},
 		mtx:      sync.Mutex{},
 		interval: interval,
 		timeout:  timeout,
+		testUrl:  testUrl,
 	}
 }
 
@@ -90,18 +92,17 @@ func (r *RemoteHolder) Update() {
 func (r *RemoteHolder) updateState() {
 	for id, v := range r.svr {
 		if !r.s[id] {
-			state := test(v, r.timeout)
+			state := test(r.testUrl, v, r.timeout)
 			r.MarkState(id, state)
 		}
 	}
 }
 
 // 检查服务器是否可以响应
-func test(rmt *url.URL, timeout time.Duration) bool {
-	conn, er := net.DialTimeout("tcp", rmt.Host, timeout)
-	if er != nil {
+func test(rmt string, proxyURL *url.URL, timeout time.Duration) bool {
+	if err := proxy.Test(rmt, proxyURL, timeout); err != nil {
+		log.Debug("test request", rmt, "by", proxyURL.String(), err)
 		return false
 	}
-	_ = conn.Close()
 	return true
 }

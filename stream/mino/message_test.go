@@ -46,7 +46,7 @@ func TestRequestMessage_marshal(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := tt.m.marshal()
+			got, err := tt.m.Marshal()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("marshal() error = %v, wantErr %v", err, tt.wantErr)
 				return

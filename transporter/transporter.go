@@ -57,7 +57,7 @@ func New(config *config.Config) (t *Transporter) {
 		eventHandler: NewHandlerGroup(),
 		nextSid:      0,
 		HostConf:     NewActionConf(),
-		RemoteHolder: NewRemote(60*time.Second, 3*time.Second),
+		RemoteHolder: NewRemote(config.TestUrl, 60*time.Second, 3*time.Second),
 	}
 	return t
 }

@@ -99,9 +99,9 @@ type Config struct {
 	WebUsername    string `yaml:"web_username" json:"web_username" prop:"readonly"`
 	WebPassword    string `yaml:"web_password" json:"web_password" prop:"readonly"`
 
-	//TestUrl string `yaml:"test_url" json:"test_url" title:"测试链接" desc:"用于测试远程服务是否可用"`
-	TestRetryInterval int `yaml:"test_retry_interval" json:"test_retry_interval" title:"测试间隔" desc:"服务不可用情况下多久重试一次，单位毫秒"`
-	TestTimeout       int `yaml:"test_timeout" json:"test_timeout" title:"测试超时" desc:"服务不可用情况下多久重试一次，单位毫秒"`
+	TestUrl           string `yaml:"test_url" json:"test_url" title:"测试链接" desc:"用于测试远程服务是否可用"`
+	TestRetryInterval int    `yaml:"test_retry_interval" json:"test_retry_interval" title:"测试间隔" desc:"服务不可用情况下多久重试一次，单位毫秒"`
+	TestTimeout       int    `yaml:"test_timeout" json:"test_timeout" title:"测试超时" desc:"服务不可用情况下多久重试一次，单位毫秒"`
 
 	// 配置路径
 	ConfPath string `yaml:"-" json:"-"`
@@ -141,6 +141,7 @@ func (cfg *Config) InitDefault() {
 	cfg.Timeout = 10 * 1000                 // 10s
 	cfg.TestRetryInterval = 60 * 1000       // 检查服务是否可用 60s 一次
 	cfg.TestTimeout = 3 * 1000              // 超时3秒
+	cfg.TestUrl = "https://www.google.com"
 	// 自动转直连
 	cfg.UpstreamToDirect = true
 	// 自动检测环回地址

@@ -16,7 +16,7 @@ type RequestMessage struct {
 }
 
 // 编码
-func (m *RequestMessage) marshal() ([]byte, error) {
+func (m *RequestMessage) Marshal() ([]byte, error) {
 	var host string
 	var port int
 	var ports string
@@ -167,7 +167,7 @@ func (m *ResponseMessage) marshal() ([]byte, error) {
 }
 
 // 编码
-func (m *ResponseMessage) unmarshal(r io.Reader) error {
+func (m *ResponseMessage) Unmarshal(r io.Reader) error {
 	buf := make([]byte, 255)
 	if _, err := io.ReadFull(r, buf[:1]); err != nil {
 		return err

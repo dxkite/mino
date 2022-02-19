@@ -98,12 +98,12 @@ func (conn *Client) Connect(network, address string) (err error) {
 		Username: conn.Username,
 		Password: conn.Password,
 	}
-	b, _ := m.marshal()
+	b, _ := m.Marshal()
 	if _, er := conn.Write(b); er != nil {
 		return er
 	}
 	rsp := new(ResponseMessage)
-	if err := rsp.unmarshal(conn); err != nil {
+	if err := rsp.Unmarshal(conn); err != nil {
 		return err
 	}
 	return rsp.Error()
