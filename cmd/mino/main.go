@@ -109,7 +109,7 @@ func initMonkey(cfg *config.Config) {
 
 func main() {
 	ctx, exit := context.WithCancel(context.Background())
-	log.Println("Mino Agent", "v"+mino.Version)
+	log.Println("Mino Agent", mino.Version, mino.Commit)
 	log.Debug("Args", os.Args)
 
 	if !util.CheckMachineId(mino.MachineId) {

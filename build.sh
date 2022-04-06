@@ -1,2 +1,1 @@
-#/bin/sh
-go build -o mino-linux -ldflags="-s -w" ./cmd/mino
+#/bin/shVERSION=$(git describe --tags)COMMIT=$(git rev-parse --short HEAD)go build -o mino-linux -ldflags="-s -w -X 'dxkite.cn/mino.Version=$VERSION' -X 'dxkite.cn/mino.Commit=$COMMIT'" ./cmd/mino
