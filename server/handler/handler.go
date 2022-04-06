@@ -65,6 +65,32 @@ func (vc *UpdateHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+type StatusHandler struct {
+	ctx    *context.Context
+	uptime time.Time
+}
+
+func NewStatusHandler(ctx *context.Context) *StatusHandler {
+	return &StatusHandler{ctx: ctx, uptime: time.Now()}
+}
+
+func (vc *StatusHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	v := map[string]interface{}{
+		"uptime":  time.Now().Sub(vc.uptime).Milliseconds(),
+		"version": mino.Version,
+		"commit":  mino.Commit,
+		"os":      runtime.GOOS,
+		"arch":    runtime.GOARCH,
+	}
+	if b, err := json.Marshal(v); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(b)
+	}
+}
+
 type LoginHandler struct {
 	ctx         *context.Context
 	failedTimes map[string]int

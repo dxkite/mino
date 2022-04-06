@@ -38,6 +38,7 @@ func (s *Server) Serve(args []string) error {
 	mux := http.NewServeMux()
 
 	mux.Handle(c.Cfg.PacUrl, monkey.NewPacHandler(c.Cfg))
+	mux.Handle("/status", handler.NewStatusHandler(c))
 	mux.Handle("/check-update", handler.NewUpdateHandler(c, root))
 
 	api := http.NewServeMux()
