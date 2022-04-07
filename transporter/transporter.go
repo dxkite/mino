@@ -169,7 +169,7 @@ func (t *Transporter) IsEnableProtocol(name string) bool {
 }
 
 // 解包连接
-func (t *Transporter) unwrapConn(conn net.Conn) (string, rewind.Conn, error) {
+func (t *Transporter) decodeConn(conn net.Conn) (string, rewind.Conn, error) {
 	size := t.Config.MaxStreamRewind
 	rw := rewind.NewRewindConn(conn, size)
 	var name string
@@ -189,7 +189,7 @@ func (t *Transporter) unwrapConn(conn net.Conn) (string, rewind.Conn, error) {
 }
 
 // 创建流
-func (t *Transporter) createStream(conn rewind.Conn) (string, stream.Server, error) {
+func (t *Transporter) handleConn(conn rewind.Conn) (string, stream.Server, error) {
 	p, err := t.Detect(conn)
 	if err != nil {
 		msg := fmt.Sprintf("stream type error: %s hex=%s text=%s from=%s", err, hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), conn.RemoteAddr())
@@ -204,6 +204,14 @@ func (t *Transporter) createStream(conn rewind.Conn) (string, stream.Server, err
 		return p.Name(), nil, errors.New(fmt.Sprintf("handshake error"))
 	}
 	return p.Name(), svr, nil
+}
+
+func (t *Transporter) handleWeb(conn net.Conn) {
+	t.httpConn <- conn
+}
+
+func (t *Transporter) handleError(conn net.Conn, err error) {
+
 }
 
 func (t *Transporter) transport(svr stream.Server, network, address, route string) {
@@ -239,8 +247,8 @@ func (t *Transporter) serve(c net.Conn) {
 	var stm string
 	name := []string{}
 
-	if enc, conn, err = t.unwrapConn(c); err != nil {
-		log.Error(fmt.Sprintf("unwrap error %s enc=%s", err, enc))
+	if enc, conn, err = t.decodeConn(c); err != nil {
+		log.Error(fmt.Sprintf("decode conn error %s enc=%s", err, enc))
 		_ = c.Close()
 		return
 	} else {
@@ -249,8 +257,8 @@ func (t *Transporter) serve(c net.Conn) {
 		}
 	}
 
-	if stm, svr, err = t.createStream(conn); err != nil {
-		log.Error("create stream", stm, err)
+	if stm, svr, err = t.handleConn(conn); err != nil {
+		log.Error("create conn", stm, err)
 		_ = conn.Close()
 		return
 	} else {
@@ -263,12 +271,12 @@ func (t *Transporter) serve(c net.Conn) {
 
 	if network, address, err := svr.Target(); err != nil {
 		log.Error("connect target error, try as simple http", err)
-		t.httpConn <- svr
+		t.handleWeb(svr)
 		return
 	} else {
 		// 请求本机
 		if util.IsRequestSelf(t.listen.Addr().String(), address) {
-			t.httpConn <- svr
+			t.handleWeb(svr)
 			return
 		}
 		// 传输数据

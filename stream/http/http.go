@@ -59,7 +59,7 @@ func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 			RemoteAddr: conn.RemoteAddr().String(),
 		}) {
 		} else {
-			_, _ = conn.Write([]byte("401 Unauthorized\r\nContent-Length: 0\r\n\r\n"))
+			_, _ = conn.Write([]byte("HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n"))
 		}
 	}
 	return
@@ -106,7 +106,7 @@ func (conn *Server) Rewind() error {
 
 // 发送错误
 func (conn *Server) SendError(err error) error {
-	_, we := conn.Write([]byte(fmt.Sprintf("406 Not Acceptable\r\nContent-Length: %d\r\n\r\n%s", len(err.Error()), err.Error())))
+	_, we := conn.Write([]byte(fmt.Sprintf("HTTP/1.1 406 Not Acceptable\r\nContent-Length: %d\r\n\r\n%s", len(err.Error()), err.Error())))
 	return we
 }
 
