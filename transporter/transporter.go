@@ -2,6 +2,7 @@ package transporter
 
 import (
 	"dxkite.cn/log"
+	"dxkite.cn/mino/dummy"
 	"dxkite.cn/mino/encoder"
 	"dxkite.cn/mino/util"
 	"encoding/hex"
@@ -45,6 +46,8 @@ type Transporter struct {
 
 	// 远程服务
 	RemoteHolder *RemoteHolder
+
+	dummy *dummy.DummyServer
 }
 
 func New(config *config.Config) (t *Transporter) {
@@ -72,6 +75,12 @@ func (t *Transporter) Init() error {
 	}
 	// 连接超时 默认 10s
 	t.timeout = time.Duration(t.Config.Timeout) * time.Millisecond
+
+	d, err := dummy.CreateDummyServer(t.Config)
+	t.dummy = d
+	if err != nil {
+		log.Error("init dummy tls error", err)
+	}
 	return nil
 }
 
@@ -211,22 +220,24 @@ func (t *Transporter) handleWeb(conn net.Conn) {
 }
 
 func (t *Transporter) handleError(conn net.Conn, err error) {
-
+	if err := t.dummy.Handle(conn, dummy.NewErrorHandler(err)); err != nil {
+		log.Error("dummy error", err)
+	}
 }
 
 func (t *Transporter) transport(svr stream.Server, network, address, route string) {
+	_ = svr.SendSuccess()
 	rmt, mode, rmtErr := t.dial(network, address)
 	via := mode
 	if rmtErr != nil {
-		log.Error("dial", network, address, "from", svr.RemoteAddr(), "via", via, "error:", rmtErr)
-		_ = svr.SendError(rmtErr)
+		errMsg := fmt.Sprintln("dial", network, address, "from", svr.RemoteAddr(), "via", via, "error:", rmtErr)
+		log.Error(errMsg)
+		t.handleError(svr, errors.New(errMsg))
 		_ = svr.Close()
 		return
-	} else {
-		log.Debug("connected", network, address, "route", route, "via", via)
-		_ = svr.SendSuccess()
 	}
 
+	log.Debug("connected", network, address, "route", route, "via", via)
 	sess := NewSession(t.NextId(), svr.User(), svr, rmt, address, route)
 	t.AddSession(sess)
 	up, down, err := sess.Transport()
@@ -271,7 +282,7 @@ func (t *Transporter) serve(c net.Conn) {
 
 	if network, address, err := svr.Target(); err != nil {
 		log.Error("connect target error, try as simple http", err)
-		t.handleWeb(svr)
+		t.handleError(svr, err)
 		return
 	} else {
 		// 请求本机

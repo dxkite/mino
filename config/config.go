@@ -92,6 +92,11 @@ type Config struct {
 	Timeout int `yaml:"timeout" json:"timeout" desc:"服务连接超时时间，单位毫秒"`
 	// PID文件位置
 	PidFile string `yaml:"pid_file" json:"pid_file" path:"bin-path"`
+
+	// 模拟服务
+	DummyCaKey string `yaml:"dummy_ca_key" json:"dummy_ca_key" path:"path"`
+	DummyCaPem string `yaml:"dummy_ca_pem" json:"dummy_ca_pem" path:"path"`
+
 	// Web服务器
 	WebEnable      bool   `yaml:"web_enable" json:"web_enable" prop:"readonly"`
 	WebBuildIn     bool   `yaml:"web_build_in" json:"web_build_in"`
@@ -131,6 +136,9 @@ func (cfg *Config) InitDefault() {
 	cfg.LogLevel = int(log.LMaxLevel)
 
 	cfg.WebAuth = true // 默认开启 webui 验证
+
+	cfg.DummyCaKey = "ca.key"
+	cfg.DummyCaPem = "ca.pem"
 
 	cfg.Encoder = "mino"
 	cfg.XorMod = 4
