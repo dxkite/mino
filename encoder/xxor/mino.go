@@ -9,15 +9,15 @@ import (
 	"net"
 )
 
-type minoStreamEncoder struct {
+type ExtendXorEncoder struct {
 }
 
-func (stm *minoStreamEncoder) Name() string {
-	return "mino"
+func (stm *ExtendXorEncoder) Name() string {
+	return "xxor"
 }
 
 // 判断编码类型
-func (stm *minoStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, error) {
+func (stm *ExtendXorEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, error) {
 	key := []byte(cfg.MinoEncoderKey)
 	rdm := make([]byte, headerSize)
 	if _, err := io.ReadFull(conn, rdm); err != nil {
@@ -36,15 +36,15 @@ func (stm *minoStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, e
 }
 
 // 创建客户端
-func (stm *minoStreamEncoder) Client(conn net.Conn, cfg *config.Config) (net.Conn, error) {
+func (stm *ExtendXorEncoder) Client(conn net.Conn, cfg *config.Config) (net.Conn, error) {
 	return Client(conn, []byte(cfg.MinoEncoderKey)), nil
 }
 
 // 创建服务端
-func (stm *minoStreamEncoder) Server(conn net.Conn, cfg *config.Config) (net.Conn, error) {
+func (stm *ExtendXorEncoder) Server(conn net.Conn, cfg *config.Config) (net.Conn, error) {
 	return Server(conn, []byte(cfg.MinoEncoderKey)), nil
 }
 
 func init() {
-	encoder.Reg(&minoStreamEncoder{})
+	encoder.Reg(&ExtendXorEncoder{})
 }

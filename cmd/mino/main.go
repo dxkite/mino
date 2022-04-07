@@ -17,9 +17,9 @@ import (
 	"dxkite.cn/mino/transporter"
 	"dxkite.cn/mino/util"
 
-	_ "dxkite.cn/mino/encoder/mino"
 	_ "dxkite.cn/mino/encoder/tls"
 	_ "dxkite.cn/mino/encoder/xor"
+	_ "dxkite.cn/mino/encoder/xxor"
 
 	_ "dxkite.cn/mino/stream/http"
 	_ "dxkite.cn/mino/stream/mino"
