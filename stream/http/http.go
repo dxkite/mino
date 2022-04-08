@@ -152,13 +152,15 @@ type Checker struct {
 
 // 判断是否为HTTP协议
 func (c *Checker) Check(r io.Reader) (bool, error) {
+	// 读两个字节
 	buf := make([]byte, 2)
-	n, err := io.ReadFull(r, buf)
-	if err != nil {
+	if n, err := r.Read(buf); err != nil {
 		return false, err
+	} else if n != 2 {
+		return false, nil
 	}
 	for i := range Methods {
-		if string(buf[:n]) == Methods[i] {
+		if string(buf) == Methods[i] {
 			return true, nil
 		}
 	}

@@ -146,7 +146,7 @@ func (cfg *Config) InitDefault() {
 
 	cfg.Input = "mino,http,socks5"
 	cfg.DumpStream = false
-	cfg.MaxStreamRewind = 32                // 最大预读
+	cfg.MaxStreamRewind = 1024              // 最大预读
 	cfg.HttpMaxRewindSize = 2 * 1024 * 1024 // HTTP最大预读 2MB
 	cfg.HotLoad = 60                        // 一分钟
 	cfg.Timeout = 10 * 1000                 // 10s

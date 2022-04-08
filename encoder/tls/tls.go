@@ -7,7 +7,6 @@ import (
 	"dxkite.cn/mino/util"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 )
 
@@ -24,9 +23,12 @@ const TlsRecordTypeHandshake uint8 = 22
 func (stm *tlsStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, error) {
 	// 读3个字节
 	buf := make([]byte, 3)
-	if _, err := io.ReadFull(conn, buf); err != nil {
+	if n, err := conn.Read(buf); err != nil {
 		return false, err
+	} else if n != 3 {
+		return false, nil
 	}
+
 	if buf[0] != TlsRecordTypeHandshake {
 		return false, nil
 	}

@@ -3,7 +3,6 @@ package xor
 import (
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/encoder"
-	"io"
 	"net"
 )
 
@@ -22,11 +21,15 @@ func (stm *xorStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, er
 	// A = 'X'
 	// B = version
 	// CCCC = xor code
-	// 读3个字节
+
+	// 读2个字节
 	buf := make([]byte, 2)
-	if _, err := io.ReadFull(conn, buf); err != nil {
+	if n, err := conn.Read(buf); err != nil {
 		return false, err
+	} else if n != 2 {
+		return false, nil
 	}
+
 	if buf[0] != 'X' {
 		return false, nil
 	}

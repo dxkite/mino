@@ -20,9 +20,14 @@ func (stm *ExtendXorEncoder) Name() string {
 func (stm *ExtendXorEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, error) {
 	key := []byte(cfg.MinoEncoderKey)
 	rdm := make([]byte, headerSize)
-	if _, err := io.ReadFull(conn, rdm); err != nil {
+
+	// 一次无法完全读取则不是一个正常的
+	if n, err := conn.Read(rdm); err != nil {
 		return false, err
+	} else if n != headerSize {
+		return false, nil
 	}
+
 	key = xor(key, rdm)
 	log.Debug("Detect", "random", hex.EncodeToString(rdm), "key", hex.EncodeToString(key))
 	if _, err := io.ReadFull(conn, rdm); err != nil {
