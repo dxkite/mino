@@ -3,22 +3,17 @@ package dummy
 import (
 	"bufio"
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/rewind"
+	"dxkite.cn/mino/util"
 	"encoding/pem"
 	"errors"
 	"io"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"net"
 	"net/http"
-	"time"
 )
 
 type DummyServer struct {
@@ -46,7 +41,7 @@ func (s *DummyServer) InitCaConfig(pemPath, keyPath string) error {
 }
 
 func (s *DummyServer) InitCaMemory(name string) (err error) {
-	s.CaCert, s.CaKey, err = GenerateCA(name)
+	s.CaCert, s.CaKey, err = util.GenerateCA(name)
 	return
 }
 
@@ -92,7 +87,7 @@ func (s *DummyServer) handleHttps(conn net.Conn, handler http.Handler) error {
 	cfg := &tls.Config{
 		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			log.Println("handle server name", info.ServerName)
-			certPem, keyPem, err := GenerateNameCertKey(info.ServerName, s.CaCert.Bytes, s.CaKey.Bytes)
+			certPem, keyPem, err := util.GenerateNameCertKey(info.ServerName, s.CaCert.Bytes, s.CaKey.Bytes)
 			if err != nil {
 				return nil, err
 			}
@@ -142,75 +137,4 @@ func (s *DummyServer) Handle(conn net.Conn, handler http.Handler) error {
 		return s.handleHttps(rw, handler)
 	}
 	return s.handleHttp(rw, handler)
-}
-
-func GenerateCA(name string) (certPEM, keyPEM *pem.Block, err error) {
-	key, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return
-	}
-	validFor := time.Hour * 24 * 365 * 10 // ten years
-	notBefore := time.Now()
-	notAfter := notBefore.Add(validFor)
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	template := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName: name,
-			Country:    []string{"CN"},
-		},
-		NotBefore:             notBefore,
-		NotAfter:              notAfter,
-		IsCA:                  true,
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-		BasicConstraintsValid: true,
-	}
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
-	if err != nil {
-		return
-	}
-	certPEM = &pem.Block{Type: "CERTIFICATE", Bytes: derBytes}
-	keyPEM = &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}
-	return
-}
-
-func GenerateNameCertKey(name string, caCertPEM, caKeyPEM []byte) (certPEM, keyPEM []byte, err error) {
-	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return
-	}
-	rootCa, err := x509.ParseCertificate(caCertPEM)
-	if err != nil {
-		return nil, nil, err
-	}
-	rootCaPrivate, err := x509.ParsePKCS1PrivateKey(caKeyPEM)
-	if err != nil {
-		return nil, nil, err
-	}
-	validFor := time.Hour * 24 * 365 * 10 // ten years
-	notBefore := time.Now()
-	notAfter := notBefore.Add(validFor)
-	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
-	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
-	template := x509.Certificate{
-		SerialNumber: serialNumber,
-		Subject: pkix.Name{
-			CommonName: name,
-			Country:    []string{"CN"},
-		},
-		NotBefore:   notBefore,
-		NotAfter:    notAfter,
-		KeyUsage:    x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
-	}
-	template.DNSNames = append(template.DNSNames, name)
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, rootCa, &priv.PublicKey, rootCaPrivate)
-	if err != nil {
-		return
-	}
-	certPEM = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
-	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
-	return
 }

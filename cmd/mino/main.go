@@ -33,7 +33,7 @@ import (
 
 func init() {
 	log.SetOutput(log.NewColorWriter())
-	log.SetLogCaller(false)
+	log.SetLogCaller(true)
 	log.SetAsync(false)
 	log.SetLevel(log.LMaxLevel)
 }
@@ -155,7 +155,8 @@ func main() {
 
 	//fmt.Println(cfg.ToFlags())
 
-	if p := cfg.ConfFile; len(p) > 0 {
+	// 读取配置文件
+	if p := cfg.ConfFile; util.Exists(p) {
 		// 配置文件盖命令行的参数
 		log.Println("config file at", cfg.ConfFile)
 		if err := cfg.Load(p); err != nil {
@@ -179,6 +180,11 @@ func main() {
 	// 写入PID
 	if err := daemon.SavePidInfo(cfg.PidFile, strconv.Itoa(os.Getpid()), os.Args); err != nil {
 		log.Error("write pid error", err)
+	}
+
+	// 创建CA
+	if err := monkey.CreateCa(cfg.DummyCaPem, cfg.DummyCaKey); err != nil {
+		log.Error("install ca", err)
 	}
 
 	log.Info("current pid", os.Getpid())

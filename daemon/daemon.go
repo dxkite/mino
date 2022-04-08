@@ -2,6 +2,8 @@ package daemon
 
 import (
 	"dxkite.cn/log"
+	"dxkite.cn/mino/monkey"
+	"dxkite.cn/mino/notification"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -11,7 +13,7 @@ import (
 
 func IsCmd(name string) bool {
 	switch name {
-	case "start", "stop", "status", "restart":
+	case "start", "stop", "status", "restart", "install-ca":
 		return true
 	}
 	return false
@@ -51,6 +53,15 @@ func Exec(pidPath string, args []string) {
 			} else {
 				log.Println("mino is stopped")
 			}
+		}
+	case "install-ca":
+		if err := monkey.InstallCa(args[1]); err != nil {
+			log.Error("install ca error", err)
+			_ = notification.Notification("Mino Agent", "Mino证书安装失败", err.Error())
+			_ = os.Remove(args[1])
+		} else {
+			_ = notification.Notification("Mino Agent", "Mino证书安装成功", "证书将会用于显示错误信息")
+			log.Info("install ca success")
 		}
 	}
 }
