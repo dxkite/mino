@@ -25,23 +25,23 @@ func CreateCa(pemPath, keyPath string) error {
 		return err
 	}
 
-	return ExecAsRoot(os.Args[0], "install-ca", pemPath)
+	return execAsRoot(os.Args[0], "install-ca", pemPath)
 }
 
 func InstallCa(pemPath string) error {
 	log.Info("install ca", pemPath)
 	cmdStr := `Import-Certificate -FilePath %s -CertStoreLocation Cert:\LocalMachine\Root`
-	return ExecPowerShell(fmt.Sprintf(cmdStr, strconv.Quote(pemPath)))
+	return execPowerShell(fmt.Sprintf(cmdStr, strconv.Quote(pemPath)))
 }
 
-func ExecAsRoot(name string, args ...string) error {
+func execAsRoot(name string, args ...string) error {
 	cmdStr := `Start-Process -FilePath %s -ArgumentList %s -Verb runAs -WindowStyle Hidden`
 	cmd := fmt.Sprintf(cmdStr, strconv.Quote(name), strconv.Quote(strings.Join(args, " ")))
 	log.Debug("run powershell", cmd)
-	return ExecPowerShell(cmd)
+	return execPowerShell(cmd)
 }
 
-func ExecPowerShell(cmdStr string) error {
+func execPowerShell(cmdStr string) error {
 	cmd := exec.Command("PowerShell")
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	cmd.Stdin = bytes.NewBuffer([]byte(cmdStr))
