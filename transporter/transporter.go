@@ -239,11 +239,12 @@ func (t *Transporter) serve(c net.Conn) {
 	var err error
 	var enc string
 	var stm string
+	var conn net.Conn
 	name := []string{}
 
-	if enc, c, err = t.decodeConn(c); err != nil {
+	if enc, conn, err = t.decodeConn(c); err != nil {
 		log.Error(fmt.Sprintf("decode conn error %s enc=%s", err, enc))
-		_ = c.Close()
+		_ = conn.Close()
 		return
 	} else {
 		if len(enc) > 0 {
@@ -251,9 +252,9 @@ func (t *Transporter) serve(c net.Conn) {
 		}
 	}
 
-	if stm, svr, err = t.handleConn(c); err != nil {
+	if stm, svr, err = t.handleConn(conn); err != nil {
 		log.Error("create conn", stm, err)
-		_ = c.Close()
+		_ = conn.Close()
 		return
 	} else {
 		if len(stm) > 0 {

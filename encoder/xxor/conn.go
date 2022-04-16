@@ -1,9 +1,7 @@
 package xxor
 
 import (
-	"encoding/hex"
 	"errors"
-	"fmt"
 	"net"
 	"sync/atomic"
 	"time"
@@ -51,7 +49,7 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 		j++
 	}
 	n, err = c.Conn.Write(b)
-	fmt.Println("Write", "want write", len(b), "real write", n)
+	//fmt.Println("Write", "want write", len(b), "real write", n)
 	if err != nil {
 		return 0, err
 	}
@@ -70,9 +68,9 @@ func xor(buf, key []byte) []byte {
 // 读包装
 func (c *Conn) doHandshakeClient() error {
 	msg := defaultXxor()
-	fmt.Println("[doHandshakeClient] client base key", hex.EncodeToString(c.key))
+	//fmt.Println("[doHandshakeClient] client base key", hex.EncodeToString(c.key))
 	buf, sessionKey, err := msg.Encoding(c.key)
-	fmt.Println("[doHandshakeClient] sessionKey", hex.EncodeToString(sessionKey))
+	//fmt.Println("[doHandshakeClient] sessionKey", hex.EncodeToString(sessionKey))
 	if err != nil {
 		return err
 	}
@@ -91,9 +89,9 @@ func (c *Conn) doHandshakeClient() error {
 // 读包装
 func (c *Conn) doHandshakeServer() error {
 	msg := defaultXxor()
-	fmt.Println("[doHandshakeServer] server base key", hex.EncodeToString(c.key))
+	//fmt.Println("[doHandshakeServer] server base key", hex.EncodeToString(c.key))
 	sessionKey, err := msg.Decoding(c.Conn, c.key)
-	fmt.Println("[doHandshakeServer] sessionKey", hex.EncodeToString(sessionKey))
+	//fmt.Println("[doHandshakeServer] sessionKey", hex.EncodeToString(sessionKey))
 
 	if err != nil {
 		return err
