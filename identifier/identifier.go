@@ -79,17 +79,3 @@ func (id *Identifier) Test(conn net.Conn, cfg *config.Config) (string, net.Conn,
 	}
 	return "", buffConn, ErrUnknownProtocol
 }
-
-var Default = NewIdentifier()
-
-func Register(protocol Protocol) {
-	Default.Register(protocol)
-}
-
-func RegisterName(name string, size int, test TestFunc) {
-	Default.RegisterName(name, size, test)
-}
-
-func Test(conn net.Conn, cfg *config.Config) (string, net.Conn, error) {
-	return Default.Test(conn, cfg)
-}
