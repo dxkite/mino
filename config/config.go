@@ -82,10 +82,6 @@ type Config struct {
 	TlsKeyFile  string `yaml:"tls_key_file" json:"tls_key_file" path:"path" flag:"key_file"`
 	// dump 数据流，默认false
 	DumpStream bool `yaml:"dump_stream" json:"dump_stream"`
-	// HTTP预读
-	HttpMaxRewindSize int `yaml:"http_max_rewind_size" json:"http_max_rewind_size" flag:"http_rewind"`
-	// 流预读，默认 8
-	MaxStreamRewind int `yaml:"max_stream_rewind" json:"max_stream_rewind" flag:"proto_rewind"`
 	// 热更新时间（秒）
 	HotLoad int `yaml:"hot_load" json:"hot_load" desc:"配置热加载，单位秒"`
 	// 连接超时
@@ -140,18 +136,17 @@ func (cfg *Config) InitDefault() {
 	cfg.DummyCaKey = "ca.key"
 	cfg.DummyCaPem = "ca.pem"
 
-	cfg.Encoder = "mino"
+	cfg.Encoder = "xxor"
 	cfg.XorMod = 4
 	cfg.MinoEncoderKey = "mino"
 
 	cfg.Input = "mino,http,socks5"
 	cfg.DumpStream = false
-	cfg.MaxStreamRewind = 1024              // 最大预读
-	cfg.HttpMaxRewindSize = 2 * 1024 * 1024 // HTTP最大预读 2MB
-	cfg.HotLoad = 60                        // 一分钟
-	cfg.Timeout = 10 * 1000                 // 10s
-	cfg.TestRetryInterval = 60 * 1000       // 检查服务是否可用 60s 一次
-	cfg.TestTimeout = 3 * 1000              // 超时3秒
+
+	cfg.HotLoad = 60                  // 一分钟
+	cfg.Timeout = 10 * 1000           // 10s
+	cfg.TestRetryInterval = 60 * 1000 // 检查服务是否可用 60s 一次
+	cfg.TestTimeout = 3 * 1000        // 超时3秒
 	cfg.TestUrl = "https://www.google.com"
 	// 自动转直连
 	cfg.UpstreamToDirect = true

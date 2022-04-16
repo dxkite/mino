@@ -109,18 +109,6 @@ func (conn *Client) Connect(network, address string) (err error) {
 	return rsp.Error()
 }
 
-type Checker struct {
-}
-
-// 判断是否为mino2协议(v2)
-func (d *Checker) Check(r io.Reader) (bool, error) {
-	buf := make([]byte, 1)
-	if _, err := io.ReadFull(r, buf); err != nil {
-		return false, err
-	}
-	return buf[0] == Version2, nil
-}
-
 type Stream struct {
 }
 
@@ -128,24 +116,31 @@ func (c *Stream) Name() string {
 	return "mino"
 }
 
+func (s *Stream) ReadSize() int {
+	return 1
+}
+
+func (s *Stream) Test(buf []byte, cfg *config.Config) bool {
+	if buf[0] != Version2 {
+		return false
+	}
+	return true
+}
+
 // 创建 mino2 接收器
-func (c *Stream) Server(conn net.Conn, config *config.Config) stream.Server {
+func (c *Stream) Server(conn net.Conn, config *config.Config) stream.ServerConn {
 	return &Server{
 		Conn: conn,
 	}
 }
 
 // 创建 mino2 请求器
-func (c *Stream) Client(conn net.Conn, config *config.Config) stream.Client {
+func (c *Stream) Client(conn net.Conn, config *config.Config) stream.ClientConn {
 	return &Client{
 		Conn:     conn,
 		Username: config.Username,
 		Password: config.Password,
 	}
-}
-
-func (c *Stream) Checker(config *config.Config) stream.Checker {
-	return &Checker{}
 }
 
 func init() {

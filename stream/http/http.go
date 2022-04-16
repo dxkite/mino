@@ -3,7 +3,7 @@ package http
 import (
 	"bufio"
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/rewind"
+	"dxkite.cn/mino/identifier"
 	"dxkite.cn/mino/stream"
 	"encoding/base64"
 	"errors"
@@ -28,29 +28,31 @@ var Methods = []string{
 	"TR", //TRACE
 }
 
-type Server struct {
+type ServerConn struct {
 	net.Conn
-	r       rewind.Reader
-	req     *http.Request
-	rwdSize int
+	req       *http.Request
+	isConnect bool
 }
 
 // 握手
-func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
-	r := rewind.NewRewindReaderSize(conn.Conn, conn.rwdSize)
-	req, er := http.ReadRequest(bufio.NewReader(r))
+func (conn *ServerConn) Handshake(auth stream.BasicAuthFunc) (err error) {
+	// CONNECT
+	buf := identifier.NewReadBuffer(conn)
+	req, er := http.ReadRequest(bufio.NewReader(buf))
 	if er != nil {
 		err = er
 		return
 	}
-	conn.req = req
+
+	conn.isConnect = req.Method == http.MethodConnect
+
 	if req.Method != http.MethodConnect {
-		conn.r = r
-		// 不是CONNECT读完要重置
-		if er := r.Rewind(); er != nil {
-			return er
-		}
+		bytes := buf.Bytes()
+		conn.Conn = identifier.NewBufferedConn(bytes, len(bytes), conn.Conn)
 	}
+
+	conn.req = req
+
 	username, password, _ := ParseProxyAuth(req)
 	if auth != nil {
 		if auth(&stream.AuthInfo{
@@ -66,7 +68,7 @@ func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 }
 
 // 获取链接信息
-func (conn *Server) Target() (network, address string, err error) {
+func (conn *ServerConn) Target() (network, address string, err error) {
 	req := conn.req
 	hostFrom := []string{req.URL.Host, req.Host}
 	for _, host := range hostFrom {
@@ -83,53 +85,37 @@ func (conn *Server) Target() (network, address string, err error) {
 }
 
 // 获取用户名
-func (conn *Server) User() string {
+func (conn *ServerConn) User() string {
 	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	return ip
 }
 
-// 读取流
-func (conn *Server) Read(p []byte) (n int, err error) {
-	if conn.r != nil {
-		return conn.r.Read(p)
-	}
-	return conn.Conn.Read(p)
-}
-
-// 重置连接
-func (conn *Server) Rewind() error {
-	if conn.r != nil {
-		return conn.r.Rewind()
-	}
-	return nil
-}
-
 // 发送错误
-func (conn *Server) SendError(err error) error {
+func (conn *ServerConn) SendError(err error) error {
 	_, we := conn.Write([]byte(fmt.Sprintf("HTTP/1.1 406 Not Acceptable\r\nContent-Length: %d\r\n\r\n%s", len(err.Error()), err.Error())))
 	return we
 }
 
 // 发送连接成功
-func (conn *Server) SendSuccess() error {
-	if conn.r != nil {
-		return nil
+func (conn *ServerConn) SendSuccess() error {
+	if conn.isConnect {
+		_, we := conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
+		return we
 	}
-	_, we := conn.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n"))
-	return we
+	return nil
 }
 
-type Client struct {
+type ClientConn struct {
 	net.Conn
 	Username string
 	Password string
 }
 
-func (c *Client) Handshake() (err error) {
+func (c *ClientConn) Handshake() (err error) {
 	return
 }
 
-func (c *Client) Connect(network, address string) (err error) {
+func (c *ClientConn) Connect(network, address string) (err error) {
 	if _, er := c.Write(createConnectRequest(address, c.Username, c.Password)); er != nil {
 		return er
 	}
@@ -145,26 +131,6 @@ func (c *Client) Connect(network, address string) (err error) {
 		}
 	}
 	return
-}
-
-type Checker struct {
-}
-
-// 判断是否为HTTP协议
-func (c *Checker) Check(r io.Reader) (bool, error) {
-	// 读两个字节
-	buf := make([]byte, 2)
-	if n, err := r.Read(buf); err != nil {
-		return false, err
-	} else if n != 2 {
-		return false, nil
-	}
-	for i := range Methods {
-		if string(buf) == Methods[i] {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // 格式化域名
@@ -232,25 +198,33 @@ func (c *Stream) Name() string {
 	return "http"
 }
 
+func (s *Stream) ReadSize() int {
+	return 2
+}
+
+func (s *Stream) Test(buf []byte, cfg *config.Config) bool {
+	for i := range Methods {
+		if string(buf[:2]) == Methods[i] {
+			return true
+		}
+	}
+	return false
+}
+
 // 创建HTTP接收器
-func (c *Stream) Server(conn net.Conn, config *config.Config) stream.Server {
-	return &Server{
-		Conn:    conn,
-		rwdSize: config.HttpMaxRewindSize,
+func (c *Stream) Server(conn net.Conn, config *config.Config) stream.ServerConn {
+	return &ServerConn{
+		Conn: conn,
 	}
 }
 
 // 创建HTTP请求器
-func (c *Stream) Client(conn net.Conn, config *config.Config) stream.Client {
-	return &Client{
+func (c *Stream) Client(conn net.Conn, config *config.Config) stream.ClientConn {
+	return &ClientConn{
 		Conn:     conn,
 		Username: config.Username,
 		Password: config.Password,
 	}
-}
-
-func (c *Stream) Checker(config *config.Config) stream.Checker {
-	return &Checker{}
 }
 
 func init() {

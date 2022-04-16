@@ -1,11 +1,8 @@
-package xor
+package xxor
 
 import (
-	"dxkite.cn/log"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/encoder"
-	"encoding/hex"
-	"io"
 	"net"
 )
 
@@ -16,28 +13,21 @@ func (stm *ExtendXorEncoder) Name() string {
 	return "xxor"
 }
 
-// 判断编码类型
-func (stm *ExtendXorEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, error) {
+func (s *ExtendXorEncoder) ReadSize() int {
+	return headerSize * 2
+}
+
+func (s *ExtendXorEncoder) Test(buf []byte, cfg *config.Config) bool {
 	key := []byte(cfg.MinoEncoderKey)
-	rdm := make([]byte, headerSize)
-
-	// 一次无法完全读取则不是一个正常的
-	if n, err := conn.Read(rdm); err != nil {
-		return false, err
-	} else if n != headerSize {
-		return false, nil
+	//fmt.Println("test data", hex.EncodeToString(buf[:headerSize*2]))
+	//fmt.Println("detect", hex.EncodeToString(key))
+	key = xor(key, buf[0:headerSize])
+	//fmt.Println("headKey", hex.EncodeToString(key))
+	head := xor(buf[headerSize:headerSize*2], key)
+	if string(head[:4]) != "XXOR" {
+		return false
 	}
-
-	key = xor(key, rdm)
-	log.Debug("Detect", "random", hex.EncodeToString(rdm), "key", hex.EncodeToString(key))
-	if _, err := io.ReadFull(conn, rdm); err != nil {
-		return false, err
-	}
-	rdm = xor(key, rdm)
-	if string(rdm[:4]) != "MINO" {
-		return false, nil
-	}
-	return true, nil
+	return true
 }
 
 // 创建客户端

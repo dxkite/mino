@@ -5,18 +5,15 @@ import (
 	"dxkite.cn/mino/dummy"
 	"dxkite.cn/mino/encoder"
 	"dxkite.cn/mino/util"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/rewind"
 	"dxkite.cn/mino/stream"
 )
 
@@ -27,7 +24,6 @@ type Transporter struct {
 	group        *SessionGroup
 	eventHandler GroupHandler
 
-	check       map[string]stream.Checker
 	enableProto map[string]struct{}
 
 	Config   *config.Config
@@ -53,7 +49,7 @@ type Transporter struct {
 func New(config *config.Config) (t *Transporter) {
 	t = &Transporter{
 		Config:       config,
-		check:        map[string]stream.Checker{},
+		sts:          stream.DefaultManager,
 		enableProto:  map[string]struct{}{},
 		httpConn:     make(chan net.Conn),
 		group:        NewSessionGroup(),
@@ -66,8 +62,6 @@ func New(config *config.Config) (t *Transporter) {
 }
 
 func (t *Transporter) Init() error {
-	// 初始化checker
-	t.initChecker()
 	// 初始化协议
 	ts := strings.Split(t.Config.Input, ",")
 	for _, v := range ts {
@@ -142,34 +136,13 @@ func (t *Transporter) NetListener() net.Listener {
 	return &httpListener{t: t}
 }
 
-func (t *Transporter) initChecker() {
-	if t.sts == nil {
-		t.sts = stream.DefaultManager
+func (t *Transporter) Detect(conn net.Conn) (net.Conn, stream.Stream, error) {
+	buf, stm, err := t.sts.Detect(conn, t.Config)
+	if err != nil {
+		msg := fmt.Sprint("detect proto error", err)
+		return buf, nil, errors.New(msg)
 	}
-	for name := range t.sts.Proto {
-		t.check[name] = t.sts.Proto[name].Checker(t.Config)
-	}
-}
-
-func (t *Transporter) Detect(conn rewind.Conn) (proto stream.Stream, err error) {
-	for name := range t.check {
-		// 重置流位置
-		if err = conn.Rewind(); err != nil {
-			return nil, err
-		}
-		ok, er := t.check[name].Check(conn)
-		// 重置流位置
-		if err = conn.Rewind(); err != nil {
-			return nil, err
-		}
-		if er != nil {
-			return nil, er
-		}
-		if ok {
-			return t.sts.Proto[name], nil
-		}
-	}
-	return nil, errors.New("unknown protocol")
+	return buf, stm, nil
 }
 
 func (t *Transporter) IsEnableProtocol(name string) bool {
@@ -178,40 +151,51 @@ func (t *Transporter) IsEnableProtocol(name string) bool {
 }
 
 // 解包连接
-func (t *Transporter) decodeConn(conn net.Conn) (string, rewind.Conn, error) {
-	size := t.Config.MaxStreamRewind
-	rw := rewind.NewRewindConn(conn, size)
-	var name string
-	if stm, err := encoder.Detect(rw, t.Config); err != nil {
-		msg := fmt.Sprintf("identify encoder type error: %s hex=%s text=%s from=%s", err, hex.EncodeToString(rw.Cached()), strconv.Quote(string(rw.Cached())), rw.RemoteAddr())
+func (t *Transporter) decodeConn(conn net.Conn) (string, net.Conn, error) {
+	buf, stm, err := encoder.Detect(conn, t.Config)
+
+	// 协议解析失败
+	if err != nil {
+		msg := fmt.Sprint("identify encoder error:", err)
 		return "", nil, errors.New(msg)
-	} else if stm != nil {
-		name = stm.Name()
-		if svr, err := stm.Server(rw, t.Config); err != nil {
+	}
+
+	// 协议解析成功
+	if stm != nil {
+		name := stm.Name()
+		if svr, err := stm.Server(buf, t.Config); err != nil {
 			msg := fmt.Sprintf("unwrap error: %v", err)
 			return name, nil, errors.New(msg)
 		} else {
-			rw = rewind.NewRewindConn(svr, size)
+			return name, svr, nil
 		}
 	}
-	return name, rw, nil
+
+	return "", buf, nil
 }
 
 // 创建流
-func (t *Transporter) handleConn(conn rewind.Conn) (string, stream.Server, error) {
-	p, err := t.Detect(conn)
+func (t *Transporter) handleConn(conn net.Conn) (string, stream.ServerConn, error) {
+	buf, p, err := t.Detect(conn)
 	if err != nil {
-		msg := fmt.Sprintf("stream type error: %s hex=%s text=%s from=%s", err, hex.EncodeToString(conn.Cached()), strconv.Quote(string(conn.Cached())), conn.RemoteAddr())
+		msg := fmt.Sprint("stream type error: ", err, " remote=", conn.RemoteAddr())
 		return "", nil, errors.New(msg)
 	}
+
+	if p == nil {
+		return "", nil, errors.New("unknown protocol")
+	}
+
 	if !t.IsEnableProtocol(p.Name()) {
 		log.Warn("protocol is disabled", p.Name())
 		return p.Name(), nil, errors.New(fmt.Sprintf("stream %s is disabled", p.Name()))
 	}
-	svr := p.Server(conn, t.Config)
+
+	svr := p.Server(buf, t.Config)
 	if err := svr.Handshake(t.AuthFunc); err != nil {
-		return p.Name(), nil, errors.New(fmt.Sprintf("handshake error"))
+		return p.Name(), nil, errors.New(fmt.Sprint("handshake error", err))
 	}
+
 	return p.Name(), svr, nil
 }
 
@@ -225,7 +209,7 @@ func (t *Transporter) handleError(conn net.Conn, err error) {
 	}
 }
 
-func (t *Transporter) transport(svr stream.Server, network, address, route string) {
+func (t *Transporter) transport(svr stream.ServerConn, network, address, route string) {
 	_ = svr.SendSuccess()
 	rmt, mode, rmtErr := t.dial(network, address)
 	via := mode
@@ -251,14 +235,13 @@ func (t *Transporter) transport(svr stream.Server, network, address, route strin
 
 // 启用服务
 func (t *Transporter) serve(c net.Conn) {
-	var conn rewind.Conn
-	var svr stream.Server
+	var svr stream.ServerConn
 	var err error
 	var enc string
 	var stm string
 	name := []string{}
 
-	if enc, conn, err = t.decodeConn(c); err != nil {
+	if enc, c, err = t.decodeConn(c); err != nil {
 		log.Error(fmt.Sprintf("decode conn error %s enc=%s", err, enc))
 		_ = c.Close()
 		return
@@ -268,9 +251,9 @@ func (t *Transporter) serve(c net.Conn) {
 		}
 	}
 
-	if stm, svr, err = t.handleConn(conn); err != nil {
+	if stm, svr, err = t.handleConn(c); err != nil {
 		log.Error("create conn", stm, err)
-		_ = conn.Close()
+		_ = c.Close()
 		return
 	} else {
 		if len(stm) > 0 {

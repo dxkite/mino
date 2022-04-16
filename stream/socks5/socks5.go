@@ -447,19 +447,6 @@ func (conn *Client) conn(network, address string) error {
 	return nil
 }
 
-type Checker struct {
-}
-
-// 判断是否为socks5协议
-func (c *Checker) Check(r io.Reader) (bool, error) {
-	buf := make([]byte, 1)
-	n, err := io.ReadFull(r, buf)
-	if err != nil {
-		return false, err
-	}
-	return n == 1 && buf[0] == Version5, nil
-}
-
 type Stream struct {
 }
 
@@ -467,24 +454,35 @@ func (c *Stream) Name() string {
 	return "socks5"
 }
 
+func (s *Stream) ReadSize() int {
+	return 3
+}
+
+func (s *Stream) Test(buf []byte, cfg *config.Config) bool {
+	if buf[0] != Version5 && buf[2] != 0 {
+		return false
+	}
+	switch buf[1] {
+	case 0x01, 0x02, 0x03:
+		return true
+	}
+	return false
+}
+
 // 创建Socks5服务器
-func (c *Stream) Server(conn net.Conn, config *config.Config) stream.Server {
+func (c *Stream) Server(conn net.Conn, config *config.Config) stream.ServerConn {
 	return &Server{
 		Conn: conn,
 	}
 }
 
 // 创建Socks5客户端
-func (c *Stream) Client(conn net.Conn, config *config.Config) stream.Client {
+func (c *Stream) Client(conn net.Conn, config *config.Config) stream.ClientConn {
 	return &Client{
 		Conn:     conn,
 		Username: config.Username,
 		Password: config.Password,
 	}
-}
-
-func (c *Stream) Checker(config *config.Config) stream.Checker {
-	return &Checker{}
 }
 
 func init() {

@@ -15,28 +15,18 @@ func (stm *xorStreamEncoder) Name() string {
 	return "xor"
 }
 
-// 判断编码类型
-func (stm *xorStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, error) {
-	// ABCCCC
-	// A = 'X'
-	// B = version
-	// CCCC = xor code
+func (s *xorStreamEncoder) ReadSize() int {
+	return 2
+}
 
-	// 读2个字节
-	buf := make([]byte, 2)
-	if n, err := conn.Read(buf); err != nil {
-		return false, err
-	} else if n != 2 {
-		return false, nil
-	}
-
+func (s *xorStreamEncoder) Test(buf []byte, cfg *config.Config) bool {
 	if buf[0] != 'X' {
-		return false, nil
+		return false
 	}
 	if buf[1] != Version1 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 // 创建客户端

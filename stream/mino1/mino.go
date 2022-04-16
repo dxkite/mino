@@ -157,24 +157,31 @@ func (c *Stream) Name() string {
 	return "mino1"
 }
 
+func (s *Stream) ReadSize() int {
+	return 2
+}
+
+func (s *Stream) Test(buf []byte, cfg *config.Config) bool {
+	if buf[0] != Version1 && buf[1] != byte(msgRequest) {
+		return false
+	}
+	return true
+}
+
 // 创建HTTP接收器
-func (c *Stream) Server(conn net.Conn, config *config.Config) stream.Server {
+func (c *Stream) Server(conn net.Conn, config *config.Config) stream.ServerConn {
 	return &Server{
 		Conn: conn,
 	}
 }
 
 // 创建mino1请求器
-func (c *Stream) Client(conn net.Conn, config *config.Config) stream.Client {
+func (c *Stream) Client(conn net.Conn, config *config.Config) stream.ClientConn {
 	return &Client{
 		Conn:     conn,
 		Username: config.Username,
 		Password: config.Password,
 	}
-}
-
-func (c *Stream) Checker(config *config.Config) stream.Checker {
-	return &Checker{}
 }
 
 // 写入包

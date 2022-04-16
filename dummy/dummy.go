@@ -5,11 +5,10 @@ import (
 	"bytes"
 	"crypto/tls"
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/rewind"
+	"dxkite.cn/mino/identifier"
 	"dxkite.cn/mino/util"
 	"encoding/pem"
 	"errors"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
@@ -105,36 +104,36 @@ func (s *DummyServer) handleHttps(conn net.Conn, handler http.Handler) error {
 const TlsRecordTypeHandshake uint8 = 22
 
 // 判断编码类型
-func detect(conn io.Reader) (bool, error) {
+func detect(buf []byte) bool {
 	// 读3个字节
-	buf := make([]byte, 3)
-	if _, err := io.ReadFull(conn, buf); err != nil {
-		return false, err
-	}
 	if buf[0] != TlsRecordTypeHandshake {
-		return false, nil
+		return false
 	}
 	// 0300~0305
 	if buf[1] != 0x03 {
-		return false, nil
+		return false
 	}
 	if buf[2] > 0x05 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
 
 func (s *DummyServer) Handle(conn net.Conn, handler http.Handler) error {
-	rw := rewind.NewRewindConn(conn, 8)
-	ok, err := detect(rw)
-	if rwe := rw.Rewind(); rwe != nil {
+	buf := make([]byte, 3)
+	if n, err := conn.Read(buf); err != nil {
 		return err
+	} else if n != 3 {
+		return errors.New("bad http https connection")
 	}
-	if err != nil {
-		return err
-	}
+
+	bufConn := identifier.NewBufferedConn(buf, 3, conn)
+
+	ok := detect(buf)
+
 	if ok {
-		return s.handleHttps(rw, handler)
+		return s.handleHttps(bufConn, handler)
 	}
-	return s.handleHttp(rw, handler)
+
+	return s.handleHttp(bufConn, handler)
 }

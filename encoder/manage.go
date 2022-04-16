@@ -2,24 +2,28 @@ package encoder
 
 import (
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/rewind"
+	"dxkite.cn/mino/identifier"
+	"net"
 )
 
 type Manage struct {
 	// 流
 	stm map[string]StreamEncoder
+	idt *identifier.Identifier
 }
 
 // 创建新管理器
 func NewManage() *Manage {
 	return &Manage{
 		stm: map[string]StreamEncoder{},
+		idt: identifier.NewIdentifier(),
 	}
 }
 
 // 添加传输协议
 func (m *Manage) Reg(stream StreamEncoder) {
 	m.stm[stream.Name()] = stream
+	m.idt.Register(stream)
 }
 
 // 获取传输协议
@@ -29,26 +33,14 @@ func (m *Manage) Get(name string) (stream StreamEncoder, ok bool) {
 }
 
 // 获取传输协议
-func (m *Manage) Detect(conn rewind.Conn, config *config.Config) (stream StreamEncoder, err error) {
-	for name := range m.stm {
-		// 重置流位置
-		if err = conn.Rewind(); err != nil {
-			return nil, err
-		}
-		// 检测流结果
-		ok, er := m.stm[name].Detect(conn, config)
-		// 重置流位置
-		if err = conn.Rewind(); err != nil {
-			return nil, err
-		}
-		if er != nil {
-			return nil, er
-		}
-		if ok {
-			return m.stm[name], nil
-		}
+func (m *Manage) Detect(conn net.Conn, config *config.Config) (net.Conn, StreamEncoder, error) {
+	if name, buf, err := m.idt.Test(conn, config); err == nil {
+		return buf, m.stm[name], nil
+	} else if err == identifier.ErrUnknownProtocol {
+		return buf, nil, nil
+	} else {
+		return nil, nil, err
 	}
-	return nil, nil
 }
 
 var DefaultManage *Manage
@@ -68,6 +60,6 @@ func Get(name string) (stream StreamEncoder, ok bool) {
 }
 
 // 获取传输协议
-func Detect(conn rewind.Conn, config *config.Config) (stream StreamEncoder, err error) {
+func Detect(conn net.Conn, config *config.Config) (net.Conn, StreamEncoder, error) {
 	return DefaultManage.Detect(conn, config)
 }

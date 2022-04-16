@@ -1,12 +1,12 @@
-package xor
+package xxor
 
 import (
-	"crypto/rand"
+	"encoding/hex"
 	"errors"
-	"io"
-	rand2 "math/rand"
+	"fmt"
 	"net"
 	"sync/atomic"
+	"time"
 )
 
 type Conn struct {
@@ -21,8 +21,6 @@ type Conn struct {
 
 const headerSize = 8
 const randomMaxSize = 0xff
-const version = 1
-const encoderXor = 1
 
 // 写包装
 func (c *Conn) Read(b []byte) (n int, err error) {
@@ -53,6 +51,7 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 		j++
 	}
 	n, err = c.Conn.Write(b)
+	fmt.Println("Write", "want write", len(b), "real write", n)
 	if err != nil {
 		return 0, err
 	}
@@ -69,25 +68,16 @@ func xor(buf, key []byte) []byte {
 }
 
 // 读包装
-func (c *Conn) doHandshakeClient() (err error) {
-	paddingSize := rand2.Intn(randomMaxSize)
-	rdm := make([]byte, headerSize)
-	if _, err := io.ReadFull(rand.Reader, rdm); err != nil {
+func (c *Conn) doHandshakeClient() error {
+	msg := defaultXxor()
+	fmt.Println("[doHandshakeClient] client base key", hex.EncodeToString(c.key))
+	buf, sessionKey, err := msg.Encoding(c.key)
+	fmt.Println("[doHandshakeClient] sessionKey", hex.EncodeToString(sessionKey))
+	if err != nil {
 		return err
 	}
-	c.key = xor(c.key, rdm)
-	//log.Debug("random", hex.EncodeToString(rdm), "key", hex.EncodeToString(c.key))
-	// rdm + header + padding
-	header := []byte{'M', 'I', 'N', 'O', byte(version), byte(paddingSize), byte(encoderXor), 0}
-	//log.Debug("header", string(header), "padding size", int(header[5]))
-	header = xor(header, c.key)
-	buf := append(rdm, header...)
-	padding := make([]byte, paddingSize)
-	if _, err := io.ReadFull(rand.Reader, padding); err != nil {
-		return err
-	}
-	buf = append(buf, padding...)
-	c.key = xor(c.key, padding)
+	c.key = sessionKey
+	c.keyLen = int64(len(sessionKey))
 	if n, err := c.Conn.Write(buf); n != len(buf) {
 		return errors.New("mino encoder: header write short")
 	} else if err == nil {
@@ -95,32 +85,33 @@ func (c *Conn) doHandshakeClient() (err error) {
 	} else {
 		return err
 	}
-	return
+	return nil
 }
 
 // 读包装
-func (c *Conn) doHandshakeServer() (err error) {
-	rdm := make([]byte, headerSize)
-	if _, err := io.ReadFull(c.Conn, rdm); err != nil {
+func (c *Conn) doHandshakeServer() error {
+	msg := defaultXxor()
+	fmt.Println("[doHandshakeServer] server base key", hex.EncodeToString(c.key))
+	sessionKey, err := msg.Decoding(c.Conn, c.key)
+	fmt.Println("[doHandshakeServer] sessionKey", hex.EncodeToString(sessionKey))
+
+	if err != nil {
 		return err
 	}
-	c.key = xor(c.key, rdm)
-	//log.Debug("random", hex.EncodeToString(rdm), "key", hex.EncodeToString(c.key))
-	if _, err := io.ReadFull(c.Conn, rdm); err != nil {
-		return err
-	}
-	rdm = xor(rdm, c.key)
-	//log.Debug("header", string(rdm), "padding size", int(rdm[5]))
-	if string(rdm[:4]) != "MINO" {
-		return errors.New("mino encoder: unknown magic")
-	}
-	paddingSize := int(rdm[5])
-	padding := make([]byte, paddingSize)
-	if _, err := io.ReadFull(c.Conn, padding); err != nil {
-		return err
-	}
-	c.key = xor(c.key, padding)
+
+	c.key = sessionKey
+	c.keyLen = int64(len(sessionKey))
+
 	atomic.StoreUint32(&c.handshakeStatus, 1)
+
+	// 短时间内不允许出现同样的key
+	if XorTtlSession.Has(string(sessionKey)) {
+		return errors.New("repeat session key")
+	}
+
+	if msg.Timestamp+LiveTime < time.Now().Unix() {
+		return errors.New("message timeout")
+	}
 	return nil
 }
 

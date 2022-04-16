@@ -17,30 +17,25 @@ func (stm *tlsStreamEncoder) Name() string {
 	return "tls"
 }
 
-const TlsRecordTypeHandshake uint8 = 22
+func (s *tlsStreamEncoder) ReadSize() int {
+	return 3
+}
 
-// 判断编码类型
-func (stm *tlsStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, error) {
-	// 读3个字节
-	buf := make([]byte, 3)
-	if n, err := conn.Read(buf); err != nil {
-		return false, err
-	} else if n != 3 {
-		return false, nil
-	}
-
+func (s *tlsStreamEncoder) Test(buf []byte, cfg *config.Config) bool {
 	if buf[0] != TlsRecordTypeHandshake {
-		return false, nil
+		return false
 	}
 	// 0300~0305
 	if buf[1] != 0x03 {
-		return false, nil
+		return false
 	}
 	if buf[2] > 0x05 {
-		return false, nil
+		return false
 	}
-	return true, nil
+	return true
 }
+
+const TlsRecordTypeHandshake uint8 = 22
 
 // 创建客户端
 func (stm *tlsStreamEncoder) Client(conn net.Conn, cfg *config.Config) (net.Conn, error) {
