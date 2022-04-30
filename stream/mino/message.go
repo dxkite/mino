@@ -8,11 +8,17 @@ import (
 	"strconv"
 )
 
+const (
+	ActionDial   = 0
+	ActionListen = 1
+)
+
 type RequestMessage struct {
-	Network  string
-	Address  string
-	Username string
-	Password string
+	Network    string
+	Address    string
+	Username   string
+	Password   string
+	ActionType int
 }
 
 // 编码
@@ -28,17 +34,24 @@ func (m *RequestMessage) Marshal() ([]byte, error) {
 		return nil, err
 	}
 	// PackageInfo(b2)
-	//	AddrType 3 bit
-	//		- 000 IPv4
-	//		- 001 IPv6
-	//		- 010 HostName
+	//	ActionType 1 bit
+	//		- 0 Dial
+	//		- 1 Listen
+	//	AddrType 2 bit
+	//		- 00 IPv4
+	//		- 01 IPv6
+	//		- 10 HostName
 	//	ProtoType 1 bit
 	//      - 0 TCP
 	//		- 1 UDP
-	//	AuthType
-	//		- 0000 No Auth
-	//		- 0001 Password
+	//	Reserve 3 bit
+	//	AuthType 1 bit
+	//		- 0 No Auth
+	//		- 1 Password
 	var b2 uint8 = 0
+	if m.ActionType == ActionListen {
+		b2 |= 1 << 7
+	}
 	if len(m.Username) > 0 {
 		b2 |= 1
 	}
@@ -108,6 +121,11 @@ func (m *RequestMessage) unmarshal(r io.Reader) error {
 		ip = false
 		hl = int(buf[0])
 	}
+
+	if b1&(1<<7) > 0 {
+		m.ActionType = 1
+	}
+
 	if _, err := io.ReadFull(r, buf[:hl]); err != nil {
 		return err
 	}

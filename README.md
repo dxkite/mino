@@ -8,6 +8,9 @@
 - [x] 代理访问
     - [x] HTTP
     - [x] Socks5
+        - [x] CONNECT
+        - [ ] BIND
+        - [ ] UDP
 - [x] 自动PAC设置
 - [x] Web服务
 - [x] 开机自启
