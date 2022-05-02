@@ -100,7 +100,12 @@ func initMonkey(cfg *config.Config) {
 		cmd := []string{
 			util.QuotePathString(os.Args[0]),
 		}
-		cmd = append(cmd, fmt.Sprintf("-json %s", strconv.Quote(cfg.ToJson())))
+		if len(cfg.ConfFile) > 0 {
+			cf := util.GetRelativePath(cfg.ConfFile)
+			cmd = append(cmd, fmt.Sprintf("-conf %s", strconv.Quote(cf)))
+		} else {
+			cmd = append(cmd, fmt.Sprintf("-json %s", strconv.Quote(cfg.ToJson())))
+		}
 		go monkey.AutoStart(strings.Join(cmd, " "))
 	}
 
@@ -256,7 +261,7 @@ func main() {
 	go func() { log.Println(svr.Serve(os.Args)) }()
 	go func() { t.RemoteHolder.Update() }()
 
-	if err := notification.NotificationLaunch("Mino Agent", "Mino启动成功", fmt.Sprintf("当前版本 %s-%s", mino.Version, mino.Commit), "http://"+util.FmtHost(cfg.Address)+"/"); err != nil {
+	if err := notification.NotificationLaunch("Mino Agent", "Mino启动成功", fmt.Sprintf("当前版本：%s", mino.Version), "http://"+util.FmtHost(cfg.Address)+"/"); err != nil {
 		log.Println("notification error", err)
 	}
 
