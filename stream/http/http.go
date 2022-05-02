@@ -5,6 +5,7 @@ import (
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/identifier"
 	"dxkite.cn/mino/stream"
+	"dxkite.cn/mino/util"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -30,8 +31,11 @@ var Methods = []string{
 
 type ServerConn struct {
 	net.Conn
-	req       *http.Request
-	isConnect bool
+	req           *http.Request
+	isConnect     bool
+	cfg           *config.Config
+	TargetAddress string
+	RequestSelf   bool
 }
 
 // 握手
@@ -51,10 +55,19 @@ func (conn *ServerConn) Handshake(auth stream.BasicAuthFunc) (err error) {
 		conn.Conn = identifier.NewBufferedConn(bytes, len(bytes), conn.Conn)
 	}
 
+	hostFrom := []string{req.URL.Host, req.Host}
+	for _, host := range hostFrom {
+		if len(host) > 0 {
+			conn.TargetAddress = fmtHost(req.URL.Scheme, host)
+			conn.RequestSelf = util.IsRequestSelf(conn.cfg.Address, conn.TargetAddress)
+			break
+		}
+	}
+
 	conn.req = req
 
 	username, password, _ := ParseProxyAuth(req)
-	if auth != nil {
+	if auth != nil && conn.RequestSelf == false {
 		if auth(&stream.AuthInfo{
 			Username:   username,
 			Password:   password,
@@ -70,18 +83,10 @@ func (conn *ServerConn) Handshake(auth stream.BasicAuthFunc) (err error) {
 
 // 获取链接信息
 func (conn *ServerConn) Target() (network, address string, err error) {
-	req := conn.req
-	hostFrom := []string{req.URL.Host, req.Host}
-	for _, host := range hostFrom {
-		if len(host) > 0 {
-			address = host
-			break
-		}
-	}
+	address = conn.TargetAddress
 	if len(address) == 0 {
 		return "", "", errors.New("missing target address")
 	}
-	address = fmtHost(conn.req.URL.Scheme, address)
 	return "tcp", address, nil
 }
 
@@ -216,6 +221,7 @@ func (s *Stream) Test(buf []byte, cfg *config.Config) bool {
 func (c *Stream) Server(conn net.Conn, config *config.Config) stream.ServerConn {
 	return &ServerConn{
 		Conn: conn,
+		cfg:  config,
 	}
 }
 

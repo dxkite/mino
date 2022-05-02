@@ -4,6 +4,7 @@ import (
 	"dxkite.cn/log"
 	"dxkite.cn/mino/dummy"
 	"dxkite.cn/mino/encoder"
+	"dxkite.cn/mino/stream/http"
 	"dxkite.cn/mino/util"
 	"errors"
 	"fmt"
@@ -270,7 +271,12 @@ func (t *Transporter) serve(c net.Conn) {
 		return
 	} else {
 		// 请求本机
-		if util.IsRequestSelf(t.listen.Addr().String(), address) {
+		if c, ok := svr.(*http.ServerConn); ok {
+			if c.RequestSelf {
+				t.handleWeb(svr)
+				return
+			}
+		} else if util.IsRequestSelf(t.Config.Address, address) {
 			t.handleWeb(svr)
 			return
 		}
