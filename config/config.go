@@ -6,14 +6,10 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v3"
-	"io/ioutil"
-	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
-	"sync"
-	"time"
 )
 
 type ConfigChangeCallback func(config *Config)
@@ -53,7 +49,7 @@ type Config struct {
 	// 自动更新
 	AutoUpdate bool `yaml:"auto_update" json:"auto_update"`
 	// 日志文件
-	LogFile string `yaml:"log_file" json:"log_file" path:"v-path"`
+	LogFile string `yaml:"log_file" json:"log_file" flag:"log" path:"v-path"`
 	// 日志开启
 	LogEnable bool `yaml:"log_enable" json:"log_enable"`
 	// 日志等级
@@ -62,10 +58,7 @@ type Config struct {
 	LogCaller bool `yaml:"log_caller" json:"log_caller"`
 	// 异步日志
 	LogAsync bool `yaml:"log_async" json:"log_async"`
-	// 配置文件路径
-	ConfFile string `yaml:"-" json:"-" path:"path" flag:"conf"`
-	// 配置JSON
-	ConfJson string `yaml:"-" json:"-" flag:"json"`
+
 	// 更新检擦地址
 	UpdateUrl string `yaml:"update_url" json:"update_url"`
 	// 作为更新服务器使用，指明最后版本
@@ -105,17 +98,18 @@ type Config struct {
 	TestRetryInterval int    `yaml:"test_retry_interval" json:"test_retry_interval" title:"测试间隔" desc:"服务不可用情况下多久重试一次，单位毫秒"`
 	TestTimeout       int    `yaml:"test_timeout" json:"test_timeout" title:"测试超时" desc:"服务不可用情况下多久重试一次，单位毫秒"`
 
+	// 配置文件夹
+	ConfDir string `yaml:"-" json:"-"`
 	// 配置路径
-	ConfPath string `yaml:"-" json:"-"`
-	// 更新时间
-	modifyTime time.Time
-	mtx        sync.Mutex
-	changCb    []ConfigChangeCallback
+	ConfFile string `yaml:"-" json:"-" flag:"conf"`
+	// 配置JSON
+	ConfJson string `yaml:"-" json:"-" flag:"json"`
+
+	w *Watcher `yaml:"-" json:"-"`
 }
 
 func (cfg *Config) InitDefault() {
 	cfg.Address = ":1080"
-	cfg.ConfFile = ""
 	cfg.PacFile = "mino.pac"
 	cfg.HostConf = "hostconf.txt"
 	cfg.PidFile = util.ConcatPath(util.GetBinaryPath(), "mino.pid")
@@ -152,49 +146,24 @@ func (cfg *Config) InitDefault() {
 	cfg.UpstreamToDirect = true
 	// 自动检测环回地址
 	cfg.HostDetectLoopback = true
-	cfg.modifyTime = time.Unix(0, 0)
 }
 
-func (cfg *Config) LoadIfModify(p string) (bool, error) {
-	update := true
-	if info, err := os.Stat(p); err != nil {
-		return false, err
-	} else {
-		update = info.ModTime().After(cfg.modifyTime)
-	}
-
-	if !update {
-		return false, nil
-	}
-	return true, cfg.Load(p)
+func (cfg *Config) Watch(src string) *Watcher {
+	cfg.w = NewWatcher(cfg, src)
+	src = util.GetRelativePath(src)
+	cfg.ConfDir = path.Dir(src)
+	cfg.ConfFile = src
+	log.Info("watching config", src)
+	return cfg.w
 }
 
-func (cfg *Config) OnChange(cb ConfigChangeCallback) {
-	if cfg.changCb == nil {
-		cfg.changCb = []ConfigChangeCallback{}
-	}
-	cfg.changCb = append(cfg.changCb, cb)
+func (cfg *Config) GetWatcher() *Watcher {
+	return cfg.w
 }
 
-func (cfg *Config) applyConfig() {
-	for _, cb := range cfg.changCb {
-		cb(cfg)
-	}
-}
-
-func (cfg *Config) NotifyModify() {
-	go cfg.applyConfig()
-}
-
-func (cfg *Config) HotLoadConfig() {
-	log.Info("enable hot load config", cfg.ConfFile)
-	ticker := time.NewTicker(time.Duration(cfg.HotLoad) * time.Second)
-	for range ticker.C {
-		if ok, err := cfg.LoadIfModify(cfg.ConfFile); err != nil {
-			log.Error("load config error", err)
-		} else if ok {
-			cfg.Dump()
-		}
+func (cfg *Config) Notify() {
+	if cfg.w != nil {
+		cfg.w.Notify(cfg)
 	}
 }
 
@@ -203,39 +172,12 @@ func (cfg *Config) Dump() {
 	log.Debug("current config:", string(b))
 }
 
-func (cfg *Config) Load(p string) error {
-	log.Info("loading config", p)
-	in, er := ioutil.ReadFile(p)
-	if er != nil {
-		return er
-	}
-	cfg.mtx.Lock()
-	defer cfg.mtx.Unlock()
-	if er := yaml.Unmarshal(in, cfg); er != nil {
-		return er
-	}
-	cfg.ConfFile = p
-	cfg.ConfPath = filepath.Dir(p)
-	cfg.modifyTime = time.Now()
-	// 通知应用配置
-	cfg.NotifyModify()
-	return nil
-}
-
-// 重新加载配置
-func (cfg *Config) Reload() error {
-	if len(cfg.ConfFile) > 0 {
-		return cfg.Load(cfg.ConfFile)
-	}
-	return nil
-}
-
 func GetPacFile(cfg *Config) string {
 	return GetConfigFile(cfg, cfg.PacFile)
 }
 
 func GetConfigFile(cfg *Config, name string) string {
-	paths := []string{cfg.ConfPath, util.GetRuntimePath(), util.GetBinaryPath()}
+	paths := []string{cfg.ConfDir, util.GetRuntimePath(), util.GetBinaryPath()}
 	return util.SearchPath(paths, name)
 }
 
@@ -244,38 +186,9 @@ func GetDataFile(cfg *Config, name string) string {
 	return util.SearchPath(paths, name)
 }
 
-func (cfg *Config) SetValueOrDefault(target interface{}, val, def interface{}) {
-	cfg.mtx.Lock()
-	defer cfg.mtx.Unlock()
-
-	value := reflect.ValueOf(val)
-	if reflect.ValueOf(val).IsZero() {
-		value = reflect.ValueOf(def)
-	}
-
-	if value.IsValid() && !value.IsZero() {
-		reflect.ValueOf(target).Elem().Set(value)
-		cfg.NotifyModify()
-	}
-}
-
-func (cfg *Config) SetValue(target interface{}, val interface{}) {
-	cfg.mtx.Lock()
-	defer cfg.mtx.Unlock()
-
-	value := reflect.ValueOf(val)
-
-	if value.IsValid() && !value.IsZero() {
-		reflect.ValueOf(target).Elem().Set(value)
-		cfg.NotifyModify()
-	}
-}
-
-func (cfg *Config) CopyObject(c *Config) {
-	cfg.mtx.Lock()
-	defer cfg.mtx.Unlock()
-	v := reflect.ValueOf(cfg)
-	from := reflect.ValueOf(c)
+func CopyObject(dest, src interface{}) {
+	v := reflect.ValueOf(dest)
+	from := reflect.ValueOf(src)
 	t := v.Elem().Type()
 
 	for i := 0; i < v.Elem().NumField(); i++ {
@@ -287,15 +200,11 @@ func (cfg *Config) CopyObject(c *Config) {
 		}
 		f.Set(from.Elem().Field(i))
 	}
-
-	cfg.NotifyModify()
 	return
 }
 
-func (cfg *Config) CopyFrom(from map[string]interface{}) (modify []string, err error) {
-	cfg.mtx.Lock()
-	defer cfg.mtx.Unlock()
-	v := reflect.ValueOf(cfg)
+func CopyObjectMap(dest interface{}, from map[string]interface{}) (modify []string, err error) {
+	v := reflect.ValueOf(dest)
 	t := v.Elem().Type()
 
 	for i := 0; i < v.Elem().NumField(); i++ {
@@ -309,7 +218,6 @@ func (cfg *Config) CopyFrom(from map[string]interface{}) (modify []string, err e
 		}
 
 		name := util.TagName(tag)
-
 		if name == "-" || len(name) == 0 {
 			continue
 		}
@@ -321,10 +229,6 @@ func (cfg *Config) CopyFrom(from map[string]interface{}) (modify []string, err e
 				modify = append(modify, name)
 			}
 		}
-	}
-
-	if len(modify) > 0 {
-		cfg.NotifyModify()
 	}
 	return
 }
@@ -354,7 +258,7 @@ func (p *pathValue) Set(val string) error {
 	case "bin-path":
 		*p.val = util.ConcatPath(util.GetBinaryPath(), val)
 	case "v-path":
-		*p.val = util.ConcatPath(p.cfg.ConfPath, val)
+		*p.val = util.ConcatPath(p.cfg.ConfDir, val)
 	default:
 		*p.val = util.GetRelativePath(val)
 	}
@@ -381,11 +285,14 @@ func CreateFlagSet(name string, cfg *Config) *flag.FlagSet {
 			util.TagName(tg.Get("json")),
 			util.TagName(tg.Get("yaml")),
 		}
+
 		for _, v := range names {
 			if v != "-" && len(v) > 0 {
 				name = v
+				break
 			}
 		}
+
 		if len(name) == 0 {
 			continue
 		}
@@ -423,7 +330,7 @@ func (cfg *Config) ToJson() string {
 func (cfg *Config) FromJson(j string) {
 	c := &Config{}
 	if err := json.Unmarshal([]byte(j), c); err == nil {
-		cfg.CopyObject(c)
+		cfg.w.Notify(c)
 	}
 }
 

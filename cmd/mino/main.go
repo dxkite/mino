@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
@@ -53,7 +54,7 @@ func applyLogConfig(ctx context.Context, cfg *config.Config) {
 	}
 
 	if len(cfg.LogFile) > 0 {
-		cfg.LogFile = util.ConcatPath(cfg.ConfPath, cfg.LogFile)
+		cfg.LogFile = util.ConcatPath(cfg.ConfDir, cfg.LogFile)
 		log.Println("log output file", cfg.LogFile)
 	}
 	filename := cfg.LogFile
@@ -61,7 +62,7 @@ func applyLogConfig(ctx context.Context, cfg *config.Config) {
 	if len(filename) == 0 {
 		return
 	}
-	pp := util.ConcatPath(cfg.ConfPath, filename)
+	pp := util.ConcatPath(cfg.ConfDir, filename)
 	if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModePerm); err != nil {
 		log.Warn("log file open error", pp)
 		return
@@ -128,9 +129,6 @@ func main() {
 
 	cfg := &config.Config{}
 	cfg.InitDefault()
-	cfg.OnChange(func(config *config.Config) {
-		applyLogConfig(ctx, config)
-	})
 
 	isCmd := len(os.Args) >= 2 && daemon.IsCmd(os.Args[1])
 	cmd := config.CreateFlagSet(os.Args[0], cfg)
@@ -139,7 +137,8 @@ func main() {
 		args = args[1:]
 	}
 
-	if len(args) != 0 {
+	hasArgs := len(args) != 0
+	if hasArgs {
 		// 有参数情况下优先使用参数，不自动读取配置
 		if err := cmd.Parse(args); err != nil {
 			log.Fatalln("parse command error", err)
@@ -149,22 +148,18 @@ func main() {
 			cfg.FromJson(cfg.ConfJson)
 		}
 	} else {
-		// 无参数自动尝试读取配置文件
 		cfg.ConfFile = util.GetRelativePath("mino.yml")
 	}
 
-	//fmt.Println(cfg.ToFlags())
+	applyLogConfig(ctx, cfg)
 
 	// 读取配置文件
-	if p := cfg.ConfFile; util.Exists(p) {
-		// 配置文件盖命令行的参数
-		log.Println("config file at", cfg.ConfFile)
-		if err := cfg.Load(p); err != nil {
-			log.Error("read config error", p, err)
-			errMsg("配置文件读取失败：" + p)
-			os.Exit(1)
+	if cf := cfg.ConfFile; util.Exists(cf) {
+		w := cfg.Watch(cf)
+		if err := w.Load(); err != nil {
+			log.Error("loading config error", err)
 		}
-		go cfg.HotLoadConfig()
+		w.Watch(time.Duration(cfg.HotLoad))
 	}
 
 	if len(cfg.PidFile) > 0 {
@@ -190,15 +185,17 @@ func main() {
 	log.Info("current pid", os.Getpid())
 
 	t := transporter.New(cfg)
-	cfg.OnChange(func(config *config.Config) {
-		if err := t.HostConf.Load(config.HostConf); err != nil {
-			log.Error("load", config.HostConf, "error", err)
-		}
-		t.RemoteHolder.LoadConfig(config)
-	})
 
-	// 触发一次配置初始化
-	cfg.NotifyModify()
+	if w := cfg.GetWatcher(); w != nil {
+		// 监控配置变化
+		w.Subscribe(func(src interface{}) {
+			cfg := src.(*config.Config)
+			applyLogConfig(ctx, cfg)
+			t.RemoteHolder.LoadConfig(cfg)
+		})
+		// 通知变化
+		cfg.Notify()
+	}
 
 	svr := server.NewServer(t)
 

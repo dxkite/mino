@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/server/comm"
 	"dxkite.cn/mino/server/context"
 	"dxkite.cn/mino/util"
@@ -33,7 +34,8 @@ func NewConfigHandler(ctx *context.Context) http.Handler {
 	})
 
 	sm.Handle("/set", NewCallbackHandler(func(from map[string]interface{}, success *[]string) (err error) {
-		*success, err = ctx.Cfg.CopyFrom(from)
+		*success, err = config.CopyObjectMap(ctx.Cfg, from)
+		ctx.Cfg.Notify()
 		return
 	}))
 	return sm
