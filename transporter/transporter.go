@@ -157,7 +157,7 @@ func (t *Transporter) decodeConn(conn net.Conn) (string, net.Conn, error) {
 	// 协议解析失败
 	if err != nil {
 		msg := fmt.Sprint("identify encoder error:", err)
-		return "", nil, errors.New(msg)
+		return "", conn, errors.New(msg)
 	}
 
 	// 协议解析成功
@@ -165,7 +165,7 @@ func (t *Transporter) decodeConn(conn net.Conn) (string, net.Conn, error) {
 		name := stm.Name()
 		if svr, err := stm.Server(buf, t.Config); err != nil {
 			msg := fmt.Sprintf("unwrap error: %v", err)
-			return name, nil, errors.New(msg)
+			return name, conn, errors.New(msg)
 		} else {
 			return name, svr, nil
 		}
@@ -214,7 +214,7 @@ func (t *Transporter) transport(svr stream.ServerConn, network, address, route s
 	rmt, mode, rmtErr := t.dial(network, address)
 	via := mode
 	if rmtErr != nil {
-		errMsg := fmt.Sprintln("dial", network, address, "from", svr.RemoteAddr(), "via", via, "error:", rmtErr)
+		errMsg := fmt.Sprintf(" %s: dial %s://%s by %s error: %s", svr.RemoteAddr(), network, address, via, rmtErr)
 		log.Error(errMsg)
 		t.handleError(svr, errors.New(errMsg))
 		_ = svr.Close()
