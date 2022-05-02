@@ -122,7 +122,8 @@ func GetBasicAuth(cfg *config.UserConfig) stream.BasicAuthFunc {
 		}
 		for _, u := range cfg.UserList {
 			if info.Username == u.Username && info.Password == u.Password {
-				return true
+				log.Info("user access but freeze", info.Username)
+				return u.Freeze == false
 			}
 		}
 		return false
