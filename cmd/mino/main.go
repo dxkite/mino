@@ -132,11 +132,11 @@ func GetBasicAuth(cfg *config.UserConfig) stream.BasicAuthFunc {
 
 func main() {
 	ctx, exit := context.WithCancel(context.Background())
-	log.Println("Mino Agent", mino.Version, mino.Commit)
+	log.Println("Mino Agent", mino.Version, mino.Commit, util.GetMachineId())
 	log.Debug("Args", os.Args)
 
 	if !util.CheckMachineId(mino.MachineId) {
-		errMsg("当前机器非白名单机器")
+		errMsg("当前机器非目标机器")
 		return
 	}
 

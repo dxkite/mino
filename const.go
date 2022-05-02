@@ -7,7 +7,7 @@ var Version = "dev"
 var Commit = ""
 
 // 默认自动更新网址
-const Upload = ""
+var Upload = ""
 
 // 可运行机器
-const MachineId = ""
+var MachineId = ""
