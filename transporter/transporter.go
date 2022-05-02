@@ -193,7 +193,7 @@ func (t *Transporter) handleConn(conn net.Conn) (string, stream.ServerConn, erro
 
 	svr := p.Server(buf, t.Config)
 	if err := svr.Handshake(t.AuthFunc); err != nil {
-		return p.Name(), nil, errors.New(fmt.Sprint("handshake error", err))
+		return p.Name(), nil, errors.New(fmt.Sprint("handshake error ", err))
 	}
 
 	return p.Name(), svr, nil
@@ -356,7 +356,7 @@ func (t *Transporter) dial(network, address string) (net.Conn, VisitMode, error)
 	}
 
 	// 使用上游
-	if act == Upstream && t.RemoteHolder.Size() > 0 {
+	if act == Upstream {
 		if c, v, err := t.dialUpstream(network, address); err == nil {
 			return c, v, nil
 		} else if t.Config.UpstreamToDirect {

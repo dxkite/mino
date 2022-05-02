@@ -62,6 +62,7 @@ func (conn *ServerConn) Handshake(auth stream.BasicAuthFunc) (err error) {
 		}) {
 		} else {
 			_, _ = conn.Write([]byte("HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n"))
+			return errors.New("auth error")
 		}
 	}
 	return

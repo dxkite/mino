@@ -4,6 +4,7 @@ import (
 	"context"
 	"dxkite.cn/log"
 	"dxkite.cn/mino/daemon"
+	"dxkite.cn/mino/stream"
 	"fmt"
 	"runtime"
 	"strconv"
@@ -108,6 +109,21 @@ func initMonkey(cfg *config.Config) {
 	}
 }
 
+func GetBasicAuth(cfg *config.UserConfig) stream.BasicAuthFunc {
+	return func(info *stream.AuthInfo) bool {
+		if !cfg.Enable {
+			log.Info("user auth disabled")
+			return true
+		}
+		for _, u := range cfg.UserList {
+			if info.Username == u.Username && info.Password == u.Password {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 func main() {
 	ctx, exit := context.WithCancel(context.Background())
 	log.Println("Mino Agent", mino.Version, mino.Commit)
@@ -151,8 +167,6 @@ func main() {
 		cfg.ConfFile = util.GetRelativePath("mino.yml")
 	}
 
-	applyLogConfig(ctx, cfg)
-
 	// 读取配置文件
 	if cf := cfg.ConfFile; util.Exists(cf) {
 		w := cfg.Watch(cf)
@@ -161,6 +175,8 @@ func main() {
 		}
 		w.Watch(time.Duration(cfg.HotLoad))
 	}
+
+	applyLogConfig(ctx, cfg)
 
 	if len(cfg.PidFile) > 0 {
 		log.Println("pid file at", cfg.PidFile)
@@ -185,13 +201,39 @@ func main() {
 	log.Info("current pid", os.Getpid())
 
 	t := transporter.New(cfg)
+	// 处理服务器
+	t.RemoteHolder.LoadConfig(cfg)
+
+	// 获取用户配置
+	if len(cfg.UserConfig) > 0 {
+		uc := &config.UserConfig{}
+		cfgPath := config.GetConfigFile(cfg, cfg.UserConfig)
+		cfg.UserConfig = cfgPath
+		w := config.NewWatcher(uc, cfg.UserConfig)
+		w.Watch(time.Duration(cfg.HotLoad))
+		w.Subscribe(func(uc interface{}) {
+			user := uc.(*config.UserConfig)
+			t.AuthFunc = GetBasicAuth(user)
+		})
+		if err := w.Load(); err != nil {
+			log.Error("load user error", err)
+		}
+	}
 
 	if w := cfg.GetWatcher(); w != nil {
 		// 监控配置变化
 		w.Subscribe(func(src interface{}) {
 			cfg := src.(*config.Config)
+			// 处理日志
 			applyLogConfig(ctx, cfg)
+			// 处理服务器
 			t.RemoteHolder.LoadConfig(cfg)
+			// 用户配置文件
+			if uw := cfg.UserWatcher; uw != nil {
+				if err := uw.SetConfig(cfg.UserConfig); err != nil {
+					log.Error("load user config error")
+				}
+			}
 		})
 		// 通知变化
 		cfg.Notify()

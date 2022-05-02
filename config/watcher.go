@@ -15,6 +15,7 @@ type Watcher struct {
 	modify time.Time
 	mtx    sync.Mutex
 	sub    []Subscriber
+	close  chan struct{}
 }
 
 type Notifier interface {
@@ -30,6 +31,7 @@ func NewWatcher(cfg interface{}, src string) *Watcher {
 		modify: time.Now(),
 		mtx:    sync.Mutex{},
 		sub:    []Subscriber{},
+		close:  make(chan struct{}),
 	}
 }
 
@@ -40,13 +42,23 @@ func (h *Watcher) Watch(duration time.Duration) {
 func (h *Watcher) watch(duration time.Duration) {
 	log.Info("enable hot load config", h.src)
 	ticker := time.NewTicker(duration * time.Second)
-	for range ticker.C {
-		if ok, err := h.LoadIfModify(); err != nil {
-			log.Error("load config", h.src, "error", err)
-		} else if ok {
-			log.Info("load config", h.src, "success")
+	for {
+		select {
+		case <-ticker.C:
+			if ok, err := h.LoadIfModify(); err != nil {
+				log.Error("load config", h.src, "error", err)
+			} else if ok {
+				log.Info("load config", h.src, "success")
+			}
+		case <-h.close:
+			log.Info("closed config", h.src)
+			return
 		}
 	}
+}
+
+func (h *Watcher) Close() {
+	h.close <- struct{}{}
 }
 
 func (h *Watcher) Subscribe(sub Subscriber) {
@@ -64,12 +76,25 @@ func (h *Watcher) LoadIfModify() (bool, error) {
 	if !update {
 		return false, nil
 	}
-	return true, h.Load()
+	return true, h.load(h.src)
+}
+
+func (h *Watcher) SetConfig(src string) error {
+	if err := h.load(src); err != nil {
+		return err
+	}
+	h.src = src
+	log.Info("update config", h.src)
+	return nil
 }
 
 func (h *Watcher) Load() error {
-	log.Info("loading config", h.src)
-	in, er := ioutil.ReadFile(h.src)
+	return h.load(h.src)
+}
+
+func (h *Watcher) load(src string) error {
+	log.Info("loading config", src)
+	in, er := ioutil.ReadFile(src)
 	if er != nil {
 		return er
 	}

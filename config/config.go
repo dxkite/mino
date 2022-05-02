@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -49,7 +48,7 @@ type Config struct {
 	// 自动更新
 	AutoUpdate bool `yaml:"auto_update" json:"auto_update"`
 	// 日志文件
-	LogFile string `yaml:"log_file" json:"log_file" flag:"log" path:"v-path"`
+	LogFile string `yaml:"log_file" json:"log_file" flag:"log" path:"config-path"`
 	// 日志开启
 	LogEnable bool `yaml:"log_enable" json:"log_enable"`
 	// 日志等级
@@ -98,6 +97,9 @@ type Config struct {
 	TestRetryInterval int    `yaml:"test_retry_interval" json:"test_retry_interval" title:"测试间隔" desc:"服务不可用情况下多久重试一次，单位毫秒"`
 	TestTimeout       int    `yaml:"test_timeout" json:"test_timeout" title:"测试超时" desc:"服务不可用情况下多久重试一次，单位毫秒"`
 
+	// 用户配置
+	UserConfig string `yaml:"user_config" json:"user_config" flag:"user" path:"config-path"`
+
 	// 配置文件夹
 	ConfDir string `yaml:"-" json:"-"`
 	// 配置路径
@@ -105,7 +107,8 @@ type Config struct {
 	// 配置JSON
 	ConfJson string `yaml:"-" json:"-" flag:"json"`
 
-	w *Watcher `yaml:"-" json:"-"`
+	w           *Watcher `yaml:"-" json:"-"`
+	UserWatcher *Watcher `yaml:"-" json:"-"`
 }
 
 func (cfg *Config) InitDefault() {
@@ -151,9 +154,9 @@ func (cfg *Config) InitDefault() {
 func (cfg *Config) Watch(src string) *Watcher {
 	cfg.w = NewWatcher(cfg, src)
 	src = util.GetRelativePath(src)
-	cfg.ConfDir = path.Dir(src)
+	cfg.ConfDir = filepath.Dir(src)
 	cfg.ConfFile = src
-	log.Info("watching config", src)
+	log.Info("watching config", cfg.ConfFile)
 	return cfg.w
 }
 
@@ -190,7 +193,6 @@ func CopyObject(dest, src interface{}) {
 	v := reflect.ValueOf(dest)
 	from := reflect.ValueOf(src)
 	t := v.Elem().Type()
-
 	for i := 0; i < v.Elem().NumField(); i++ {
 		f := v.Elem().Field(i)
 		tag := t.Field(i).Tag.Get("json")
@@ -257,7 +259,7 @@ func (p *pathValue) Set(val string) error {
 	switch p.typ {
 	case "bin-path":
 		*p.val = util.ConcatPath(util.GetBinaryPath(), val)
-	case "v-path":
+	case "config-path":
 		*p.val = util.ConcatPath(p.cfg.ConfDir, val)
 	default:
 		*p.val = util.GetRelativePath(val)
