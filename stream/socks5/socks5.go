@@ -73,7 +73,7 @@ func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 		| 1  |   1    |
 		+----+--------+
 		*/
-		buf[1] = 1 // Basic Auth
+		buf[1] = UsernamePasswordMethod
 		if _, err = conn.Write(buf); err != nil {
 			_ = conn.Close()
 			return err
@@ -87,6 +87,11 @@ func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 			Password:   p,
 			RemoteAddr: conn.RemoteAddr().String(),
 		}) {
+			buf[1] = AuthStatusSucceeded
+			if _, err = conn.Write(buf); err != nil {
+				_ = conn.Close()
+				return err
+			}
 		} else {
 			_ = conn.Close()
 			return errors.New("auth error")

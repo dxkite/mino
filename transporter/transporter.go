@@ -399,7 +399,7 @@ func (t *Transporter) dialUpstream(network, address string) (net.Conn, VisitMode
 	var upstream *url.URL
 	var err error
 
-	for {
+	for t.RemoteHolder.Size() > 0 {
 		id, upstream, err = t.RemoteHolder.GetProxy()
 		if err != nil {
 			return nil, "", err
@@ -411,6 +411,10 @@ func (t *Transporter) dialUpstream(network, address string) (net.Conn, VisitMode
 		} else {
 			break
 		}
+	}
+
+	if upstream == nil {
+		return nil, "", errors.New("all upstream error")
 	}
 
 	var targetNetwork = network

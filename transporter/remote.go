@@ -35,7 +35,10 @@ func NewRemote(testUrl string, interval, timeout time.Duration) *RemoteHolder {
 func (r *RemoteHolder) LoadConfig(cfg *config.Config) {
 	r.interval = time.Millisecond * time.Duration(cfg.TestRetryInterval)
 	r.timeout = time.Millisecond * time.Duration(cfg.TestTimeout)
-	rmt := []string{cfg.Upstream}
+	rmt := []string{}
+	if len(cfg.Upstream) > 0 {
+		rmt = append(rmt, cfg.Upstream)
+	}
 	rmt = append(rmt, cfg.UpstreamList...)
 	log.Info("load remote", cfg.TestRetryInterval)
 	r.svr = r.svr[0:0]
