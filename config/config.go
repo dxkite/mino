@@ -97,6 +97,11 @@ type Config struct {
 	TestRetryInterval int    `yaml:"test_retry_interval" json:"test_retry_interval" title:"测试间隔" desc:"服务不可用情况下多久重试一次，单位毫秒"`
 	TestTimeout       int    `yaml:"test_timeout" json:"test_timeout" title:"测试超时" desc:"服务不可用情况下多久重试一次，单位毫秒"`
 
+	// 用户流量记录
+	UserFlowPath string `yaml:"user_flow_path" json:"user_flow_path" path:"config-path"`
+	// 用户流量写间隔
+	UserFlowInterval int `yaml:"user_flow_interval" json:"user_flow_interval" path:"config-path"`
+
 	// 用户配置
 	UserConfig string `yaml:"user_config" json:"user_config" flag:"user" path:"config-path"`
 
@@ -145,6 +150,9 @@ func (cfg *Config) InitDefault() {
 	cfg.TestRetryInterval = 60 * 1000 // 检查服务是否可用 60s 一次
 	cfg.TestTimeout = 3 * 1000        // 超时3秒
 	cfg.TestUrl = "https://www.google.com"
+
+	cfg.UserFlowInterval = 60
+
 	// 自动转直连
 	cfg.UpstreamToDirect = true
 	// 自动检测环回地址

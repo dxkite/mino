@@ -15,7 +15,8 @@ const (
 type Server struct {
 	net.Conn
 	// 请求信息
-	r *RequestMessage
+	r    *RequestMessage
+	auth *stream.AuthInfo
 }
 
 var ErrAuth = errors.New("auth error")
@@ -34,11 +35,12 @@ func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 		return err
 	}
 	if auth != nil {
-		if (auth(&stream.AuthInfo{
+		conn.auth = &stream.AuthInfo{
 			Username:   m.Username,
 			Password:   m.Password,
 			RemoteAddr: conn.RemoteAddr().String(),
-		})) {
+		}
+		if auth(conn.auth) {
 		} else {
 			_ = conn.Close()
 			return ErrAuth
@@ -55,6 +57,9 @@ func (conn *Server) Target() (network, address string, err error) {
 
 // 获取用户名
 func (conn *Server) User() string {
+	if conn.auth != nil && len(conn.auth.Username) > 0 {
+		return conn.auth.Username
+	}
 	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	return ip
 }

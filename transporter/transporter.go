@@ -45,11 +45,13 @@ type Transporter struct {
 	RemoteHolder *RemoteHolder
 
 	dummy *dummy.DummyServer
+
+	uf *config.UserFlowMap
 }
 
-func New(config *config.Config) (t *Transporter) {
+func New(c *config.Config) (t *Transporter) {
 	t = &Transporter{
-		Config:       config,
+		Config:       c,
 		sts:          stream.DefaultManager,
 		enableProto:  map[string]struct{}{},
 		httpConn:     make(chan net.Conn),
@@ -57,7 +59,8 @@ func New(config *config.Config) (t *Transporter) {
 		eventHandler: NewHandlerGroup(),
 		nextSid:      0,
 		HostConf:     NewActionConf(),
-		RemoteHolder: NewRemote(config.TestUrl, 60*time.Second, 3*time.Second),
+		RemoteHolder: NewRemote(c.TestUrl, 60*time.Second, 3*time.Second),
+		uf:           &config.UserFlowMap{},
 	}
 	return t
 }
@@ -74,8 +77,13 @@ func (t *Transporter) Init() error {
 	d, err := dummy.CreateDummyServer(t.Config)
 	t.dummy = d
 	if err != nil {
-		log.Error("init dummy tls error", err)
+
 	}
+	if err := t.uf.Load(t.Config.UserFlowPath); err != nil {
+		log.Error("load flow error", err)
+	}
+
+	go t.uf.Write(t.Config.UserFlowPath, t.Config.UserFlowInterval)
 	return nil
 }
 
@@ -215,7 +223,7 @@ func (t *Transporter) transport(svr stream.ServerConn, network, address, route s
 	rmt, mode, rmtErr := t.dial(network, address)
 	via := mode
 	if rmtErr != nil {
-		errMsg := fmt.Sprintf(" %s: dial %s://%s by %s error: %s", svr.RemoteAddr(), network, address, via, rmtErr)
+		errMsg := fmt.Sprintf("%s: dial %s://%s by %s error: %s", svr.RemoteAddr(), network, address, via, rmtErr)
 		log.Error(errMsg)
 		t.handleError(svr, errors.New(errMsg))
 		_ = svr.Close()
@@ -226,6 +234,7 @@ func (t *Transporter) transport(svr stream.ServerConn, network, address, route s
 	sess := NewSession(t.NextId(), svr.User(), svr, rmt, address, route)
 	t.AddSession(sess)
 	up, down, err := sess.Transport()
+	t.uf.Update(svr.User(), up, down)
 	msg := fmt.Sprintf("transport %s %s up %d down %d route %s via %s", network, address, up, down, route, via)
 	if err != nil {
 		log.Error(msg, "error", err.Error())
@@ -280,6 +289,7 @@ func (t *Transporter) serve(c net.Conn) {
 			t.handleWeb(svr)
 			return
 		}
+
 		// 传输数据
 		t.transport(svr, network, address, route)
 	}

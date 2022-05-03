@@ -32,6 +32,22 @@ func defaultXxor() *XxorMessage {
 	}
 }
 
+// 握手协议
+// 1. 获取 8 位的随机数据 rdm
+// 2. headerKey = key xor rdm
+// 3. 随机生成 0~255 长度的 padding
+// 4. 获取当前时间戳（毫秒级别） int64 timestamp
+// 5. 生成 header =
+//      "XXOR"
+//      + byte(version=1)
+//      + byte(paddingSize)
+//      + byte(encodingType=1)
+//      + byte(checkMac=1)
+// 6. encodingHeader = header xor headerKey
+// 7. checkHeader = rdm + encodingHeader + padding + timestamp
+// 8. realHeader = checkHeader + sha1(checkHeader)
+// 9. sessionKey = padding xor headerKey
+// 后续数据使用 sessionKey xor
 func (m *XxorMessage) Encoding(key []byte) (data, sessionKey []byte, err error) {
 	rdm := make([]byte, headerSize)
 	if _, err := io.ReadFull(rand.Reader, rdm); err != nil {

@@ -36,6 +36,7 @@ type ServerConn struct {
 	cfg           *config.Config
 	TargetAddress string
 	RequestSelf   bool
+	auth          *stream.AuthInfo
 }
 
 // 握手
@@ -67,12 +68,13 @@ func (conn *ServerConn) Handshake(auth stream.BasicAuthFunc) (err error) {
 	conn.req = req
 
 	username, password, _ := ParseProxyAuth(req)
+	conn.auth = &stream.AuthInfo{
+		Username:   username,
+		Password:   password,
+		RemoteAddr: conn.RemoteAddr().String(),
+	}
 	if auth != nil && conn.RequestSelf == false {
-		if auth(&stream.AuthInfo{
-			Username:   username,
-			Password:   password,
-			RemoteAddr: conn.RemoteAddr().String(),
-		}) {
+		if auth(conn.auth) {
 		} else {
 			_, _ = conn.Write([]byte("HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n"))
 			return errors.New("auth error")
@@ -92,6 +94,9 @@ func (conn *ServerConn) Target() (network, address string, err error) {
 
 // 获取用户名
 func (conn *ServerConn) User() string {
+	if conn.auth != nil && len(conn.auth.Username) > 0 {
+		return conn.auth.Username
+	}
 	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	return ip
 }

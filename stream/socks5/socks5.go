@@ -15,6 +15,7 @@ import (
 // Socks5服务器
 type Server struct {
 	net.Conn
+	auth *stream.AuthInfo
 }
 
 // 握手
@@ -88,6 +89,11 @@ func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 			RemoteAddr: conn.RemoteAddr().String(),
 		}) {
 			buf[1] = AuthStatusSucceeded
+			conn.auth = &stream.AuthInfo{
+				Username:   u,
+				Password:   p,
+				RemoteAddr: conn.RemoteAddr().String(),
+			}
 			if _, err = conn.Write(buf); err != nil {
 				_ = conn.Close()
 				return err
@@ -108,6 +114,9 @@ func (conn *Server) Target() (network, address string, err error) {
 
 // 获取用户名
 func (conn *Server) User() string {
+	if conn.auth != nil && len(conn.auth.Username) > 0 {
+		return conn.auth.Username
+	}
 	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	return ip
 }
