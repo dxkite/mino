@@ -32,6 +32,12 @@ func defaultXxor() *XxorMessage {
 	}
 }
 
+func sha1Sum(d []byte) []byte {
+	v := sha1.New()
+	v.Write(d)
+	return v.Sum(nil)[:]
+}
+
 // 握手协议
 // 1. 获取 8 位的随机数据 rdm
 // 2. headerKey = key xor rdm
@@ -74,18 +80,25 @@ func (m *XxorMessage) Encoding(key []byte) (data, sessionKey []byte, err error) 
 
 	//fmt.Println("headKey", hex.EncodeToString(key))
 	//fmt.Println("head", hex.EncodeToString(head))
+	//fmt.Println("head", "\n"+hex.Dump(head))
 
 	head = xor(head, key)
+
+	//fmt.Println("encodingHeader", "\n"+hex.Dump(head))
+	//fmt.Println("padding", "\n"+hex.Dump(m.Padding))
 
 	data = append(data, rdm...)
 	data = append(data, head...)
 	data = append(data, m.Padding...)
 	data = append(data, timeBuf...)
 
-	sha1.New().Write(data)
-	sha1Sum := sha1.Sum(nil)
-	data = append(data, sha1Sum[:]...)
+	//fmt.Println("sha1Data", hex.EncodeToString(data))
+	//fmt.Println("sha1Data", "\n"+hex.Dump(data))
 
+	sha1Sum := sha1Sum(data)
+	//fmt.Println("sha1Sum", hex.EncodeToString(sha1Sum))
+
+	data = append(data, sha1Sum...)
 	sessionKey = xor(m.Padding, key)
 	return
 }
@@ -95,6 +108,8 @@ func (m *XxorMessage) Decoding(r io.Reader, key []byte) (sessionKey []byte, err 
 	if _, err := io.ReadFull(r, rdm); err != nil {
 		return nil, err
 	}
+	//fmt.Println("rdm", hex.EncodeToString(rdm))
+	//fmt.Println("key", hex.EncodeToString(key))
 
 	key = xor(key, rdm)
 
@@ -104,6 +119,7 @@ func (m *XxorMessage) Decoding(r io.Reader, key []byte) (sessionKey []byte, err 
 	}
 
 	//fmt.Println("headKey", hex.EncodeToString(key))
+	encodingHead := append([]byte(nil), head...)
 	head = xor(head, key)
 	//fmt.Println("head", hex.EncodeToString(head), string(head))
 
@@ -122,7 +138,8 @@ func (m *XxorMessage) Decoding(r io.Reader, key []byte) (sessionKey []byte, err 
 		return nil, errors.New("xxor: padding read: " + err.Error())
 	}
 
-	sessionKey = xor(m.Padding, key)
+	padding := append([]byte(nil), m.Padding...)
+	sessionKey = xor(padding, key)
 
 	if !hasMac {
 		return
@@ -139,12 +156,21 @@ func (m *XxorMessage) Decoding(r io.Reader, key []byte) (sessionKey []byte, err 
 		return nil, errors.New("xxor: mac read: " + err.Error())
 	}
 
-	data := append(rdm, head...)
+	//fmt.Println("padding", "\n"+hex.Dump(m.Padding))
+	//fmt.Println("timestamp", m.Timestamp)
+	//fmt.Println("sha1", hex.EncodeToString(m.Mac))
+
+	data := append(rdm, encodingHead...)
 	data = append(data, m.Padding...)
 	data = append(data, timeBuf...)
-	sha1.New().Write(data)
-	sha1Sum := sha1.Sum(nil)
-	if string(sha1Sum[:]) != string(m.Mac) {
+
+	//fmt.Println("sha1Data", hex.EncodeToString(data))
+	//fmt.Println("sha1Data", "\n"+hex.Dump(data))
+
+	sha1Sum := sha1Sum(data)
+	//fmt.Println("sha1Sum", hex.EncodeToString(sha1Sum))
+
+	if string(sha1Sum) != string(m.Mac) {
 		return nil, errors.New("xxor: mac error")
 	}
 	return
