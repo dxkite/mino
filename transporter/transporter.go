@@ -79,11 +79,14 @@ func (t *Transporter) Init() error {
 	if err != nil {
 
 	}
-	if err := t.uf.Load(t.Config.UserFlowPath); err != nil {
-		log.Error("load flow error", err)
-	}
 
-	go t.uf.Write(t.Config.UserFlowPath, t.Config.UserFlowInterval)
+	// 记录用户流量
+	if len(t.Config.UserFlowPath) > 0 {
+		if err := t.uf.Load(t.Config.UserFlowPath); err != nil {
+			log.Error("load flow error", err)
+		}
+		go t.uf.Write(t.Config.UserFlowPath, t.Config.UserFlowInterval)
+	}
 	return nil
 }
 

@@ -81,7 +81,7 @@ func (uf *UserFlowMap) Write(p string, duration int) {
 }
 
 func (uf *UserFlowMap) Load(p string) error {
-	f, err := os.OpenFile(p, os.O_RDWR|os.O_CREATE, os.ModePerm)
+	f, err := os.OpenFile(p, os.O_RDWR, os.ModePerm)
 	if err != nil {
 		return err
 	}
