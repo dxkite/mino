@@ -26,6 +26,16 @@ func CreateDummyServer(config *config.Config) (*DummyServer, error) {
 }
 
 func (s *DummyServer) InitCaConfig(pemPath, keyPath string) error {
+	if err := s.loadCaConfig(pemPath, keyPath); err != nil {
+		return errors.New("loadCaConfigError: " + err.Error())
+	}
+	certBytes, keyBytes, err := util.GenerateCA("Mino Random CA")
+	s.CaCert = certBytes
+	s.CaKey = keyBytes
+	return err
+}
+
+func (s *DummyServer) loadCaConfig(pemPath, keyPath string) error {
 	certBytes, err := ioutil.ReadFile(pemPath)
 	if err != nil {
 		return errors.New("read ca pem error: " + err.Error())
