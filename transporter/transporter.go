@@ -215,7 +215,13 @@ func (t *Transporter) handleWeb(conn net.Conn) {
 	t.httpConn <- conn
 }
 
-func (t *Transporter) handleError(conn net.Conn, err error) {
+func (t *Transporter) handleError(conn stream.ServerConn, err error) {
+	if !t.Config.DummyEnable {
+		if err := conn.SendError(err); err != nil {
+			log.Error("handler error failed", err)
+		}
+		return
+	}
 	if err := t.dummy.Handle(conn, dummy.NewErrorHandler(err)); err != nil {
 		log.Error("dummy error", err)
 	}
@@ -225,6 +231,7 @@ func (t *Transporter) transport(svr stream.ServerConn, network, address, route s
 	_ = svr.SendSuccess()
 	rmt, mode, rmtErr := t.dial(network, address)
 	via := mode
+
 	if rmtErr != nil {
 		errMsg := fmt.Sprintf("%s: dial %s://%s by %s error: %s", svr.RemoteAddr(), network, address, via, rmtErr)
 		log.Error(errMsg)

@@ -200,8 +200,11 @@ func main() {
 	}
 
 	// 创建CA
-	if err := monkey.CreateCa(cfg.DummyCaPem, cfg.DummyCaKey); err != nil {
-		log.Error("install ca", err)
+	if cfg.DummyEnable {
+		log.Info("dummy server enabled")
+		if err := monkey.CreateCa(cfg.DummyCaPem, cfg.DummyCaKey); err != nil {
+			log.Error("install ca", err)
+		}
 	}
 
 	log.Info("current pid", os.Getpid())

@@ -82,8 +82,9 @@ type Config struct {
 	PidFile string `yaml:"pid_file" json:"pid_file" path:"bin-path"`
 
 	// 模拟服务
-	DummyCaKey string `yaml:"dummy_ca_key" json:"dummy_ca_key" path:"path"`
-	DummyCaPem string `yaml:"dummy_ca_pem" json:"dummy_ca_pem" path:"path"`
+	DummyCaKey  string `yaml:"dummy_ca_key" json:"dummy_ca_key" path:"path"`
+	DummyCaPem  string `yaml:"dummy_ca_pem" json:"dummy_ca_pem" path:"path"`
+	DummyEnable bool   `yaml:"dummy_enable" json:"dummy_enable"`
 
 	// Web服务器
 	WebEnable      bool   `yaml:"web_enable" json:"web_enable" prop:"readonly"`
@@ -137,6 +138,7 @@ func (cfg *Config) InitDefault() {
 
 	cfg.DummyCaKey = "ca.key"
 	cfg.DummyCaPem = "ca.pem"
+	cfg.DummyEnable = true
 
 	cfg.Encoder = "xxor"
 	cfg.XorMod = 4
