@@ -86,6 +86,9 @@ func (s *DummyServer) handleHttps(conn net.Conn, handler http.Handler) error {
 	cfg := &tls.Config{
 		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			log.Println("handle server name", info.ServerName)
+			if s.CaCert == nil || s.CaKey == nil {
+				return nil, errors.New("no cert config")
+			}
 			certPem, keyPem, err := util.GenerateNameCertKey(info.ServerName, s.CaCert.Bytes, s.CaKey.Bytes)
 			if err != nil {
 				return nil, err
