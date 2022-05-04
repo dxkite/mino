@@ -15,8 +15,9 @@ RUN VERSION=$(git describe --tags) \
     go build -v -o /usr/local/bin/mino \
     -ldflags="-s -w -X 'dxkite.cn/mino.Version=$VERSION' -X 'dxkite.cn/mino.Commit=$COMMIT'" ./cmd/mino
 
-RUN cd /usr/local/etc/mino
+RUN mkdir /mino
+WORKDIR /mino
+VOLUME /mino
 
-VOLUME /usr/local/etc/mino
 EXPOSE 1080
 CMD ["mino"]

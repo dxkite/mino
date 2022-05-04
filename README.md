@@ -47,10 +47,24 @@
 go install dxkite.cn/mino/cmd/mino
 ```
 ### Docker支持
-Docker一键启动服务端
+
+Docker一键启动服务端（轻量化）
+
 ```bash
 docker run --restart=always -d -p 28648:28648 w4ter/mino:v0.2.3
 ```
+
+Docker一键启动服务端（最新版本）
+
+```bash
+docker run -d -p 28648:1080 dxkite/mino:latest
+```
+
+Docker 挂载运行目录（/usr/local/etc/mino）
+```bash
+docker run -d -v 本地目录:/usr/local/etc/mino -p 28648:1080 dxkite/mino:latest
+```
+
 ### 命令行
 
 `-addr :1080` 监听 `1080` 端口 支持 http/socks5 协议
