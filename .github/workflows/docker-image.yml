@@ -3,6 +3,8 @@ name: Docker Image Push Latest
 on:
   push:
     branches: [ master ]
+    tags:
+      - '*'
   pull_request:
     branches: [ master ]
 
