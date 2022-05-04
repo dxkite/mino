@@ -1,15 +1,19 @@
-name: Docker Image Push Latest
+name: Docker Image Push Tag
 
 on:
   push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+    tags:
+      - '*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
+        with:
+          strip_v: true
       -
         name: Checkout 
         uses: actions/checkout@v2
@@ -29,4 +33,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mino:latest
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mino:${{ steps.tag.outputs.tag }}
