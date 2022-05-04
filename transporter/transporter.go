@@ -77,7 +77,7 @@ func (t *Transporter) Init() error {
 	d, err := dummy.CreateDummyServer(t.Config)
 	t.dummy = d
 	if err != nil {
-
+		log.Info("dummy server error", err)
 	}
 
 	// 记录用户流量
