@@ -1,4 +1,4 @@
-name: Docker Image Push Latest
+name: Build Docker Image
 
 on:
   push:
@@ -32,3 +32,19 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mino:latest
+      -
+        if: startsWith(github.ref, 'refs/tags/')
+        name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
+        with:
+          strip_v: true
+      -
+        if: startsWith(github.ref, 'refs/tags/')
+        name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mino:${{ steps.tag.outputs.tag }}

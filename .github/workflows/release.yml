@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test
+        run: pwd
+      - name: Changelog
+        uses: ardalanamini/auto-changelog@v3
+        id: changelog
+        with:
+          github-token: ${{ github.token }}
+          commit-types: |
+            feat: 🎉 新功能
+            fix: 🐛 BUG修复
+            refactor: 🪚 重构
+            perf: 🏎️ 性能优化
+            docs: 📚 文档变更
+            chore: 🧹 日常任务
+            other: 其他变更
+          default-commit-type: 其他变更
+          mention-authors: false
+          mention-new-contributors: false
+          include-compare: false
+          semver: true
+      - name: Release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          body: ${{ steps.changelog.outputs.changelog }}
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      - name: Build
+        run: ./build-windows.bat
+      - name: Release
+        uses: ncipollo/release-action@v1
+        with:
+          omitBody: true
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: "mino*windows*"
+          token: ${{ secrets.GITHUB_TOKEN }}
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      - name: Build
+        run: chmod +x ./build.sh && ./build.sh
+      - name: Release
+        uses: ncipollo/release-action@v1
+        with:
+          omitBody: true
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: "mino-*"
+          token: ${{ secrets.GITHUB_TOKEN }}
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      - name: Build
+        run: chmod +x ./build.sh && ./build.sh
+      - name: Release
+        uses: ncipollo/release-action@v1
+        with:
+          omitBody: true
+          allowUpdates: true
+          artifactErrorsFailBuild: true
+          artifacts: "mino-*"
+          token: ${{ secrets.GITHUB_TOKEN }}
