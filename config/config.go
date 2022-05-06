@@ -64,6 +64,8 @@ type Config struct {
 	LatestVersion string `yaml:"latest_version" json:"latest_version"`
 	// 加密传输类型，xor/tls 默认不开启
 	Encoder string `yaml:"encoder" json:"encoder"`
+	// 协议必须加密
+	ForceEncodeStream bool `yaml:"force_encode_stream" json:"force_encode_stream"`
 	// xor 长度，默认4
 	XorMod         int    `yaml:"xor_mod" json:"xor_mod"`
 	MinoEncoderKey string `yaml:"mino_encoder_key" json:"mino_encoder_key"`

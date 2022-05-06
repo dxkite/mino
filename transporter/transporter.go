@@ -270,6 +270,12 @@ func (t *Transporter) serve(c net.Conn) {
 		if len(enc) > 0 {
 			name = append(name, enc)
 		}
+
+		if t.Config.ForceEncodeStream && len(enc) == 0 {
+			log.Error(fmt.Sprintf("force_encode_stream: stream must be encoding"))
+			_ = conn.Close()
+			return
+		}
 	}
 
 	if stm, svr, err = t.handleConn(conn); err != nil {
