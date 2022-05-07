@@ -6,6 +6,7 @@ import (
 	"dxkite.cn/mino/daemon"
 	"dxkite.cn/mino/stream"
 	"fmt"
+	"io/ioutil"
 	"runtime"
 	"strconv"
 	"strings"
@@ -146,6 +147,9 @@ func main() {
 			n := runtime.Stack(buf, false)
 			log.Error("[panic error]", r)
 			log.Error(string(buf[:n]))
+			name := fmt.Sprintf("mino-crash-%s.log", time.Now().Format("20060102150405"))
+			panicErr := fmt.Sprintln("[panic error]", r, "\n"+string(buf[:n]))
+			_ = ioutil.WriteFile(name, []byte(panicErr), os.ModePerm)
 		}
 	}()
 
