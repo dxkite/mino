@@ -1,5 +1,8 @@
 ![](banner.png)
 
+[![Build Docker Image](https://github.com/dxkite/mino/actions/workflows/docker-image.yml/badge.svg)](https://github.com/dxkite/mino/actions/workflows/docker-image.yml)
+[![Release](https://github.com/dxkite/mino/actions/workflows/release.yml/badge.svg)](https://github.com/dxkite/mino/actions/workflows/release.yml)
+
 基于 golang 编写的网络访问助手，使用代理协议实现支持远程访问局域网以及限制指定网站访问，守护家庭成员健康上网
 
 ## 特性
