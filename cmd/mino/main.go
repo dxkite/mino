@@ -131,6 +131,10 @@ func GetBasicAuth(cfg *config.UserConfig) stream.BasicAuthFunc {
 	}
 }
 
+func mod(a, b int) int {
+	return a % b
+}
+
 func main() {
 	ctx, exit := context.WithCancel(context.Background())
 	log.Println("Mino Agent", mino.Version, mino.Commit, util.GetMachineId())
@@ -148,10 +152,19 @@ func main() {
 			log.Error("[panic error]", r)
 			log.Error(string(buf[:n]))
 			name := fmt.Sprintf("mino-crash-%s.log", time.Now().Format("20060102150405"))
-			panicErr := fmt.Sprintln("[panic error]", r, "\n"+string(buf[:n]))
+			info := fmt.Sprintf("Version: %s\nCommit: %s\nOS: %s\nArch: %s\nTime: %s\n",
+				mino.Version,
+				mino.Commit,
+				runtime.GOOS,
+				runtime.GOARCH,
+				time.Now().Format("2006-01-02 15:04:05"),
+			)
+			panicErr := info + string(buf[:n])
 			_ = ioutil.WriteFile(name, []byte(panicErr), os.ModePerm)
 		}
 	}()
+
+	mod(1, 0)
 
 	cfg := &config.Config{}
 	cfg.InitDefault()
