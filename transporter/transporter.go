@@ -87,6 +87,16 @@ func (t *Transporter) Init() error {
 		}
 		go t.uf.Write(t.Config.UserFlowPath, t.Config.UserFlowInterval)
 	}
+
+	if len(t.Config.HostConf) > 0 {
+		pa := config.GetConfigFile(t.Config, t.Config.HostConf)
+		if err := t.HostConf.Load(pa); err != nil {
+			log.Error("load host conf error", err)
+		} else {
+			log.Info("load host conf success", pa)
+		}
+	}
+
 	return nil
 }
 
@@ -232,6 +242,12 @@ func (t *Transporter) transport(svr stream.ServerConn, network, address, route s
 	rmt, mode, rmtErr := t.dial(network, address)
 	via := mode
 
+	if mode == Block {
+		log.Error(rmtErr)
+		t.handleError(svr, nil)
+		_ = svr.Close()
+	}
+
 	if rmtErr != nil {
 		errMsg := fmt.Sprintf("%s: dial %s://%s by %s error: %s", svr.RemoteAddr(), network, address, via, rmtErr)
 		log.Error(errMsg)
@@ -349,14 +365,14 @@ func (t *Transporter) AddrAction(addr string) VisitMode {
 		return ""
 	}
 
-	// 环回地址直接请求
-	if t.Config.HostDetectLoopback && util.IsLoopback(host) {
-		return Direct
-	}
-
 	// 配置
 	if act := t.HostConf.Detect(host); len(act) > 0 {
 		return act
+	}
+
+	// 环回地址直接请求
+	if t.Config.HostDetectLoopback && util.IsLoopback(host) {
+		return Direct
 	}
 
 	return ""
@@ -379,7 +395,7 @@ func (t *Transporter) dial(network, address string) (net.Conn, VisitMode, error)
 
 	// 禁止
 	if act == Block {
-		return nil, "", errors.New(fmt.Sprintf("host %s is %s", address, act))
+		return nil, Block, errors.New(fmt.Sprintf("host %s is %s", address, act))
 	}
 
 	// 默认直连
