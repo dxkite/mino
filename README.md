@@ -1,60 +1,32 @@
-# mino
+![](banner.png)
 
-基于 `Go` 的家庭网关，用于限制家庭成员网站访问。
-使用 `HTTP/Socks5` 代理协议接入管理家庭成员网络访问，允许家庭成员访问白名单网站，对于黑名单网站禁止访问。
+基于 golang 编写的网络访问助手，使用代理协议实现支持远程访问局域网以及限制指定网站访问，守护家庭成员健康上网
 
 ## 特性
 
-- [x] 代理访问
-    - [x] HTTP
-    - [x] Socks5
-        - [x] CONNECT
-        - [ ] BIND
-        - [ ] UDP
-- [x] 自动PAC设置
-- [x] Web服务
-- [x] 开机自启
-- [x] 自动更新
-- [x] 热更新配置
-- [x] 支持线路切换
-- [x] 控制
-    - [x] 支持域名黑名单允许拒绝访问特定域名
-    - [x] 支持配置域名使用特定远程服务器
-    - [x] 支持全部或者部分使用远程服务器
-- [ ] 权限验证
-    - [ ] 启用IP验证x
-    - [x] 用户认证
-- [x] Web面板(desktop)
-    - [x] 本地访问不验证权限 
-    - [x] 配置界面
-    - [x] 日志展示
-    - [ ] 流量实时显示
+- 支持多系统运行
+- 支持 `socks5/http` 协议接入
+- 支持 `windows` 平台友好界面以及自动设置访问控制
+- 支持在局域网中部署服务，允许外部网络访问局域网资源
 
-## 移动端支持
+## 实现
 
-- [ ] android **计划中**
-- [ ] ios
+- 使用 `http/socks5` 协议控制网络访问
+- **TODO** 实现基于DNS的网络访问控制
 
-## 多平台支持
+## 安装
 
-从v0.2.1-alpha版本起，增加了对macOS的适配，并且原生支持M1！
+在版本列表中下载即可使用
 
-## 使用
+## 容器支持
 
-### 安装
-
-```bash
-go install dxkite.cn/mino/cmd/mino
-```
-### Docker支持
-
-Docker一键启动服务端（轻量化）
+Docker 一键启动服务端（轻量化）
 
 ```bash
 docker run --restart=always -d -p 28648:28648 w4ter/mino:v0.2.3
 ```
 
-Docker一键启动服务端（最新版本）
+Docker 一键启动服务端（最新版本）
 
 ```bash
 docker run -d -p 28648:1080 dxkite/mino:latest
@@ -111,3 +83,4 @@ address: ":28648"
 tls_cert_file: "conf/server.crt"
 tls_key_file: "conf/server.key"
 ```
+
