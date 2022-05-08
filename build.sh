@@ -17,8 +17,6 @@ function build() {
   echo "build $NAME success"
 }
 
-build "windows" "amd64"
-build "windows" "386"
 build "linux" "amd64"
 build "linux" "386"
 build "darwin" "amd64"
