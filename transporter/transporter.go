@@ -222,7 +222,7 @@ func (t *Transporter) handleError(conn stream.ServerConn, err error) {
 		}
 		return
 	}
-	if err := t.dummy.Handle(conn, dummy.NewErrorHandler(err)); err != nil {
+	if err := t.dummy.Handle(conn, err); err != nil {
 		log.Error("dummy error", err)
 	}
 }

@@ -4,24 +4,30 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
+	"dxkite.cn/log"
+	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/identifier"
 	"dxkite.cn/mino/util"
+	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
+	"net/url"
 )
 
 type DummyServer struct {
 	CaCert, CaKey *pem.Block
+	Web           string
 }
 
-func CreateDummyServer(config *config.Config) (*DummyServer, error) {
+func CreateDummyServer(cfg *config.Config) (*DummyServer, error) {
 	s := &DummyServer{}
-	err := s.InitCaConfig(config.DummyCaPem, config.DummyCaKey)
+	err := s.InitCaConfig(cfg.DummyCaPem, cfg.DummyCaKey)
+	s.Web = fmt.Sprintf("http://%s/#/error", util.FmtHost(cfg.Address))
 	return s, err
 }
 
@@ -29,10 +35,13 @@ func (s *DummyServer) InitCaConfig(pemPath, keyPath string) error {
 	if err := s.loadCaConfig(pemPath, keyPath); err != nil {
 		return errors.New("loadCaConfigError: " + err.Error())
 	}
-	certBytes, keyBytes, err := util.GenerateCA("Mino Random CA")
-	s.CaCert = certBytes
-	s.CaKey = keyBytes
-	return err
+	if s.CaKey == nil || s.CaCert == nil {
+		certBytes, keyBytes, err := util.GenerateCA("Mino Random CA")
+		s.CaCert = certBytes
+		s.CaKey = keyBytes
+		return err
+	}
+	return nil
 }
 
 func (s *DummyServer) loadCaConfig(pemPath, keyPath string) error {
@@ -65,6 +74,7 @@ func NewResponse(conn net.Conn, req *http.Request) http.ResponseWriter {
 		resp: new(http.Response),
 	}
 	w.resp.Request = req
+	w.resp.Header = http.Header{}
 	return w
 }
 
@@ -83,16 +93,51 @@ func (w *writer) WriteHeader(statusCode int) {
 	w.resp.StatusCode = statusCode
 }
 
-func (s *DummyServer) handleHttp(conn net.Conn, handler http.Handler) error {
+func (s *DummyServer) handleHttp(conn net.Conn, secure bool, currentError error) error {
 	req, err := http.ReadRequest(bufio.NewReader(conn))
 	if err != nil {
 		return err
 	}
-	handler.ServeHTTP(NewResponse(conn, req), req)
+	errMsg := ""
+	action := "block"
+	defaultMsg := "access blocked"
+	if currentError != nil {
+		errMsg = currentError.Error()
+		action = "error"
+	}
+
+	schema := "http"
+	if secure {
+		schema += "s"
+	}
+
+	data := map[string]string{
+		"action":  action,
+		"domain":  req.Host,
+		"error":   errMsg,
+		"url":     fmt.Sprintf("%s://%s%s", schema, req.Host, req.RequestURI),
+		"version": mino.Version,
+		"commit":  mino.Commit,
+	}
+
+	resp := NewResponse(conn, req)
+
+	buf := &bytes.Buffer{}
+	enc := json.NewEncoder(buf)
+	if err := enc.Encode(data); err != nil {
+		log.Error("create json error", err)
+		resp.WriteHeader(http.StatusInternalServerError)
+		_, _ = resp.Write([]byte(defaultMsg))
+		return err
+	}
+
+	resp.Header().Set("Location", s.Web+"?action="+url.QueryEscape(buf.String()))
+	resp.WriteHeader(http.StatusFound)
+	_, _ = resp.Write([]byte(defaultMsg))
 	return nil
 }
 
-func (s *DummyServer) handleHttps(conn net.Conn, handler http.Handler) error {
+func (s *DummyServer) handleHttps(conn net.Conn, err error) error {
 	cfg := &tls.Config{
 		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			log.Println("handle server name", info.ServerName)
@@ -111,7 +156,7 @@ func (s *DummyServer) handleHttps(conn net.Conn, handler http.Handler) error {
 		},
 	}
 	conn = tls.Server(conn, cfg)
-	return s.handleHttp(conn, handler)
+	return s.handleHttp(conn, true, err)
 }
 
 const TlsRecordTypeHandshake uint8 = 22
@@ -132,7 +177,7 @@ func detect(buf []byte) bool {
 	return true
 }
 
-func (s *DummyServer) Handle(conn net.Conn, handler http.Handler) error {
+func (s *DummyServer) Handle(conn net.Conn, err error) error {
 	buf := make([]byte, 3)
 	if n, err := conn.Read(buf); err != nil {
 		return err
@@ -145,8 +190,8 @@ func (s *DummyServer) Handle(conn net.Conn, handler http.Handler) error {
 	ok := detect(buf)
 
 	if ok {
-		return s.handleHttps(bufConn, handler)
+		return s.handleHttps(bufConn, err)
 	}
 
-	return s.handleHttp(bufConn, handler)
+	return s.handleHttp(bufConn, false, err)
 }
