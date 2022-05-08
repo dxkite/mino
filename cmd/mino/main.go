@@ -164,8 +164,6 @@ func main() {
 		}
 	}()
 
-	mod(1, 0)
-
 	cfg := &config.Config{}
 	cfg.InitDefault()
 

@@ -61,7 +61,11 @@ func (m *XxorMessage) Encoding(key []byte) (data, sessionKey []byte, err error) 
 	}
 
 	key = xor(key, rdm)
-	paddingSize := rand2.Intn(randomMaxSize)
+
+	rand2.Seed(time.Now().UnixNano())
+	// fix: 0%0 integer divide by zero
+	paddingSize := rand2.Intn(randomMaxSize-headerSize) + headerSize
+
 	m.PaddingSize = paddingSize
 	m.Padding = make([]byte, paddingSize)
 	if _, err := io.ReadFull(rand.Reader, m.Padding); err != nil {
