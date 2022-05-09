@@ -3,8 +3,8 @@ package transporter
 import (
 	"dxkite.cn/log"
 	"dxkite.cn/mino/config"
-	"dxkite.cn/mino/proxy"
 	"errors"
+	"net"
 	"net/url"
 	"sync"
 	"time"
@@ -102,10 +102,12 @@ func (r *RemoteHolder) updateState() {
 }
 
 // 检查服务器是否可以响应
-func test(rmt string, proxyURL *url.URL, timeout time.Duration) bool {
-	if err := proxy.Test(rmt, proxyURL, timeout); err != nil {
-		log.Debug("test request", rmt, "by", proxyURL.String(), err)
+func test(_ string, proxyURL *url.URL, timeout time.Duration) bool {
+	conn, err := net.Dial("tcp", proxyURL.Host)
+	if err != nil {
+		log.Debug("test", proxyURL.Host, "by", proxyURL.String(), err)
 		return false
 	}
+	_ = conn.Close()
 	return true
 }

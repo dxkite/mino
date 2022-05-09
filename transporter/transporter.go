@@ -454,6 +454,7 @@ func (t *Transporter) dialUpstream(network, address string) (net.Conn, VisitMode
 		}
 		// 连接远程服务器
 		if rmt, _, rmtErr = t.dialDirect(network, upstream.Host); rmtErr != nil {
+			log.Error("remote error", upstream.String(), rmtErr)
 			t.RemoteHolder.MarkState(id, false) // 标记远程服务不可用
 			continue
 		} else {
