@@ -17,7 +17,16 @@ function build() {
   echo "build $NAME success"
 }
 
-build "linux" "amd64"
-build "linux" "386"
-build "darwin" "amd64"
-build "android" "arm64"
+function build_android() {
+  git clone https://github.com/TTHHR/mino-android
+  cd mino-android
+  chmod +x gradlew
+  ./gradlew assembleRelease
+  tree
+}
+
+build_android
+#build "linux" "amd64"
+#build "linux" "386"
+#build "darwin" "amd64"
+#build "android" "arm64"
