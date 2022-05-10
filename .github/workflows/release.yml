@@ -32,6 +32,11 @@ jobs:
           mention-new-contributors: false
           include-compare: false
           semver: true
+      - name: set up JDK 11
+        uses: actions/setup-java@v2
+        with:
+          java-version: '11'
+          distribution: 'adopt'
       - name: Build
         run: chmod +x ./build.sh && ./build.sh
       - name: Release
@@ -40,7 +45,7 @@ jobs:
           allowUpdates: true
           body: ${{ steps.changelog.outputs.changelog }}
           artifactErrorsFailBuild: true
-          artifacts: "mino-*.tar.gz"
+          artifacts: "mino-*.tar.gz,mino-*.apk"
           token: ${{ secrets.GITHUB_TOKEN }}
   release-windows:
     runs-on: windows-latest
