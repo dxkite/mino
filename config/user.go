@@ -37,13 +37,16 @@ type UserFlowMap map[string]*UserFlow
 func (uf *UserFlowMap) Save(p string) error {
 	ufj := make([]UserFlowJSON, len(*uf))
 	i := 0
+
 	for _, v := range *uf {
 		ufj[i] = UserFlowJSON{
 			UserId: v.UserId,
 			Up:     strconv.Itoa(int(v.Up)),
 			Down:   strconv.Itoa(int(v.Down)),
 		}
+		i++
 	}
+
 	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE, os.ModePerm)
 	if err != nil {
 		return err
