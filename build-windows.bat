@@ -1,6 +1,12 @@
 FOR /F %%V IN ('git describe --tags') DO SET VERSION=%%V
 FOR /F %%V IN ('git rev-parse --short HEAD') DO SET COMMIT=%%V
 
+@echo "build client"
+cd client
+call npm install
+call npm run build
+cd ..
+
 @echo "build x64"
 SET FLAGS="-s -w -H windowsgui -X 'dxkite.cn/mino.Version=%VERSION%' -X 'dxkite.cn/mino.Commit=%COMMIT%'"
 SET GOOS=windows

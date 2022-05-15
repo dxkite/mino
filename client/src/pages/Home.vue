@@ -1,0 +1,70 @@
+<template>
+  <el-container>
+    <el-header>
+      <el-row>
+        <div>
+          Mino管理面板
+        </div>
+         <el-button type="danger" :icon="Delete" circle  @click="exit"/>
+        <el-icon :size="32" color="#000">
+            <edit />
+          </el-icon>
+      </el-row>
+    </el-header>
+    <el-main>
+      <el-tabs v-model="activeName">
+        <el-tab-pane label="配置管理" name="setting">
+          <setting />
+        </el-tab-pane>
+        <el-tab-pane label="实时日志" name="log">
+          <log />
+        </el-tab-pane>
+      </el-tabs>
+    </el-main>
+  </el-container>
+</template>
+
+<script>
+import Setting from "../components/Setting";
+import Log from "../components/Log";
+import service from "@/js/service";
+import { Delete } from '@element-plus/icons-vue';
+
+console.log(Delete);
+
+export default {
+  name: "Main",
+  components: {
+    Setting,
+    Log,
+  },
+  data() {
+    return {
+      activeName: "setting",
+    };
+  },
+  methods: {
+    exit() {
+      console.log("退出程序");
+      service
+        .exitProgram()
+        .then(() => {
+          this.$notify({
+            type: "error",
+            message: "关闭失败",
+          });
+        })
+        .catch(() => {
+          this.$notify({
+            type: "success",
+            message: "关闭成功",
+          });
+        });
+    },
+  },
+};
+</script>
+
+<!-- Add "scoped" attribute to limit CSS to this component only -->
+<style scoped>
+</style>
