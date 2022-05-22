@@ -441,33 +441,33 @@ func (t *Transporter) dialDirect(network, address string) (net.Conn, VisitMode, 
 
 // 调用上流请求
 func (t *Transporter) dialUpstream(network, address string) (net.Conn, VisitMode, error) {
-	var rmt net.Conn
-	var rmtErr error
-	var id int
-	var upstream *url.URL
-	var err error
-
 	for {
-		id, upstream, err = t.RemoteHolder.GetProxy()
+		id, upstream, err := t.RemoteHolder.GetProxy()
 		if err != nil {
 			return nil, "", err
 		}
-		// 连接远程服务器
-		if rmt, _, rmtErr = t.dialDirect(network, upstream.Host); rmtErr != nil {
-			log.Error("remote error", upstream.String(), rmtErr)
+		if conn, mode, err := t.dialByUpstream(network, address, upstream); err == nil {
+			return conn, mode, nil
+		} else {
+			log.Error("remote error", upstream.String(), err)
 			t.RemoteHolder.MarkState(id, false) // 标记远程服务不可用
 			continue
-		} else {
-			break
 		}
 	}
+}
 
-	if upstream == nil {
-		return nil, "", errors.New("all upstream error")
-	}
+// 连接远程服务器
+func (t *Transporter) dialByUpstream(network, address string, upstream *url.URL) (net.Conn, VisitMode, error) {
+	var rmt net.Conn
+	var rmtErr error
 
 	var targetNetwork = network
 	var targetAddress = address
+
+	if rmt, _, rmtErr = t.dialDirect(network, upstream.Host); rmtErr != nil {
+		log.Error("remote error", upstream.String(), rmtErr)
+		return nil, "", rmtErr
+	}
 
 	vm := VisitMode(upstream.String())
 
