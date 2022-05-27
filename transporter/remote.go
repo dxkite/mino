@@ -70,6 +70,13 @@ func (r *RemoteHolder) GetProxy() (int, *url.URL, error) {
 	return -1, nil, errors.New("all remote unavailable")
 }
 
+func (r *RemoteHolder) GetBaseProxy() (*url.URL, error) {
+	if len(r.svr) == 0 {
+		return nil, errors.New("no remote unavailable")
+	}
+	return r.svr[0], nil
+}
+
 func (r *RemoteHolder) Size() int {
 	return len(r.svr)
 }

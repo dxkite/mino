@@ -443,9 +443,16 @@ func (t *Transporter) dialDirect(network, address string) (net.Conn, VisitMode, 
 func (t *Transporter) dialUpstream(network, address string) (net.Conn, VisitMode, error) {
 	for {
 		id, upstream, err := t.RemoteHolder.GetProxy()
+
 		if err != nil {
-			return nil, "", err
+			// 最后再试一试主线路
+			if base, baseErr := t.RemoteHolder.GetBaseProxy(); baseErr == nil {
+				return t.dialByUpstream(network, address, base)
+			} else {
+				return nil, "", baseErr
+			}
 		}
+
 		if conn, mode, err := t.dialByUpstream(network, address, upstream); err == nil {
 			return conn, mode, nil
 		} else {
