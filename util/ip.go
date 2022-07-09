@@ -27,12 +27,11 @@ func IsLocalAddr(addr string) bool {
 	return false
 }
 
-var localIpAddr map[string]struct{}
+var localIpAddr = map[string]bool{}
 var machineId = ""
-var hardwareAddr []net.HardwareAddr
+var hardwareAddr = []net.HardwareAddr{}
 
 func init() {
-	localIpAddr = map[string]struct{}{}
 	machineMacs := []string{}
 	if its, _ := net.Interfaces(); its != nil {
 		for _, it := range its {
@@ -41,11 +40,12 @@ func init() {
 				hardwareAddr = append(hardwareAddr, it.HardwareAddr)
 			}
 			if ads, err := it.Addrs(); err == nil {
+				log.Debug(ads)
 				for _, addr := range ads {
 					addrMask := addr.String()
 					i := strings.Index(addrMask, "/")
 					if v := net.ParseIP(addrMask[:i]); v != nil {
-						localIpAddr[string(v)] = struct{}{}
+						localIpAddr[string(v)] = true
 					}
 				}
 			}

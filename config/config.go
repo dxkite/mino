@@ -238,7 +238,13 @@ func CopyObjectMap(dest interface{}, from map[string]interface{}) (modify []stri
 
 		if v, ok := from[name]; ok {
 			rv := reflect.ValueOf(v)
-			if rv.Type().ConvertibleTo(f.Type()) {
+			if !rv.IsValid() {
+				continue
+			}
+			if rv.IsZero() {
+				f.Set(rv)
+				modify = append(modify, name)
+			} else if rv.Type().ConvertibleTo(f.Type()) {
 				f.Set(rv.Convert(f.Type()))
 				modify = append(modify, name)
 			}
