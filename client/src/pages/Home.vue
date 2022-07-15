@@ -2,13 +2,14 @@
   <el-container>
     <el-header>
       <el-row>
-        <div>
-          Mino管理面板
-        </div>
-         <el-button type="danger" :icon="Delete" circle  @click="exit"/>
+        <div>Mino管理面板</div>
+        <el-button type="danger" :icon="Delete" circle @click="exit" />
         <el-icon :size="32" color="#000">
-            <edit />
-          </el-icon>
+          <delete />
+        </el-icon>
+        <el-icon>
+          <element-plus></element-plus>
+        </el-icon>
       </el-row>
     </el-header>
     <el-main>
@@ -28,15 +29,13 @@
 import Setting from "../components/Setting";
 import Log from "../components/Log";
 import service from "@/js/service";
-import { Delete } from '@element-plus/icons-vue';
 
-console.log(Delete);
 
 export default {
   name: "Main",
   components: {
     Setting,
-    Log,
+    Log
   },
   data() {
     return {

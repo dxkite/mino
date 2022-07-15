@@ -1,5 +1,5 @@
 export const HOSTS_KEY = 'mino-host';
-export const DEFAULT_HOST = (process.env.HOSTS||'').length>0?process.env.HOSTS:window.location.host;
+export const DEFAULT_HOST = (process.env.VUE_APP_HOSTS||'').length>0?process.env.VUE_APP_HOSTS:window.location.host;
 export const API = {
     CONFIG_GET: {
         method: 'GET',

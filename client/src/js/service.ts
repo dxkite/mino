@@ -7,9 +7,9 @@ export default {
     },
     getConfigSchema() {
         return requestApi(API.CONFIG_SCHEMA).then((data) => {
-            for (let name in data.properties) {
+            for (const name in data.properties) {
                 data.properties[name]['title'] = data.properties[name].title || name;
-                let uioptions = {
+                const uioptions: any = {
                     placeholder: '请输入'
                 };
                 if (data.properties[name].readOnly) {
@@ -23,9 +23,9 @@ export default {
             return data;
         })
     },
-    saveConfig(data) {
+    saveConfig(data: any) {
         return requestApi(API.CONFIG_SET, data).then((data) => {
-            for (let name in data.properties) {
+            for (const name in data.properties) {
                 data.properties[name]['title'] = name;
                 if (data.properties[name].readOnly) {
                     data.properties[name]['ui:options'] = {

@@ -1,28 +1,35 @@
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import { HOSTS_KEY, DEFAULT_HOST, HTTP_TIMEOUT } from './config';
 import { ElNotification } from 'element-plus'
 
-export function getApiUrl(path) {
-    let host = window.localStorage.getItem(HOSTS_KEY) || DEFAULT_HOST;
+export function getApiUrl(path: string) {
+    const host = window.localStorage.getItem(HOSTS_KEY) || DEFAULT_HOST;
     return "http://" + host + path
 }
 
-export function setApiHost(host) {
+export function setApiHost(host: string) {
     window.localStorage.setItem(HOSTS_KEY, host)
 }
 
-export function getWsLink(path) {
-    let host = window.localStorage.getItem(HOSTS_KEY) || DEFAULT_HOST;
+export function getWsLink(path: string) {
+    const host = window.localStorage.getItem(HOSTS_KEY) || DEFAULT_HOST;
     return "ws://" + host + path
 }
 
 export class ServerError {
-    constructor(message) {
+    protected message: string;
+    constructor(message: string) {
         this.message = message
     }
 }
 
-export function requestApi(cfg, data) {
+
+export interface Config {
+    method: string;
+    path: string;
+}
+
+export function requestApi(cfg: Config, data?: any) {
     const config = {
         timeout: HTTP_TIMEOUT,
     }
@@ -35,7 +42,7 @@ export function requestApi(cfg, data) {
     }
     return promise.then((data) => {
         console.log('request', config, data)
-        let err = data.data.error || "";
+        const err = data.data.error || "";
         if (err.length > 0) {
             throw new ServerError(err);
         }

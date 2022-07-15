@@ -12,5 +12,5 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 
 installElementPlus(app)
 
-app.use(VueForm)
+app.component('VueForm', VueForm);
 app.mount('#app')
