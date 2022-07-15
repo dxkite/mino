@@ -2,14 +2,6 @@
 VERSION=$(git describe --tags)
 COMMIT=$(git rev-parse --short HEAD)
 
-function build_ui() {
-  echo "build webui"
-  cd client
-  npm install
-  npm run build
-  cd ..
-}
-
 function build() {
   OS=$1
   ARCH=$2
@@ -33,9 +25,6 @@ function build_android() {
   ./gradlew assembleDebug
   cp ./app/build/outputs/apk/debug/app-debug.apk ../mino-$VERSION-arm64-debug.apk
 }
-
-
-build_ui
 
 build "linux" "amd64"
 build "linux" "386"

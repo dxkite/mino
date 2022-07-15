@@ -14,9 +14,17 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.18
-      - uses: actions/setup-node@v3
+      - 
+        name: Set up Node
+        uses: actions/setup-node@v3
         with:
           node-version: 14
+      -
+        name: Build WebUI
+        run: |
+          cd client
+          npm install
+          npm run build
       - name: Create Changelog
         uses: ardalanamini/auto-changelog@v3
         id: changelog
@@ -58,9 +66,17 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.18
-      - uses: actions/setup-node@v3
+      - 
+        name: Set up Node
+        uses: actions/setup-node@v3
         with:
           node-version: 14
+      -
+        name: Build WebUI
+        run: |
+          cd client
+          npm install
+          npm run build
       - name: Build
         run: ./build-windows.bat
       - name: Release
