@@ -19,12 +19,13 @@
   </el-container>
 </template>
 
-<script>
-import Setting from "../components/Setting";
-import Log from "../components/Log";
-import service from "@/js/service";
+<script lang="ts">
+import Setting from "@/components/Setting.vue";
+import Log from "@/components/Log.vue";
+import { exitProgram, getSessionList } from "@/js/service";
+import { defineComponent } from "vue";
 
-export default {
+export default defineComponent({
   name: "Main",
   components: {
     Setting,
@@ -35,26 +36,16 @@ export default {
       activeName: "setting",
     };
   },
+  async mounted() {
+    await getSessionList();
+  },
   methods: {
-    exit() {
+    async exit() {
       console.log("退出程序");
-      service
-        .exitProgram()
-        .then(() => {
-          this.$notify({
-            type: "error",
-            message: "关闭失败",
-          });
-        })
-        .catch(() => {
-          this.$notify({
-            type: "success",
-            message: "关闭成功",
-          });
-        });
+      await exitProgram();
     },
   },
-};
+});
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->

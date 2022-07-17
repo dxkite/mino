@@ -1,6 +1,6 @@
-import axios, { AxiosRequestConfig } from 'axios';
-import { HOSTS_KEY, DEFAULT_HOST, HTTP_TIMEOUT } from './config';
-import { ElNotification } from 'element-plus'
+import axios from 'axios';
+import { HOSTS_KEY, DEFAULT_HOST, HTTP_TIMEOUT, InterfaceConfig, IS_DEV } from './config';
+import { ElNotification } from 'element-plus';
 
 export function getApiUrl(path: string) {
     const host = window.localStorage.getItem(HOSTS_KEY) || DEFAULT_HOST;
@@ -23,23 +23,22 @@ export class ServerError {
     }
 }
 
-
-export interface Config {
-    method: string;
-    path: string;
-}
-
-export function requestApi(cfg: Config, data?: any) {
+export function requestApi(cfg: InterfaceConfig, data?: any) {
     const config = {
         timeout: HTTP_TIMEOUT,
     }
-
     let promise;
-    if (cfg.method == 'POST') {
+
+    if (cfg.mock && IS_DEV) {
+        // 模拟数据
+        console.log('mock', cfg.method, cfg.path);
+        promise = Promise.resolve({ data: cfg.mock });
+    } else if (cfg.method == 'POST') {
         promise = axios.post(getApiUrl(cfg.path), data, config);
     } else {
         promise = axios.get(getApiUrl(cfg.path), config);
     }
+
     return promise.then((data) => {
         console.log('request', config, data)
         const err = data.data.error || "";

@@ -13,14 +13,14 @@
 
 <script>
 import websocket from "@/mixin/websocket";
-import service from "@/js/service";
+import { getWsLogLink } from "@/js/service";
 
 export default {
   name: "Log",
   mixins: [websocket],
   data() {
     return {
-      wsLink: service.getWsLogLink(),
+      wsLink: getWsLogLink(),
       log: [],
     };
   },

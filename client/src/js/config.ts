@@ -1,5 +1,17 @@
+import { mockSessionList } from "./mock";
+
+export const IS_DEV = process.env.NODE_ENV === 'development';
+
+export interface InterfaceConfig {
+    method: string;
+    path: string;
+    mock?: any;
+}
+
 export const HOSTS_KEY = 'mino-host';
+
 export const DEFAULT_HOST = (process.env.VUE_APP_HOSTS||'').length>0?process.env.VUE_APP_HOSTS:window.location.host;
+
 export const API = {
     CONFIG_GET: {
         method: 'GET',
@@ -17,6 +29,11 @@ export const API = {
         method: 'GET',
         path: '/api/v1/control/exit',
     },
+    SESSION_LIST: {
+        method: 'GET',
+        path: '/api/v1/session/list',
+        mock: mockSessionList,
+    }
 };
 
 export const WS_API = {
