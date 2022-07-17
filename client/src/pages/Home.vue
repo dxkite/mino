@@ -3,13 +3,7 @@
     <el-header>
       <el-row>
         <div>Mino管理面板</div>
-        <el-button type="danger" :icon="Delete" circle @click="exit" />
-        <el-icon :size="32" color="#000">
-          <delete />
-        </el-icon>
-        <el-icon>
-          <element-plus></element-plus>
-        </el-icon>
+        <el-button type="danger" icon="delete" circle @click="exit" />
       </el-row>
     </el-header>
     <el-main>
@@ -29,7 +23,6 @@
 import Setting from "../components/Setting";
 import Log from "../components/Log";
 import service from "@/js/service";
-
 
 export default {
   name: "Main",
