@@ -37,6 +37,9 @@ export default {
             return data;
         })
     },
+    login(data: {username: string, password: string}) {
+        return requestApi(API.CONFIG_LOGIN, data)
+    },
     exitProgram() {
         return requestApi(API.CONTROL_EXIT)
     },

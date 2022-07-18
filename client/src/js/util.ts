@@ -47,13 +47,17 @@ export function requestApi(cfg: Config, data?: any) {
             throw new ServerError(err);
         }
         return data.data.result;
-    }).catch((e) => {
+    }).catch((e: {message: string }) => {
         console.error(e);
         ElNotification({
             type: 'error',
             title: '请求服务器失败',
             message: JSON.stringify(cfg),
         })
+        if  (e.message === "need login") {
+            // login
+            window.location.href = '#/login';
+        }
         throw e;
     })
 }

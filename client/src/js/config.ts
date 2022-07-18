@@ -17,6 +17,10 @@ export const API = {
         method: 'GET',
         path: '/api/v1/control/exit',
     },
+    CONFIG_LOGIN: {
+        method: 'POST',
+        path: '/api/v1/login',
+    },
 };
 
 export const WS_API = {
