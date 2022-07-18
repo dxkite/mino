@@ -11,9 +11,10 @@
 </template>
 
 <script>
-import service from "@/js/service";
+import { getConfigSchema, saveConfig, getConfig } from "@/js/service";
+import { defineComponent } from "@vue/runtime-core";
 
-export default {
+export default defineComponent({
   name: "Setting",
   data() {
     return {
@@ -23,40 +24,38 @@ export default {
       formProps: {},
     };
   },
-  created() {
-    service.getConfigSchema().then((data) => {
+  mounted() {
+    console.log("mounted");
+     getConfigSchema().then((data) => {
       console.log("schema", data);
       this.schema = data;
     });
-  },
-  mounted() {
-    console.log("mounted");
-    this.getConfig();
+    this.getConfigData();
   },
   methods: {
     submit() {
       console.log("submit");
-      service.saveConfig(this.formData).then(() => {
+      saveConfig(this.formData).then(() => {
         this.$notify({
           type: 'success',
           message: '配置更新成功',
         });
-        this.getConfig();
+        this.getConfigData();
       });
     },
     cancel() {
       console.log("cancel");
       this.formData = this.defaultData;
     },
-    getConfig() {
-      service.getConfig().then((data) => {
+    getConfigData() {
+      getConfig().then((data) => {
         console.log("data", data);
         this.formData = data;
         this.defaultData = data;
       });
     },
   },
-};
+});
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->

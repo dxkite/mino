@@ -1,23 +1,12 @@
 <template>
   <div class="home">
     <header class="header-icon">
-      <Setting
-        @click="settingVisible = true"
-        style="width: 1em; height: 1em; margin-right: 8px"
-      />
-      <el-dialog v-model="settingVisible" title="设置">
-        <SettingItem v-model="form" />
-        <template #footer>
-          <span class="dialog-footer">
-            <el-button @click="settingVisible = false">取消</el-button>
-            <el-button type="primary" @click="settingVisible = false"
-              >确定</el-button
-            >
-          </span>
-        </template>
-      </el-dialog>
-
-      <SwitchButton @click="switchChange" style="width: 1em; height: 1em;" />
+      <el-icon :size="14">
+        <Setting @click="settingVisible = true" />
+      </el-icon>
+      <el-icon :size="14">
+        <SwitchButton @click="switchChange" />
+      </el-icon>
     </header>
     <HeaderImg> </HeaderImg>
     <div class="box-card">
@@ -53,20 +42,27 @@
         <div>日志</div>
       </div>
       <div class="journal-cotent">
-        <div :class="stylerColor">
-          12121221
-        </div>
+        <div :class="stylerColor">12121221</div>
       </div>
     </div>
-    <div class="footer">
-      mino 网络访问助手 v0.2.6-beta a82db2
-    </div>
+    <div class="footer">mino 网络访问助手 v0.2.6-beta a82db2</div>
   </div>
+  <el-dialog v-model="settingVisible" title="设置">
+    <SettingItem v-model="form" />
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="settingVisible = false">取消</el-button>
+        <el-button type="primary" @click="settingVisible = false"
+          >确定</el-button
+        >
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <script>
 import HeaderImg from "../components/HeaderImg.vue";
-import SettingItem from "../components/SettingItem"
+import SettingItem from "../components/SettingItem";
 export default {
   data() {
     return {
@@ -74,7 +70,7 @@ export default {
       childBorder: false,
       settingVisible: false,
       form: {
-        address: '',
+        address: "",
         host_detect_loopback: false,
         hot_load: 10000,
       },
