@@ -1,54 +1,6 @@
 import { requestApi, getWsLink } from '@/js/util';
 import { API, WS_API } from '@/js/config';
 
-<<<<<<< HEAD
-export default {
-    getConfig() {
-        return requestApi(API.CONFIG_GET)
-    },
-    getConfigSchema() {
-        return requestApi(API.CONFIG_SCHEMA).then((data) => {
-            for (const name in data.properties) {
-                data.properties[name]['title'] = data.properties[name].title || name;
-                const uioptions: any = {
-                    placeholder: '请输入'
-                };
-                if (data.properties[name].readOnly) {
-                    uioptions['disabled'] = true;
-                }
-                if (data.properties[name].description) {
-                    uioptions['description'] = data.properties[name].description;
-                }
-                data.properties[name]['ui:options'] = uioptions;
-            }
-            return data;
-        })
-    },
-    saveConfig(data: any) {
-        return requestApi(API.CONFIG_SET, data).then((data) => {
-            for (const name in data.properties) {
-                data.properties[name]['title'] = name;
-                if (data.properties[name].readOnly) {
-                    data.properties[name]['ui:options'] = {
-                        disabled: true,
-                        placeholder: '请输入',
-                    };
-                }
-            }
-            return data;
-        })
-    },
-    login(data: {username: string, password: string}) {
-        return requestApi(API.CONFIG_LOGIN, data)
-    },
-    exitProgram() {
-        return requestApi(API.CONTROL_EXIT)
-    },
-    getWsLogLink() {
-        return getWsLink(WS_API.LOG_JSON)
-    },
-}
-=======
 
 export const getConfig = () => {
   return requestApi(API.CONFIG_GET);
@@ -123,4 +75,8 @@ export const getSessionList = async () => {
   console.log('处理后', tableData);
   return tableData;
 };
->>>>>>> 9c4b06f4ff13659a6f4f9578ab54a7691ee2a29e
+
+
+export const login = (data: {username: string, password: string}) => {
+  return requestApi(API.CONFIG_LOGIN, data)
+};

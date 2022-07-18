@@ -29,18 +29,15 @@ export const API = {
         method: 'GET',
         path: '/api/v1/control/exit',
     },
-<<<<<<< HEAD
     CONFIG_LOGIN: {
         method: 'POST',
         path: '/api/v1/login',
     },
-=======
     SESSION_LIST: {
         method: 'GET',
         path: '/api/v1/session/list',
         mock: mockSessionList,
     }
->>>>>>> 9c4b06f4ff13659a6f4f9578ab54a7691ee2a29e
 };
 
 export const WS_API = {
