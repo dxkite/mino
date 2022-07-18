@@ -19,11 +19,11 @@
         :load="load"
         :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
       >
-        <el-table-column label="远程客户端" prop="date" />
-        <el-table-column label="协议" prop="name" />
-        <el-table-column label="目标网站" prop="state" />
-        <el-table-column label="上传流量" prop="state" />
-        <el-table-column label="下载流量" prop="state" />
+        <el-table-column label="远程客户端" prop="src" />
+        <el-table-column label="协议" prop="protocol" />
+        <el-table-column label="目标网站" prop="dst" />
+        <el-table-column label="上传流量" prop="up" />
+        <el-table-column label="下载流量" prop="down" />
         <el-table-column label="操作" prop="state">
           <template #default="scope">
             <el-button
@@ -63,6 +63,8 @@
 <script>
 import HeaderImg from "../components/HeaderImg.vue";
 import SettingItem from "../components/SettingItem";
+import { getSessionList } from '../js/service';
+
 export default {
   data() {
     return {
@@ -74,64 +76,17 @@ export default {
         host_detect_loopback: false,
         hot_load: 10000,
       },
-      tableData: [
-        {
-          id: 1,
-          date: "2016-05-02",
-          name: "wangxiaohu",
-          children: [
-            {
-              id: 27,
-              date: "2016-05-01",
-              name: "wangxiaohu",
-            },
-            {
-              id: 28,
-              date: "2016-05-01",
-              name: "wangxiaohu",
-            },
-          ],
-        },
-        {
-          id: 2,
-          date: "2016-05-04",
-          name: "wangxiaohu",
-          children: [
-            {
-              id: 29,
-              date: "2016-05-01",
-              name: "wangxiaohu",
-            },
-            {
-              id: 30,
-              date: "2016-05-01",
-              name: "wangxiaohu",
-            },
-          ],
-        },
-        {
-          id: 3,
-          date: "2016-05-01",
-          name: "wangxiaohu",
-          children: [
-            {
-              id: 31,
-              date: "2016-05-01",
-              name: "wangxiaohu",
-            },
-            {
-              id: 32,
-              date: "2016-05-01",
-              name: "wangxiaohu",
-            },
-          ],
-        },
-      ],
+      tableData: [],
     };
   },
   components: {
     HeaderImg,
     SettingItem,
+  },
+  async mounted() {
+    const data = await getSessionList();
+    this.tableData = data;
+    console.log(data);
   },
   methods: {
     handleDisconnect(e) {

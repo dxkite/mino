@@ -51,8 +51,8 @@ export const getWsLogLink = () => {
 export interface SessionItem {
   "id"?: number,
   "protocol"?: string,
-  "group": string,
-  "src"?: string,
+  "group"?: string,
+  "src": string,
   "dst"?: string,
   "up": number,
   "down": number,
@@ -64,7 +64,7 @@ export const getSessionList = async () => {
   console.log('处理前', data);
   const tableData = [];
   for (const [group, child] of Object.entries(data)) {
-    const tableGroup: SessionItem & { children: SessionItem[] }  = { group, children: [],up: 0, down: 0};
+    const tableGroup: SessionItem & { children: SessionItem[] }  = { src: group, children: [],up: 0, down: 0};
     for (const [id, item] of Object.entries(child as SessionItem)) {
       tableGroup.children.push(item);
       tableGroup.up += item.up;
