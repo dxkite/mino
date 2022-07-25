@@ -1,23 +1,36 @@
 <template>
   <el-form :model="form">
-    <el-form-item label="监听地址" :label-width="formLabelWidth">
+    <el-form-item  v-for="(item, index) in formItem" :key="index">
+      <template #label>
+        <div class="form-item">
+          <div>{{ item.title }}</div>
+          <el-tooltip
+            v-if="item.description"
+            effect="dark"
+            :content="item.description"
+            placement="top-start"
+          >
+            <el-icon class="form-icon"><QuestionFilled /></el-icon>
+          </el-tooltip>
+        </div>
+      </template>
       <el-input
-        v-model="form.address"
+        v-if="item.type == 'string'"
+        v-model="form[item.name]"
         autocomplete="off"
         placeholder="请输入"
       />
-    </el-form-item>
-    <el-form-item label="自动环回地址检测">
-      <el-radio-group v-model="form.host_detect_loopback">
+      <el-radio-group
+        v-else-if="item.type == 'boolean'"
+        v-model="form[item.name]"
+      >
         <el-radio :label="true">开启</el-radio>
         <el-radio :label="false">关闭</el-radio>
       </el-radio-group>
-    </el-form-item>
-    <el-form-item label="hot_load">
-      <el-input
-        type="number"
-        v-model="form.hot_load"
-        autocomplete="off"
+
+      <el-input-number
+        v-else-if="item.type == 'integer'"
+        v-model="form[item.name]"
         placeholder="请输入"
       />
     </el-form-item>
@@ -28,14 +41,11 @@
 export default {
   props: {
     modelValue: Object,
+    formItem: Array,
   },
   data() {
     return {
-      form: {
-        address: "",
-        host_detect_loopback: false,
-        hot_load: 10000,
-      },
+      form: {},
     };
   },
   watch: {
@@ -50,4 +60,13 @@ export default {
 };
 </script>
 
-<style></style>
+<style scoped>
+.form-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.form-icon {
+  padding: 0 4px;
+}
+</style>

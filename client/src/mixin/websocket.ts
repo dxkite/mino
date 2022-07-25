@@ -18,10 +18,10 @@ const webSocketMixin = defineComponent<any,any,{
     },
     methods: {
         _ws$init() {
-            console.log('Init Websocket');
+            // console.log('Init Websocket');
             this.socket = new WebSocket(this.wsLink)
             this.socket.addEventListener('open', () => {
-                console.log('open');
+                // console.log('open');
                 this._ws$open();
             });
             this.socket.addEventListener('close', (evt: any) => {
@@ -37,7 +37,7 @@ const webSocketMixin = defineComponent<any,any,{
             });
         },
         _ws$open() {
-            console.log('open');
+            // console.log('open');
             if (this.onWsOpen) {
                 this.onWsOpen();
             }

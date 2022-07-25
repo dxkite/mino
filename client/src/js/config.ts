@@ -26,7 +26,7 @@ export const API = {
         path: '/api/v1/config/set',
     },
     CONTROL_EXIT: {
-        method: 'GET',
+        method: 'POST',
         path: '/api/v1/control/exit',
     },
     CONFIG_LOGIN: {
@@ -37,6 +37,10 @@ export const API = {
         method: 'GET',
         path: '/api/v1/session/list',
         mock: mockSessionList,
+    },
+    SESSION_CLOSE: {
+        method: 'POST',
+        path: '/api/v1/session/close',
     }
 };
 

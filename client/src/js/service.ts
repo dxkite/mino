@@ -6,39 +6,53 @@ export const getConfig = () => {
   return requestApi(API.CONFIG_GET);
 };
 
+// export const getConfigSchema = () => {
+//   return requestApi(API.CONFIG_SCHEMA).then((data) => {
+//     for (const name in data.properties) {
+//       data.properties[name]['title'] = data.properties[name].title || name;
+//       const uioptions: any = {
+//         placeholder: '请输入'
+//       };
+//       if (data.properties[name].readOnly) {
+//         uioptions['disabled'] = true;
+//       }
+//       if (data.properties[name].description) {
+//         uioptions['description'] = data.properties[name].description;
+//       }
+//       data.properties[name]['ui:options'] = uioptions;
+//     }
+//     return data;
+//   })
+// };
 export const getConfigSchema = () => {
   return requestApi(API.CONFIG_SCHEMA).then((data) => {
     for (const name in data.properties) {
       data.properties[name]['title'] = data.properties[name].title || name;
-      const uioptions: any = {
-        placeholder: '请输入'
-      };
-      if (data.properties[name].readOnly) {
-        uioptions['disabled'] = true;
-      }
-      if (data.properties[name].description) {
-        uioptions['description'] = data.properties[name].description;
-      }
-      data.properties[name]['ui:options'] = uioptions;
+      data.properties[name]['name'] = name;
     }
-    return data;
+    return Object.values(data.properties);
   })
 };
 
+// export const saveConfig = (data: any) => {
+//   return requestApi(API.CONFIG_SET, data).then((data) => {
+//     for (const name in data.properties) {
+//       data.properties[name]['title'] = name;
+//       if (data.properties[name].readOnly) {
+//         data.properties[name]['ui:options'] = {
+//           disabled: true,
+//           placeholder: '请输入',
+//         };
+//       }
+//     }
+//     return data;
+//   });
+// };
 export const saveConfig = (data: any) => {
   return requestApi(API.CONFIG_SET, data).then((data) => {
-    for (const name in data.properties) {
-      data.properties[name]['title'] = name;
-      if (data.properties[name].readOnly) {
-        data.properties[name]['ui:options'] = {
-          disabled: true,
-          placeholder: '请输入',
-        };
-      }
-    }
     return data;
   });
-};
+}
 
 export const exitProgram = () => {
   return requestApi(API.CONTROL_EXIT);
@@ -49,7 +63,7 @@ export const getWsLogLink = () => {
 };
 
 export interface SessionItem {
-  "id"?: number,
+  "id"?: number|string,
   "protocol"?: string,
   "group"?: string,
   "src": string,
@@ -57,6 +71,7 @@ export interface SessionItem {
   "up": number,
   "down": number,
   "closed"?: boolean,
+  "isGroup"?: boolean,
 }
 
 export const getSessionList = async () => {
@@ -64,11 +79,12 @@ export const getSessionList = async () => {
   console.log('处理前', data);
   const tableData = [];
   for (const [group, child] of Object.entries(data)) {
-    const tableGroup: SessionItem & { children: SessionItem[] }  = { src: group, children: [],up: 0, down: 0};
+    const tableGroup: SessionItem & { children: SessionItem[] }  = { src: group, children: [],up: 0, down: 0, id: group};
     for (const [id, item] of Object.entries(child as SessionItem)) {
       tableGroup.children.push(item);
       tableGroup.up += item.up;
       tableGroup.down += item.down;
+      tableGroup.isGroup = true;
     }
     tableData.push(tableGroup);
   }
@@ -76,6 +92,9 @@ export const getSessionList = async () => {
   return tableData;
 };
 
+export const sessionClose = (data: {group: string, sid: number}) => {
+  return requestApi(API.SESSION_CLOSE, data);
+}
 
 export const login = (data: {username: string, password: string}) => {
   return requestApi(API.CONFIG_LOGIN, data)

@@ -1,5 +1,5 @@
 <template>
-  <div class="Login">
+  <div class="login">
     <div class="header">
       <HeaderImg></HeaderImg>
     </div>
@@ -16,7 +16,7 @@
 import LoginItem from "../components/LoginItem.vue";
 import HeaderImg from "../components/HeaderImg.vue"
 export default {
-  name: "Login",
+  name: "login",
   components: {
     LoginItem,
     HeaderImg,

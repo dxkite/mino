@@ -1,13 +1,24 @@
 <template>
   <div class="log-view" ref="log">
-    <el-alert
+    <div
+      :class="item2.level"
+      class="content"
+      v-for="(item2, index) in log"
+      :key="index"
+      :title="item2.message"
+    >
+      {{ item2.time }}
+      [{{ item2.level.toUpperCase() }}]
+      {{ item2.message }}
+    </div>
+    <!-- <el-alert
       show-icon
       v-for="(item, index) in log"
       v-bind:key="index"
       :title="item.message"
       :type="item.level"
     >
-    </el-alert>
+    </el-alert> -->
   </div>
 </template>
 
@@ -22,6 +33,7 @@ export default {
     return {
       wsLink: getWsLogLink(),
       log: [],
+      stylerColor: "success",
     };
   },
   created() {},
@@ -38,8 +50,17 @@ export default {
       }
       return "info";
     },
+    getTime(date) {
+      var json_date = new Date(date).toJSON();
+      return new Date(new Date(json_date) + 8 * 3600 * 1000)
+        .toISOString()
+        .replace(/T/g, " ")
+        .replace(/\.[\d]{3}Z/, "");
+    },
     onWsMessage(message) {
+      // console.log(message);
       message.level = this.getLevel(message.level);
+      message.time = this.getTime(message.time);
       this.log.push(message);
     },
   },
@@ -51,5 +72,40 @@ export default {
 .log-view {
   max-height: 50vh;
   overflow-y: auto;
+  font-family: Roboto;
+  font-size: 14px;
+  letter-spacing: 0px;
+  text-align: left;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  /* 滚动条样式 */
+  width: 6px;
+  height: 113px;
+
+  background: #d9d9d9;
+  border-radius: 4px;
+}
+.success {
+  color: #95d475;
+}
+.error {
+  color: #c45656;
+}
+.info {
+  color: #000000cc;
+}
+.content {
+  margin-bottom: 4px;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
 }
 </style>
