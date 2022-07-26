@@ -62,6 +62,10 @@ export const getWsLogLink = () => {
   return getWsLink(WS_API.LOG_JSON);
 };
 
+export const getWsSessionLink = () => {
+  return getWsLink(WS_API.SESSION);
+};
+
 export interface SessionItem {
   "id"?: number|string,
   "protocol"?: string,

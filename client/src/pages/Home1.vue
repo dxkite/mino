@@ -67,11 +67,14 @@ import {
   getConfigSchema,
   getConfig,
   saveConfig,
+  getWsSessionLink,
 } from "../js/service";
 import Log from "../components/Log.vue";
 import { ElMessage } from 'element-plus'
+import websocket from "@/mixin/websocket";
 
 export default {
+  mixins: [websocket],
   data() {
     return {
       childBorder: false,
@@ -79,6 +82,7 @@ export default {
       form: {},
       formItem: [],
       tableData: [],
+      wsLink: getWsSessionLink(),
     };
   },
   components: {
@@ -94,7 +98,7 @@ export default {
     // console.log('getConfigSchema',this.form)
 
     this.form = await getConfig();
-    console.log("form", this.form);
+    // console.log("form", this.form);
   },
   methods: {
     handleDisconnect(row) {
@@ -123,6 +127,26 @@ export default {
         type: "success",
       });
       this.settingVisible = false;
+    },
+    onWsMessage(message) {
+      console.log('onWsMessage',message.type);
+      console.log(', this.tableData', this.tableData)
+
+      const current = this.tableData.findIndex(
+        (item) => item.src === message.info.group
+      );
+
+      const groupCurrent = this.tableData[current].children.findIndex(
+        (item) => item.id === message.info.id
+      );
+      // 更新数据
+      this.tableData[current].children[groupCurrent] = message;
+
+      // 删除更新
+      if(message.type == 'close'){
+        console.log('删除数据');
+        this.tableData[current].children.splice(groupCurrent, 1);
+      }
     },
   },
 };

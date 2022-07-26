@@ -36,7 +36,7 @@ export const API = {
     SESSION_LIST: {
         method: 'GET',
         path: '/api/v1/session/list',
-        mock: mockSessionList,
+        // mock: mockSessionList,
     },
     SESSION_CLOSE: {
         method: 'POST',
@@ -47,6 +47,7 @@ export const API = {
 export const WS_API = {
     LOG_JSON: '/api/v1/log/json',
     LOG_TEXT: '/api/v1/log/text',
+    SESSION: '/api/v1/event'
 };
 
 export const HTTP_TIMEOUT = 30000;
