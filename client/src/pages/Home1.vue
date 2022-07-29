@@ -13,16 +13,28 @@
       <el-table :data="tableData" style="width: 100%" row-key="id" border>
         <el-table-column label="远程客户端" prop="src" width="180" />
         <el-table-column label="协议" prop="protocol" width="80" />
-        <el-table-column label="目标网站" prop="dst">
+        <el-table-column label="目标网站" >
           <template #default="scope">
             <div :title="scope.row.dst" class="table-dst">
               {{ scope.row.dst }}
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="上传流量" prop="up" width="100" />
-        <el-table-column label="下载流量" prop="down" width="100" />
-        <el-table-column label="操作" prop="state" width="100">
+        <el-table-column label="上传流量" width="100">
+          <template  #default="scope">
+            {{
+              bytesToSize(scope.row.up)
+            }}
+          </template>
+        </el-table-column>
+        <el-table-column label="下载流量" width="100" >
+          <template  #default="scope">
+            {{
+              bytesToSize(scope.row.down)
+            }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="100">
           <template #default="scope">
             <el-button
               v-if="!scope.row.isGroup"
@@ -70,7 +82,7 @@ import {
   getWsSessionLink,
 } from "../js/service";
 import Log from "../components/Log.vue";
-import { ElMessage } from 'element-plus'
+import { ElMessage } from "element-plus";
 import websocket from "@/mixin/websocket";
 
 export default {
@@ -129,8 +141,8 @@ export default {
       this.settingVisible = false;
     },
     onWsMessage(message) {
-      console.log('onWsMessage',message.type);
-      console.log(', this.tableData', this.tableData)
+      console.log("onWsMessage", message);
+      console.log(", this.tableData", this.tableData);
 
       const current = this.tableData.findIndex(
         (item) => item.src === message.info.group
@@ -139,14 +151,39 @@ export default {
       const groupCurrent = this.tableData[current].children.findIndex(
         (item) => item.id === message.info.id
       );
+
+      // 插入不存在的id
+      if (current == -1) {
+        console.log("测试出不存在的id", current, groupCurrent);
+        let newTableData = {
+          children: [message.info],
+          down: message.info.down,
+          id: message.info.group,
+          isGroup: true,
+          src: message.info.group,
+          up: message.info.up,
+        };
+        this.tableData.push(newTableData);
+      } else if (groupCurrent == -1) {
+        this.tableData[current].children.push(message.info);
+      }
       // 更新数据
-      this.tableData[current].children[groupCurrent] = message;
+      this.tableData[current].children[groupCurrent] = message.info;
 
       // 删除更新
-      if(message.type == 'close'){
-        console.log('删除数据');
+      if (message.type == "close") {
+        console.log("删除数据");
         this.tableData[current].children.splice(groupCurrent, 1);
       }
+    },
+    // 单位转换
+    bytesToSize(bytes) {
+      if (bytes === 0) return "0 B";
+      var k = 1000, // or 1024
+        sizes = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"],
+        i = Math.floor(Math.log(bytes) / Math.log(k));
+
+      return (bytes / Math.pow(k, i)).toPrecision(3) + " " + sizes[i];
     },
   },
 };
