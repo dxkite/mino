@@ -23,7 +23,31 @@ export class ServerError {
     }
 }
 
-export function requestApi(cfg: InterfaceConfig, data?: any) {
+const handlerError = (cfg: InterfaceConfig, e: any) => {
+    console.error(e);
+    ElNotification({
+        type: 'error',
+        title: '请求服务器失败',
+        message: JSON.stringify(cfg),
+    })
+    if  (e.message === "need login") {
+        // login
+        window.location.href = '#/login';
+    }
+    throw e;
+}
+
+export const requestApi = async (cfg: InterfaceConfig, data?: any) => {
+    const resp = await requestApiRaw(cfg, data);
+    const err = resp.error || "";
+    if (err.length > 0) {
+        handlerError(cfg, new ServerError(err));
+        return;
+    }
+    return resp.result;
+}
+
+export function requestApiRaw(cfg: InterfaceConfig, data?: any) {
     const config = {
         timeout: HTTP_TIMEOUT,
     }
@@ -41,22 +65,8 @@ export function requestApi(cfg: InterfaceConfig, data?: any) {
 
     return promise.then((data) => {
         console.log('request', config, data)
-        const err = data.data.error || "";
-        if (err.length > 0) {
-            throw new ServerError(err);
-        }
-        return data.data.result;
+        return data.data;
     }).catch((e: {message: string }) => {
-        console.error(e);
-        ElNotification({
-            type: 'error',
-            title: '请求服务器失败',
-            message: JSON.stringify(cfg),
-        })
-        if  (e.message === "need login") {
-            // login
-            window.location.href = '#/login';
-        }
-        throw e;
+        handlerError(cfg, e);
     })
 }

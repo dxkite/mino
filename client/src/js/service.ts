@@ -1,4 +1,4 @@
-import { requestApi, getWsLink } from '@/js/util';
+import { requestApi, getWsLink, requestApiRaw } from '@/js/util';
 import { API, WS_API } from '@/js/config';
 
 
@@ -103,3 +103,7 @@ export const sessionClose = (data: {group: string, sid: number}) => {
 export const login = (data: {username: string, password: string}) => {
   return requestApi(API.CONFIG_LOGIN, data)
 };
+
+export const getStatus = () =>  {
+  return requestApiRaw(API.STATUS);
+}

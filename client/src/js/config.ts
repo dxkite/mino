@@ -41,6 +41,10 @@ export const API = {
     SESSION_CLOSE: {
         method: 'POST',
         path: '/api/v1/session/close',
+    },
+    STATUS: {
+        method: 'GET',
+        path: '/status',
     }
 };
 

@@ -13,7 +13,7 @@
       <el-table :data="tableData" style="width: 100%" row-key="id" border>
         <el-table-column label="远程客户端" prop="src" width="180" />
         <el-table-column label="协议" prop="protocol" width="80" />
-        <el-table-column label="目标网站" >
+        <el-table-column label="目标网站">
           <template #default="scope">
             <div :title="scope.row.dst" class="table-dst">
               {{ scope.row.dst }}
@@ -21,17 +21,13 @@
           </template>
         </el-table-column>
         <el-table-column label="上传流量" width="100">
-          <template  #default="scope">
-            {{
-              bytesToSize(scope.row.up)
-            }}
+          <template #default="scope">
+            {{ bytesToSize(scope.row.up) }}
           </template>
         </el-table-column>
-        <el-table-column label="下载流量" width="100" >
-          <template  #default="scope">
-            {{
-              bytesToSize(scope.row.down)
-            }}
+        <el-table-column label="下载流量" width="100">
+          <template #default="scope">
+            {{ bytesToSize(scope.row.down) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="100">
@@ -56,7 +52,7 @@
         <Log />
       </div>
     </div>
-    <div class="footer">mino 网络访问助手 v0.2.6-beta a82db2</div>
+    <div class="footer">mino 网络访问助手 {{ version }} {{ commit }}</div>
   </div>
   <el-dialog v-model="settingVisible" title="设置">
     <SettingItem v-model="form" :formItem="formItem" />
@@ -80,6 +76,7 @@ import {
   getConfig,
   saveConfig,
   getWsSessionLink,
+  getStatus,
 } from "../js/service";
 import Log from "../components/Log.vue";
 import { ElMessage } from "element-plus";
@@ -95,6 +92,8 @@ export default {
       formItem: [],
       tableData: [],
       wsLink: getWsSessionLink(),
+      version: "",
+      commit: "",
     };
   },
   components: {
@@ -111,6 +110,11 @@ export default {
 
     this.form = await getConfig();
     // console.log("form", this.form);
+    // 版本信息
+    const { version, commit } = await getStatus();
+    this.version = version;
+    this.commit = commit;
+    console.log("getStatus", version,commit);
   },
   methods: {
     handleDisconnect(row) {
