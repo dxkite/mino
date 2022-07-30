@@ -32,7 +32,12 @@
         </el-table-column>
         <el-table-column label="操作" width="100">
           <template #default="scope">
-            <el-button v-if="!scope.row.isGroup" size="small" type="danger" @click="handleDisconnect(scope.row)">断开连接
+            <el-button
+              v-if="!scope.row.isGroup"
+              size="small"
+              type="danger"
+              @click="handleDisconnect(scope.row)"
+              >断开连接
             </el-button>
           </template>
         </el-table-column>
@@ -47,7 +52,7 @@
         <Log />
       </div>
     </div>
-    <div class="footer">mino 网络访问助手 {{ version }} {{ commit }}</div>
+    <Footer />
   </div>
   <el-dialog v-model="settingVisible" title="设置">
     <SettingItem v-model="form" :formItem="formItem" />
@@ -63,6 +68,7 @@
 <script>
 import HeaderImg from "../components/HeaderImg.vue";
 import SettingItem from "../components/SettingItem";
+import Footer from "../components/Footer.vue";
 import {
   getSessionList,
   sessionClose,
@@ -71,7 +77,6 @@ import {
   getConfig,
   saveConfig,
   getWsSessionLink,
-  getStatus,
 } from "../js/service";
 import Log from "../components/Log.vue";
 import { ElMessage } from "element-plus";
@@ -87,14 +92,13 @@ export default {
       formItem: [],
       tableData: [],
       wsLink: getWsSessionLink(),
-      version: "",
-      commit: "",
     };
   },
   components: {
     HeaderImg,
     SettingItem,
     Log,
+    Footer,
   },
   async mounted() {
     const data = await getSessionList();
@@ -105,11 +109,6 @@ export default {
 
     this.form = await getConfig();
     // console.log("form", this.form);
-    // 版本信息
-    const { version, commit } = await getStatus();
-    this.version = version;
-    this.commit = commit;
-    console.log("getStatus", version, commit);
   },
   methods: {
     handleDisconnect(row) {
@@ -235,15 +234,6 @@ export default {
 
 .spot {
   margin-right: 7px;
-}
-
-.footer {
-  margin-top: 32px;
-  font-family: "Inter";
-  font-style: normal;
-  font-weight: 400;
-  font-size: 14px;
-  line-height: 17px;
 }
 
 .red {
