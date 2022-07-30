@@ -1,6 +1,6 @@
 <template>
   <div class="home">
-    <header class="header-icon">
+    <header class="banner">
       <el-icon :size="14" style="margin-right: 10px">
         <Setting @click="settingVisible = true" />
       </el-icon>
@@ -227,23 +227,23 @@ export default {
   flex-direction: column;
 }
 
-.header-icon {
+.banner {
   display: flex;
   margin-top: 30px;
   justify-content: flex-end;
   height: 26px;
-  width: 1052px;
+  width: 80%;
 }
 
 .box-card {
   margin-top: 53px;
-  max-width: 1052px;
+  width: 80%;
 }
 
 .journal {
   box-sizing: border-box;
   margin-top: 64px;
-  max-width: 1052px;
+  width: 80%;
   padding: 15px;
   border: 1px solid #e1f3d8;
 }
