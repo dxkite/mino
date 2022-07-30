@@ -90,7 +90,8 @@ export default {
       settingVisible: false,
       form: {},
       formItem: [],
-      tableData: [],
+      tableData: [], // 页面数据
+      bufferData: [], // 缓存区数据
       wsLink: getWsSessionLink(),
     };
   },
@@ -102,13 +103,16 @@ export default {
   },
   async mounted() {
     const data = await getSessionList();
-    this.tableData = data;
+    this.bufferData = data;
     // console.log("tabaleData", data);
     this.formItem = await getConfigSchema();
     // console.log('getConfigSchema',this.form)
 
     this.form = await getConfig();
     // console.log("form", this.form);
+
+    // 从缓冲区拿到真实数据
+    this.bufferSessionData();
   },
   methods: {
     handleDisconnect(row) {
@@ -142,10 +146,9 @@ export default {
       this.settingVisible = false;
     },
     onWsMessage(message) {
-      console.log("onWsMessage", message);
-      console.log(", this.tableData", this.tableData);
+      console.log("onWsMessage", message, ", this.bufferData", this.bufferData);
 
-      const current = this.tableData.findIndex(
+      const current = this.bufferData.findIndex(
         (item) => item.src === message.info.group
       );
 
@@ -160,38 +163,40 @@ export default {
           src: message.info.group,
           up: message.info.up,
         };
-        this.tableData.push(newTableData);
+        // 插入缓冲区
+        this.bufferData.push(newTableData);
         return;
       }
 
-      const groupCurrent = this.tableData[current].children.findIndex(
+      const groupCurrent = this.bufferData[current].children.findIndex(
         (item) => item.id === message.info.id
       );
 
       if (groupCurrent == -1) {
-        this.tableData[current].children.push(message.info);
+        // 插入缓冲区
+        this.bufferData[current].children.push(message.info);
         return;
       }
 
       // 更新数据
-      this.tableData[current].children[groupCurrent] = message.info;
+      this.bufferData[current].children[groupCurrent] = message.info;
 
       // 父组件流量求和
-      const upSum = this.tableData[current].children.reduce((prev, item) => {
+      const upSum = this.bufferData[current].children.reduce((prev, item) => {
         return prev + item.up;
       }, 0);
-      this.tableData[current].up = upSum;
-      const downSum = this.tableData[current].children.reduce((prev, item) => {
+      this.bufferData[current].up = upSum;
+      const downSum = this.bufferData[current].children.reduce((prev, item) => {
         return prev + item.down;
       }, 0);
-      this.tableData[current].down = downSum;
+      this.bufferData[current].down = downSum;
 
       // 删除更新
       if (message.type == "close") {
         console.log("删除数据");
-        this.tableData[current].children.splice(groupCurrent, 1);
-        if (this.tableData[current].children.length === 0) {
-          this.tableData.splice(current, 1);
+        this.bufferData[current].children.splice(groupCurrent, 1);
+        if (this.bufferData[current].children.length === 0) {
+          this.bufferData.splice(current, 1);
         }
       }
     },
@@ -203,6 +208,13 @@ export default {
         i = Math.floor(Math.log(bytes) / Math.log(k));
 
       return (bytes / Math.pow(k, i)).toPrecision(3) + " " + sizes[i];
+    },
+    // 暂存会话数据
+    bufferSessionData() {
+      setInterval(() => {
+        this.tableData = this.bufferData;
+        console.log("*tableData", this.tableData);
+      }, 1000);
     },
   },
 };
