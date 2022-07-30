@@ -11,7 +11,7 @@
     <HeaderImg> </HeaderImg>
     <div class="box-card">
       <el-table :data="tableData" style="width: 100%" row-key="id" border>
-        <el-table-column label="远程客户端" prop="src" width="180" />
+        <el-table-column label="远程客户端" prop="src" width="200" />
         <el-table-column label="协议" prop="protocol" width="80" />
         <el-table-column label="目标网站">
           <template #default="scope">
@@ -32,13 +32,8 @@
         </el-table-column>
         <el-table-column label="操作" width="100">
           <template #default="scope">
-            <el-button
-              v-if="!scope.row.isGroup"
-              size="small"
-              type="danger"
-              @click="handleDisconnect(scope.row)"
-              >断开连接</el-button
-            >
+            <el-button v-if="!scope.row.isGroup" size="small" type="danger" @click="handleDisconnect(scope.row)">断开连接
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -114,7 +109,7 @@ export default {
     const { version, commit } = await getStatus();
     this.version = version;
     this.commit = commit;
-    console.log("getStatus", version,commit);
+    console.log("getStatus", version, commit);
   },
   methods: {
     handleDisconnect(row) {
@@ -130,6 +125,9 @@ export default {
 
       console.log(current, groupData);
       this.tableData[current].children.splice(groupCurrent, 1);
+      if (this.tableData[current].children.length === 0) {
+        this.tableData.splice(current, 1);
+      }
       sessionClose(data);
     },
     switchChange() {
@@ -152,13 +150,9 @@ export default {
         (item) => item.src === message.info.group
       );
 
-      const groupCurrent = this.tableData[current].children.findIndex(
-        (item) => item.id === message.info.id
-      );
-
       // 插入不存在的id
       if (current == -1) {
-        console.log("测试出不存在的id", current, groupCurrent);
+        console.log("测试出不存在的id", current);
         let newTableData = {
           children: [message.info],
           down: message.info.down,
@@ -168,9 +162,18 @@ export default {
           up: message.info.up,
         };
         this.tableData.push(newTableData);
-      } else if (groupCurrent == -1) {
-        this.tableData[current].children.push(message.info);
+        return;
       }
+
+      const groupCurrent = this.tableData[current].children.findIndex(
+        (item) => item.id === message.info.id
+      );
+
+      if (groupCurrent == -1) {
+        this.tableData[current].children.push(message.info);
+        return;
+      }
+
       // 更新数据
       this.tableData[current].children[groupCurrent] = message.info;
 
@@ -178,6 +181,9 @@ export default {
       if (message.type == "close") {
         console.log("删除数据");
         this.tableData[current].children.splice(groupCurrent, 1);
+        if (this.tableData[current].children.length === 0) {
+          this.tableData.splice(current, 1);
+        }
       }
     },
     // 单位转换
@@ -199,6 +205,7 @@ export default {
   align-items: center;
   flex-direction: column;
 }
+
 .header-icon {
   display: flex;
   margin-top: 30px;
@@ -206,10 +213,12 @@ export default {
   height: 26px;
   width: 1052px;
 }
+
 .box-card {
   margin-top: 53px;
   width: 1052px;
 }
+
 .journal {
   box-sizing: border-box;
   margin-top: 64px;
@@ -217,14 +226,17 @@ export default {
   padding: 15px;
   border: 1px solid #e1f3d8;
 }
+
 .journal-header {
   display: flex;
   align-items: center;
   padding: 4px;
 }
+
 .spot {
   margin-right: 7px;
 }
+
 .footer {
   margin-top: 32px;
   font-family: "Inter";
@@ -233,6 +245,7 @@ export default {
   font-size: 14px;
   line-height: 17px;
 }
+
 .red {
   color: #c45656;
 }
@@ -243,6 +256,7 @@ export default {
   border-radius: 8px;
   background: #95d475;
 }
+
 .table-dst {
   overflow: hidden;
   text-overflow: ellipsis;

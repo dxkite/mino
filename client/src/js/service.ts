@@ -90,7 +90,9 @@ export const getSessionList = async () => {
       tableGroup.down += item.down;
       tableGroup.isGroup = true;
     }
-    tableData.push(tableGroup);
+    if (tableGroup.children.length > 0) {
+      tableData.push(tableGroup);
+    }
   }
   console.log('处理后', tableData);
   return tableData;
