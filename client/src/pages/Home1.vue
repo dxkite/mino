@@ -176,6 +176,16 @@ export default {
       // 更新数据
       this.tableData[current].children[groupCurrent] = message.info;
 
+      // 父组件流量求和
+      const Fup = this.tableData[current].children.reduce((prev, item) => {
+        return prev + item.up;
+      }, 0);
+      this.tableData[current].up = Fup;
+      const Fdown = this.tableData[current].children.reduce((prev, item) => {
+        return prev + item.down;
+      }, 0);
+      this.tableData[current].up = Fdown;
+
       // 删除更新
       if (message.type == "close") {
         console.log("删除数据");
