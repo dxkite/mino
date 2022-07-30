@@ -177,14 +177,14 @@ export default {
       this.tableData[current].children[groupCurrent] = message.info;
 
       // 父组件流量求和
-      const Fup = this.tableData[current].children.reduce((prev, item) => {
+      const upSum = this.tableData[current].children.reduce((prev, item) => {
         return prev + item.up;
       }, 0);
-      this.tableData[current].up = Fup;
-      const Fdown = this.tableData[current].children.reduce((prev, item) => {
+      this.tableData[current].up = upSum;
+      const downSum = this.tableData[current].children.reduce((prev, item) => {
         return prev + item.down;
       }, 0);
-      this.tableData[current].up = Fdown;
+      this.tableData[current].down = downSum;
 
       // 删除更新
       if (message.type == "close") {
