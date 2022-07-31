@@ -176,10 +176,10 @@ export default {
         // 插入缓冲区
         this.bufferData[current].children.push(message.info);
         return;
+      }else {
+        // 更新数据
+        this.bufferData[current].children[groupCurrent] = message.info;
       }
-
-      // 更新数据
-      this.bufferData[current].children[groupCurrent] = message.info;
 
       // 父组件流量求和
       const upSum = this.bufferData[current].children.reduce((prev, item) => {
