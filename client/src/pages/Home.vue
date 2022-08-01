@@ -102,6 +102,10 @@ export default {
     },
     switchChange() {
       console.log("switchChange");
+      ElMessage({
+        message: "退出成功，使用请重启程序",
+        type: "success",
+      });
       exitProgram();
     },
     saveConfigChange() {
