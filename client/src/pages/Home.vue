@@ -9,46 +9,13 @@
       </el-icon>
     </header>
     <HeaderImg> </HeaderImg>
-    <div class="box-card">
-      <el-table :data="tableData" style="width: 100%" row-key="id" border>
-        <el-table-column label="远程客户端" prop="src" width="200" />
-        <el-table-column label="协议" prop="protocol" width="80" />
-        <el-table-column label="目标网站">
-          <template #default="scope">
-            <div :title="scope.row.dst" class="table-dst">
-              {{ scope.row.dst }}
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="上传流量" width="100">
-          <template #default="scope">
-            {{ bytesToSize(scope.row.up) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="下载流量" width="100">
-          <template #default="scope">
-            {{ bytesToSize(scope.row.down) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="100">
-          <template #default="scope">
-            <el-button
-              v-if="!scope.row.isGroup"
-              size="small"
-              type="danger"
-              @click="handleDisconnect(scope.row)"
-              >断开连接
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </div>
+    <Table class="box-card" :tableData="tableData" @handleDisconnect="handleDisconnect" />
     <div class="journal">
       <div class="journal-header">
         <div class="spot"></div>
         <div>日志</div>
       </div>
-      <div class="journal-cotent">
+      <div class="journal-content">
         <Log />
       </div>
     </div>
@@ -69,6 +36,7 @@
 import HeaderImg from "../components/HeaderImg.vue";
 import SettingItem from "../components/SettingItem";
 import Footer from "../components/Footer.vue";
+import Table from "../components/Table.vue";
 import {
   getSessionList,
   sessionClose,
@@ -100,13 +68,12 @@ export default {
     SettingItem,
     Log,
     Footer,
+    Table,
   },
   async mounted() {
     const data = await getSessionList();
     this.bufferData = data;
-    // console.log("tabaleData", data);
     this.formItem = await getConfigSchema();
-    // console.log('getConfigSchema',this.form)
 
     this.form = await getConfig();
     // console.log("form", this.form);
@@ -176,7 +143,7 @@ export default {
         // 插入缓冲区
         this.bufferData[current].children.push(message.info);
         return;
-      }else {
+      } else {
         // 更新数据
         this.bufferData[current].children[groupCurrent] = message.info;
       }
@@ -199,15 +166,6 @@ export default {
           this.bufferData.splice(current, 1);
         }
       }
-    },
-    // 单位转换
-    bytesToSize(bytes) {
-      if (bytes === 0) return "0 B";
-      var k = 1000, // or 1024
-        sizes = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"],
-        i = Math.floor(Math.log(bytes) / Math.log(k));
-
-      return (bytes / Math.pow(k, i)).toPrecision(3) + " " + sizes[i];
     },
     // 暂存会话数据
     bufferSessionData() {
@@ -267,13 +225,5 @@ export default {
   width: 8px;
   border-radius: 8px;
   background: #95d475;
-}
-
-.table-dst {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
 }
 </style>
