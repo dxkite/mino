@@ -87,3 +87,9 @@ tls_cert_file: "conf/server.crt"
 tls_key_file: "conf/server.key"
 ```
 
+### New Feature For v0.3
+
+- [ ] Refactor Structure
+- [ ] UDP Proxy Support
+- [ ] TCP Mainline/ConnectionOnly Support
+- [ ] Optional Quic Protocol Support ?
