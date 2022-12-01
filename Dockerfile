@@ -1,23 +1,14 @@
-FROM golang:1.18
+FROM alpine
 
-RUN mkdir -p /usr/src/mino
-RUN mkdir -p /usr/local/etc/mino
+COPY mino /root/mino
 
-WORKDIR /usr/src/mino
+RUN chmod +x /root/mino && mkdir /lib64 && ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
 
-COPY go.mod go.sum ./
-RUN go mod download && go mod verify
+RUN echo 'address: ":28648"' >> /root/mino.yml
+RUN echo 'log_enable: false' >> /root/mino.yml
 
-COPY . .
+WORKDIR /root
 
-RUN VERSION=$(git describe --tags) \
-    COMMIT=$(git rev-parse --short HEAD) \
-    go build -v -o /usr/local/bin/mino \
-    -ldflags="-s -w -X 'dxkite.cn/mino.Version=$VERSION' -X 'dxkite.cn/mino.Commit=$COMMIT'" ./cmd/mino
+EXPOSE 28648
 
-RUN mkdir /mino
-WORKDIR /mino
-VOLUME /mino
-
-EXPOSE 1080
-CMD ["mino"]
+CMD ["/root/mino"]
