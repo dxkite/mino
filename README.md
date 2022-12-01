@@ -23,21 +23,10 @@
 
 ## 容器支持
 
-Docker 一键启动服务端（轻量化）
+Docker 一键启动服务端
 
 ```bash
-docker run --restart=always -d -p 28648:28648 w4ter/mino:v0.2.3
-```
-
-Docker 一键启动服务端（最新版本）
-
-```bash
-docker run -d -p 28648:1080 dxkite/mino:latest
-```
-
-Docker 挂载运行目录（/usr/local/etc/mino）
-```bash
-docker run -d -v 本地目录:/usr/local/etc/mino -p 28648:1080 dxkite/mino:latest
+docker run --restart=always -d -p 28648:28648 dxkite/mino:latest
 ```
 
 ### 命令行
@@ -68,7 +57,7 @@ mino
 
 指定配置文件：
 ```
-mino -conf config.yaml
+mino -conf config.yml
 ```
 
 ### 配置文件示例
@@ -83,7 +72,5 @@ upstream: "mino://127.0.0.1:28648"
 **服务端**
 ```yaml
 address: ":28648"
-tls_cert_file: "conf/server.crt"
-tls_key_file: "conf/server.key"
 ```
 
