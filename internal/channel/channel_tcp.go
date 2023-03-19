@@ -19,7 +19,7 @@ type TCPChannel struct {
 }
 
 func (ch *TCPChannel) Serve() error {
-	listen, err := net.Listen("tcp", ch.src.Address)
+	listen, err := ch.listen(ch.src.Address)
 	if err != nil {
 		return err
 	}
@@ -34,8 +34,17 @@ func (ch *TCPChannel) Serve() error {
 	}
 }
 
-func (ch *TCPChannel) serve(src net.Conn) {
+func (ch *TCPChannel) listen(addr string) (net.Listener, error) {
+	return net.Listen("tcp", addr)
+}
+
+func (ch *TCPChannel) dial(addr string) (net.Conn, error) {
 	dst, err := net.Dial("tcp", ch.dst.Address)
+	return dst, err
+}
+
+func (ch *TCPChannel) serve(src net.Conn) {
+	dst, err := ch.dial(ch.dst.Address)
 	if err != nil {
 		log.Error("dial remote conn error", err)
 		return

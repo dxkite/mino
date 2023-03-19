@@ -2,14 +2,13 @@ package transport
 
 import (
 	"io"
-	"net"
 )
 
 type Transport struct {
-	src, dst net.Conn
+	src, dst io.ReadWriteCloser
 }
 
-func CreateTransport(src, dst net.Conn) *Transport {
+func CreateTransport(src, dst io.ReadWriteCloser) *Transport {
 	return &Transport{src: src, dst: dst}
 }
 

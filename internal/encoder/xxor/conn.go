@@ -30,8 +30,7 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 		err = re
 		return
 	}
-	b = b[:n]
-	for i := range b {
+	for i := 0; i < n; i++ {
 		b[i] = b[i] ^ c.key[c.rb%c.keyLen]
 		c.rb++
 	}
@@ -44,7 +43,8 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 		return 0, err
 	}
 	j := c.wb
-	for i := range b {
+	nb := len(b)
+	for i := 0; i < nb; i++ {
 		b[i] = b[i] ^ c.key[j%c.keyLen]
 		j++
 	}
