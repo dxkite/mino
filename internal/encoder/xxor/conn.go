@@ -1,8 +1,11 @@
 package xxor
 
 import (
+	"dxkite.cn/log"
 	"errors"
+	"fmt"
 	"net"
+	"runtime"
 	"sync/atomic"
 	"time"
 )
@@ -22,6 +25,15 @@ const randomMaxSize = 0xff
 
 // 写包装
 func (c *Conn) Read(b []byte) (n int, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			buf := make([]byte, 2048)
+			n := runtime.Stack(buf, false)
+			log.Error("[panic error]", r)
+			log.Error(string(buf[:n]))
+			err = errors.New(fmt.Sprintf("read error: write %d", len(b)))
+		}
+	}()
 	if err := c.Handshake(); err != nil {
 		return 0, err
 	}
@@ -39,6 +51,15 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 
 // 读包装
 func (c *Conn) Write(b []byte) (n int, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			buf := make([]byte, 2048)
+			n := runtime.Stack(buf, false)
+			log.Error("[panic error]", r)
+			log.Error(string(buf[:n]))
+			err = errors.New(fmt.Sprintf("write error: write %d", len(b)))
+		}
+	}()
 	if err := c.Handshake(); err != nil {
 		return 0, err
 	}
