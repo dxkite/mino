@@ -1,0 +1,71 @@
+name: Build Docker Image
+
+on:
+  push:
+    branches: [ master ]
+    tags:
+      - '*'
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v3
+      -
+        name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 14
+      # -
+      #   name: Build WebUI
+      #   run: |
+      #     cd client
+      #     npm install
+      #     npm run build
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      -
+        name: Build Mino
+        run: |
+          export VERSION=$(git describe --tags)
+          export COMMIT=$(git rev-parse --short HEAD)
+          go build -v -o ./mino -ldflags="-s -w -X 'dxkite.cn/mino.Version=$VERSION' -X 'dxkite.cn/mino.Commit=$COMMIT'" ./cmd/mino
+      -
+        name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mino:latest
+      -
+        if: startsWith(github.ref, 'refs/tags/')
+        name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
+        with:
+          strip_v: true
+      -
+        if: startsWith(github.ref, 'refs/tags/')
+        name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/mino:${{ steps.tag.outputs.tag }}
