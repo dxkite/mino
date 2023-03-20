@@ -1,0 +1,26 @@
+name: Release Develop
+on:
+  push:
+    branches:
+      - v3
+jobs:
+  release-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.18
+      - name: Build
+        run: chmod +x ./build-dev.sh && ./build-dev.sh
+      - name: Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: dev
+          allowUpdates: true
+          removeArtifacts: true
+          draft: true
+          artifactErrorsFailBuild: true
+          artifacts: "mino-*.tar.gz"
+          token: ${{ secrets.GITHUB_TOKEN }}
