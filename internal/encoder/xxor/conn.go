@@ -23,7 +23,7 @@ type Conn struct {
 const headerSize = 8
 const randomMaxSize = 0xff
 
-// 写包装
+// 读包装
 func (c *Conn) Read(b []byte) (n int, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -49,7 +49,7 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 	return n, err
 }
 
-// 读包装
+// 写包装
 func (c *Conn) Write(b []byte) (n int, err error) {
 	defer func() {
 		if r := recover(); r != nil {

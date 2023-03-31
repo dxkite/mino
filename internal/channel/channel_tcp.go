@@ -6,6 +6,8 @@ import (
 	"dxkite.cn/mino/internal/transport"
 	"net"
 	"net/url"
+	"strconv"
+	"time"
 )
 
 type Config struct {
@@ -16,6 +18,7 @@ type Config struct {
 
 type TCPChannel struct {
 	src, dst *Config
+	timeout  int
 }
 
 func (ch *TCPChannel) Serve() error {
@@ -59,7 +62,7 @@ func (ch *TCPChannel) serve(src net.Conn) {
 
 	up, down, err := ts.DoTransport()
 	if err != nil {
-		log.Error("transport", ch.src.Address, "->", ch.dst.Address, "error", err)
+		log.Error("transport", ch.src.Address, "->", ch.dst.Address, "error", up, down, err)
 		return
 	}
 	log.Info("transport", ch.src.Address, "->", ch.dst.Address, "stream", up, down)
@@ -71,6 +74,13 @@ func (ch *TCPChannel) createInput(conn net.Conn) net.Conn {
 		encKey := ch.src.Values["key"]
 		return xxor.Server(conn, []byte(encKey))
 	}
+	timeout := ch.timeout
+	if v, err := strconv.Atoi(ch.src.Values["timeout"]); err == nil && v > 0 {
+		timeout = v
+	}
+	if timeout > 0 {
+		conn = NewTimeoutConn(conn, time.Duration(timeout)*time.Second)
+	}
 	return conn
 }
 
@@ -80,13 +90,21 @@ func (ch *TCPChannel) createOutput(conn net.Conn) net.Conn {
 		encKey := ch.dst.Values["key"]
 		return xxor.Client(conn, []byte(encKey))
 	}
+	timeout := ch.timeout
+	if v, err := strconv.Atoi(ch.dst.Values["timeout"]); err == nil && v > 0 {
+		timeout = v
+	}
+	if timeout > 0 {
+		conn = NewTimeoutConn(conn, time.Duration(timeout)*time.Second)
+	}
 	return conn
 }
 
-func CreateChannel(input, output *Config) (*TCPChannel, error) {
+func CreateChannel(input, output *Config, timeout int) (*TCPChannel, error) {
 	ch := &TCPChannel{}
 	ch.src = input
 	ch.dst = output
+	ch.timeout = timeout
 	return ch, nil
 }
 
@@ -95,8 +113,9 @@ func CreateConfig(u *url.URL) *Config {
 		Network: u.Scheme,
 		Address: u.Host,
 		Values: map[string]string{
-			"enc": u.Query().Get("enc"),
-			"key": u.Query().Get("key"),
+			"enc":     u.Query().Get("enc"),
+			"key":     u.Query().Get("key"),
+			"timeout": u.Query().Get("timeout"),
 		},
 	}
 }

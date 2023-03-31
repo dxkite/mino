@@ -46,6 +46,8 @@ func main() {
 	input := flag.String("input", "tcp://[::1]:1080?enc=xxor&key=mino", "input addr, tcp only")
 	output := flag.String("output", "", "output addr, tcp only")
 	logFile := flag.String("log", "mino.log", "log file path")
+	timeout := flag.Int("timeout", 30, "read/write timeout")
+
 	flag.Parse()
 
 	if len(*input) == 0 || len(*output) == 0 {
@@ -69,7 +71,7 @@ func main() {
 		return
 	}
 
-	ch, err := channel.CreateChannel(channel.CreateConfig(iu), channel.CreateConfig(ou))
+	ch, err := channel.CreateChannel(channel.CreateConfig(iu), channel.CreateConfig(ou), *timeout)
 	if err != nil {
 		log.Error("create channel error", err)
 	}
