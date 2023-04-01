@@ -2,12 +2,18 @@
 
 ### Usage
 
-**Client**
-```
-mino -input tcp://:8080 -output tcp://:1080?enc=xxor&key=mino
+```bash
+mino -conf mino.yml
 ```
 
-**Server**
-```
-mino -input tcp://:1080?enc=xxor&key=mino -output  tcp://:80
+
+### Config
+
+```yaml
+log_file: "mino.log"
+tcp_channel:
+  - input: tcp://:8080
+    output: tcp://:1080?enc=xxor&key=mino
+  - input: tcp://:1080?enc=xxor&key=mino
+    output: tcp://:80
 ```
