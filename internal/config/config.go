@@ -15,6 +15,7 @@ type ConfigChangeCallback func(config *Config)
 
 type Config struct {
 	LogFile    string       `yaml:"log_file"`
+	LogLevel   string       `yaml:"log_level"`
 	TCPChannel []TCPChannel `yaml:"tcp_channel"`
 }
 

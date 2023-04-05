@@ -4,6 +4,7 @@ import (
 	"dxkite.cn/log"
 	"dxkite.cn/mino/internal/encoder/xxor"
 	"dxkite.cn/mino/internal/transport"
+	"fmt"
 	"net"
 	"net/url"
 	"strconv"
@@ -47,25 +48,30 @@ func (ch *TCPChannel) dial(addr string) (net.Conn, error) {
 }
 
 func (ch *TCPChannel) serve(src net.Conn) {
+	log.Info("accept", src.RemoteAddr(), "->", src.LocalAddr())
+
 	dst, err := ch.dial(ch.dst.Address)
 	if err != nil {
-		log.Error("dial remote conn error", err)
+		log.Error("connecting to", ch.dst.Address, "error", err)
 		return
 	}
-
-	log.Info("connected", ch.src.Address, "->", ch.dst.Address)
 
 	src = ch.createInput(src)
 	dst = ch.createOutput(dst)
 
+	linkInfo := fmt.Sprintf("%s -> %s -> %s", src.RemoteAddr(), src.LocalAddr(), dst.RemoteAddr())
+	log.Info("connected", linkInfo)
+
 	ts := transport.CreateTransport(src, dst)
 
 	up, down, err := ts.DoTransport()
-	if err != nil {
-		log.Error("transport", ch.src.Address, "->", ch.dst.Address, "error", up, down, err)
+
+	if err != nil && err != ErrReadTimeout {
+		log.Error("transport", linkInfo, "stream", up, down, "error", err)
 		return
 	}
-	log.Info("transport", ch.src.Address, "->", ch.dst.Address, "stream", up, down)
+
+	log.Info("transport", linkInfo, "stream", up, down)
 }
 
 func (ch *TCPChannel) createInput(conn net.Conn) net.Conn {
@@ -100,7 +106,7 @@ func (ch *TCPChannel) createOutput(conn net.Conn) net.Conn {
 	return conn
 }
 
-func CreateChannel(input, output *Config, timeout int) (*TCPChannel, error) {
+func CreateTCPChannel(input, output *Config, timeout int) (*TCPChannel, error) {
 	ch := &TCPChannel{}
 	ch.src = input
 	ch.dst = output

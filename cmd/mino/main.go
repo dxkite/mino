@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"dxkite.cn/log"
+	"dxkite.cn/mino"
 	"dxkite.cn/mino/internal/channel"
 	"dxkite.cn/mino/internal/config"
 	"errors"
@@ -15,6 +16,13 @@ import (
 	"sync"
 )
 
+var logLevel = map[string]log.LogLevel{
+	"error": log.Lerror,
+	"info":  log.Linfo,
+	"warn":  log.Lwarn,
+	"debug": log.Ldebug,
+}
+
 func init() {
 	log.SetOutput(log.NewColorWriter())
 	log.SetLogCaller(false)
@@ -22,7 +30,7 @@ func init() {
 	log.SetLevel(log.LMaxLevel)
 }
 
-func applyLogFile(ctx context.Context, filename string) {
+func applyLogFile(ctx context.Context, filename, level string) {
 	pp := filename
 	var w io.Writer
 	if f, err := os.OpenFile(pp, os.O_CREATE|os.O_APPEND|os.O_WRONLY, os.ModePerm); err != nil {
@@ -40,6 +48,12 @@ func applyLogFile(ctx context.Context, filename string) {
 			_ = f.Close()
 		}()
 	}
+
+	lv := log.Linfo
+	if v, ok := logLevel[level]; ok {
+		lv = v
+	}
+	log.SetLevel(lv)
 	log.SetOutput(log.MultiWriter(w, log.Writer()))
 }
 
@@ -52,7 +66,10 @@ func CreateTCPChannel(tcpChannel config.TCPChannel) (*channel.TCPChannel, error)
 	if err != nil {
 		return nil, errors.New("output config error: " + tcpChannel.Output)
 	}
-	ch, err := channel.CreateChannel(channel.CreateConfig(iu), channel.CreateConfig(ou), tcpChannel.Timeout)
+	if tcpChannel.Timeout == 0 {
+		tcpChannel.Timeout = 5
+	}
+	ch, err := channel.CreateTCPChannel(channel.CreateConfig(iu), channel.CreateConfig(ou), tcpChannel.Timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +79,8 @@ func CreateTCPChannel(tcpChannel config.TCPChannel) (*channel.TCPChannel, error)
 func main() {
 	ctx, exit := context.WithCancel(context.Background())
 	defer exit()
+
+	log.Println("mino", mino.Version, mino.Commit)
 
 	conf := flag.String("conf", "mino.yml", "mino config")
 	flag.Parse()
@@ -75,7 +94,7 @@ func main() {
 	}
 
 	if len(cfg.LogFile) > 0 {
-		applyLogFile(ctx, cfg.LogFile)
+		applyLogFile(ctx, cfg.LogFile, cfg.LogLevel)
 	}
 
 	wg := &sync.WaitGroup{}
