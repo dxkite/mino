@@ -8,8 +8,11 @@ mino -conf mino.yml
 
 ### Feature
 
-- [x] tcp transport
-- [ ] quic transport in processing
+- support transport
+  - [x] tcp
+  - [x] quic
+- encoding
+  - [x] xxor
 
 ### Config
 
