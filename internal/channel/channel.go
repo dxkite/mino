@@ -9,8 +9,8 @@ import (
 	"dxkite.cn/mino/internal/encoder/xxor"
 	"dxkite.cn/mino/internal/transport"
 	"errors"
+	"fmt"
 	"github.com/quic-go/quic-go"
-	"io"
 	"net/url"
 	"os"
 	"strconv"
@@ -95,7 +95,7 @@ func (ch *channel) listenTcp(addr string) (connection.Listener, error) {
 	return connection.NewTCPListener(addr)
 }
 
-func (ch *channel) dial(addr string) (io.ReadWriteCloser, error) {
+func (ch *channel) dial(addr string) (connection.Connection, error) {
 	if ch.dialer == nil {
 		switch ch.dst.Network {
 		case "tcp":
@@ -144,8 +144,8 @@ func (ch *channel) createQuicDialer(addr string) (connection.Dialer, error) {
 	return connection.NewQuicDialer(addr, tc, qc)
 }
 
-func (ch *channel) serve(src io.ReadWriteCloser) {
-	log.Info("accept", ch.src.Address, "->", ch.dst.Address)
+func (ch *channel) serve(src connection.Connection) {
+	log.Info("accept", src.RemoteAddr(), "->", src.LocalAddr())
 
 	dst, err := ch.dial(ch.dst.Address)
 	if err != nil {
@@ -156,19 +156,22 @@ func (ch *channel) serve(src io.ReadWriteCloser) {
 	src = ch.createInput(src)
 	dst = ch.createOutput(dst)
 
+	linkInfo := fmt.Sprintf("%s -> %s -> %s", src.RemoteAddr(), src.LocalAddr(), dst.RemoteAddr())
+	log.Info("connected", linkInfo)
+
 	ts := transport.CreateTransport(src, dst)
 
 	up, down, err := ts.DoTransport()
 
 	if err != nil && err != ErrReadTimeout {
-		log.Error("transport", "stream", up, down, "error", err)
+		log.Error("transport", linkInfo, "stream", up, down, "error", err)
 		return
 	}
 
-	log.Info("transport", "stream", up, down)
+	log.Info("transport", linkInfo, "stream", up, down)
 }
 
-func (ch *channel) createInput(conn io.ReadWriteCloser) io.ReadWriteCloser {
+func (ch *channel) createInput(conn connection.Connection) connection.Connection {
 	enc := ch.src.Values["enc"]
 	if enc == "xxor" {
 		encKey := ch.src.Values["key"]
@@ -184,7 +187,7 @@ func (ch *channel) createInput(conn io.ReadWriteCloser) io.ReadWriteCloser {
 	return conn
 }
 
-func (ch *channel) createOutput(conn io.ReadWriteCloser) io.ReadWriteCloser {
+func (ch *channel) createOutput(conn connection.Connection) connection.Connection {
 	enc := ch.dst.Values["enc"]
 	if enc == "xxor" {
 		encKey := ch.dst.Values["key"]

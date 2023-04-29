@@ -2,16 +2,17 @@ package xxor
 
 import (
 	"dxkite.cn/log"
+	"dxkite.cn/mino/internal/connection"
 	"errors"
 	"fmt"
-	"io"
+	"net"
 	"runtime"
 	"sync/atomic"
 	"time"
 )
 
 type Conn struct {
-	conn            io.ReadWriteCloser
+	conn            connection.Connection
 	key             []byte
 	keyLen          int64
 	rb              int64
@@ -80,6 +81,14 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 
 func (c *Conn) Close() error {
 	return c.conn.Close()
+}
+
+func (c *Conn) LocalAddr() net.Addr {
+	return c.conn.LocalAddr()
+}
+
+func (c *Conn) RemoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
 }
 
 func xor(buf, key []byte) []byte {
@@ -153,7 +162,7 @@ func (c *Conn) handshakeComplete() bool {
 	return atomic.LoadUint32(&c.handshakeStatus) == 1
 }
 
-func Client(conn io.ReadWriteCloser, key []byte) io.ReadWriteCloser {
+func Client(conn connection.Connection, key []byte) connection.Connection {
 	return &Conn{
 		conn:     conn,
 		key:      key,
@@ -162,7 +171,7 @@ func Client(conn io.ReadWriteCloser, key []byte) io.ReadWriteCloser {
 	}
 }
 
-func Server(conn io.ReadWriteCloser, key []byte) io.ReadWriteCloser {
+func Server(conn connection.Connection, key []byte) connection.Connection {
 	return &Conn{
 		conn:     conn,
 		key:      key,

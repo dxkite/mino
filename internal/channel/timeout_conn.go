@@ -1,20 +1,21 @@
 package channel
 
 import (
+	"dxkite.cn/mino/internal/connection"
 	"errors"
-	"io"
+	"net"
 	"sync"
 	"time"
 )
 
 type TimeoutConn struct {
-	conn    io.ReadWriteCloser
+	conn    connection.Connection
 	timeout time.Duration
 	closed  bool
 	lock    *sync.Mutex
 }
 
-func NewTimeoutConn(conn io.ReadWriteCloser, timeout time.Duration) io.ReadWriteCloser {
+func NewTimeoutConn(conn connection.Connection, timeout time.Duration) connection.Connection {
 	return &TimeoutConn{
 		conn:    conn,
 		timeout: timeout,
@@ -52,4 +53,12 @@ func (c *TimeoutConn) Close() error {
 	defer c.lock.Unlock()
 	c.closed = true
 	return c.conn.Close()
+}
+
+func (c *TimeoutConn) LocalAddr() net.Addr {
+	return c.conn.LocalAddr()
+}
+
+func (c *TimeoutConn) RemoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
 }

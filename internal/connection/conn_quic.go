@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"github.com/quic-go/quic-go"
+	"net"
 )
 
 type quicListener struct {
@@ -13,6 +14,31 @@ type quicListener struct {
 	l         quic.Listener
 	connChan  chan Connection
 	errorChan chan error
+}
+
+type quicConnection struct {
+	stream quic.Stream
+	conn   quic.Connection
+}
+
+func (qc *quicConnection) Read(p []byte) (n int, err error) {
+	return qc.stream.Read(p)
+}
+
+func (qc *quicConnection) Write(p []byte) (n int, err error) {
+	return qc.stream.Write(p)
+}
+
+func (qc *quicConnection) Close() error {
+	return qc.stream.Close()
+}
+
+func (qc *quicConnection) LocalAddr() net.Addr {
+	return qc.conn.LocalAddr()
+}
+
+func (qc *quicConnection) RemoteAddr() net.Addr {
+	return qc.conn.RemoteAddr()
 }
 
 func (l *quicListener) Accept(ctx context.Context) (Connection, error) {
@@ -28,7 +54,16 @@ func (l *quicListener) Accept(ctx context.Context) (Connection, error) {
 		return nil, e
 	}
 	// 只接受一个 conn-stream
-	return conn.AcceptStream(ctx)
+
+	quicConn := &quicConnection{}
+
+	if stream, err := conn.AcceptStream(ctx); err != nil {
+		return nil, err
+	} else {
+		quicConn.stream = stream
+	}
+
+	return quicConn, nil
 }
 
 func (l *quicListener) Close() error {
@@ -55,7 +90,14 @@ func (t *quicDialer) Dial(ctx context.Context) (Connection, error) {
 	if err != nil {
 		return nil, err
 	}
-	return conn.OpenStreamSync(ctx)
+
+	quicConn := &quicConnection{}
+	if stream, err := conn.OpenStreamSync(ctx); err != nil {
+		return nil, err
+	} else {
+		quicConn.stream = stream
+	}
+	return quicConn, nil
 }
 
 func NewQuicDialer(addr string, tc *tls.Config, qc *quic.Config) (Dialer, error) {
