@@ -57,19 +57,19 @@ func applyLogFile(ctx context.Context, filename, level string) {
 	log.SetOutput(log.MultiWriter(w, log.Writer()))
 }
 
-func CreateTCPChannel(tcpChannel config.TCPChannel) (*channel.TCPChannel, error) {
-	iu, err := url.Parse(tcpChannel.Input)
+func CreateTCPChannel(c config.Channel) (channel.Channel, error) {
+	iu, err := url.Parse(c.Input)
 	if err != nil {
-		return nil, errors.New("input config error: " + tcpChannel.Input)
+		return nil, errors.New("input config error: " + c.Input)
 	}
-	ou, err := url.Parse(tcpChannel.Output)
+	ou, err := url.Parse(c.Output)
 	if err != nil {
-		return nil, errors.New("output config error: " + tcpChannel.Output)
+		return nil, errors.New("output config error: " + c.Output)
 	}
-	if tcpChannel.Timeout == 0 {
-		tcpChannel.Timeout = 5
+	if c.Timeout == 0 {
+		c.Timeout = 5
 	}
-	ch, err := channel.CreateTCPChannel(channel.CreateConfig(iu), channel.CreateConfig(ou), tcpChannel.Timeout)
+	ch, err := channel.MakeChannel(channel.CreateConfig(iu), channel.CreateConfig(ou), c.Timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +98,9 @@ func main() {
 	}
 
 	wg := &sync.WaitGroup{}
-	for _, ch := range cfg.TCPChannel {
+	for _, ch := range cfg.Channel {
 		wg.Add(1)
-		go func(ch config.TCPChannel) {
+		go func(ch config.Channel) {
 			chName := strings.Join([]string{ch.Input, "->", ch.Output}, "")
 			log.Info(chName, "creating")
 

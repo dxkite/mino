@@ -2,21 +2,21 @@ package channel
 
 import (
 	"errors"
-	"net"
+	"io"
 	"sync"
 	"time"
 )
 
-type Conn struct {
-	net.Conn
+type TimeoutConn struct {
+	conn    io.ReadWriteCloser
 	timeout time.Duration
 	closed  bool
 	lock    *sync.Mutex
 }
 
-func NewTimeoutConn(conn net.Conn, timeout time.Duration) net.Conn {
-	return &Conn{
-		Conn:    conn,
+func NewTimeoutConn(conn io.ReadWriteCloser, timeout time.Duration) io.ReadWriteCloser {
+	return &TimeoutConn{
+		conn:    conn,
 		timeout: timeout,
 		lock:    &sync.Mutex{},
 	}
@@ -24,11 +24,11 @@ func NewTimeoutConn(conn net.Conn, timeout time.Duration) net.Conn {
 
 var ErrReadTimeout = errors.New("connection read timeout")
 
-func (c *Conn) Read(b []byte) (n int, err error) {
+func (c *TimeoutConn) Read(b []byte) (n int, err error) {
 	t := time.NewTimer(c.timeout)
 	r := make(chan struct{})
 	go func() {
-		n, err = c.Conn.Read(b)
+		n, err = c.conn.Read(b)
 		r <- struct{}{}
 	}()
 	select {
@@ -40,12 +40,16 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 	}
 }
 
-func (c *Conn) Close() error {
+func (c *TimeoutConn) Write(b []byte) (n int, err error) {
+	return c.conn.Write(b)
+}
+
+func (c *TimeoutConn) Close() error {
 	if c.closed {
 		return nil
 	}
 	c.lock.Lock()
 	defer c.lock.Unlock()
 	c.closed = true
-	return c.Conn.Close()
+	return c.conn.Close()
 }

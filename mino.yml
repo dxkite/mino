@@ -1,6 +1,10 @@
 log_file: "mino.log"
-tcp_channel:
-  - input: tcp://:8080
-    output: tcp://:1080?enc=xxor&key=mino
-  - input: tcp://:1080?enc=xxor&key=mino
+channel:
+  - input: tcp://:8239
+    output: tcp://:7382?enc=xxor&key=mino
+  - input: tcp://:7382?enc=xxor&key=mino
+    output: tcp://:80
+  - input: tcp://:8238
+    output: quic://127.0.0.1:7381?enc=xxor&key=mino&cert_pem=./conf/client.pem&cert_key=./conf/client.key&cert_ca=./conf/ca.pem&server_name=server
+  - input: quic://127.0.0.1:7381?enc=xxor&key=mino&cert_pem=./conf/server.pem&cert_key=./conf/server.key&cert_ca=./conf/ca.pem
     output: tcp://:80

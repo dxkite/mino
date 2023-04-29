@@ -6,14 +6,18 @@
 mino -conf mino.yml
 ```
 
+### Feature
+
+- [x] tcp transport
+- [ ] quic transport in processing
 
 ### Config
 
 ```yaml
 log_file: "mino.log"
-tcp_channel:
+channel:
   - input: tcp://:8080
-    output: tcp://:1080?enc=xxor&key=mino
-  - input: tcp://:1080?enc=xxor&key=mino
+    output: tcp://:8081?enc=xxor&key=mino
+  - input: tcp://:8081?enc=xxor&key=mino
     output: tcp://:80
 ```

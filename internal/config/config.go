@@ -2,21 +2,19 @@ package config
 
 import (
 	"gopkg.in/yaml.v3"
-	"io/ioutil"
+	"os"
 )
 
-type TCPChannel struct {
+type Channel struct {
 	Timeout int
 	Input   string
 	Output  string
 }
 
-type ConfigChangeCallback func(config *Config)
-
 type Config struct {
-	LogFile    string       `yaml:"log_file"`
-	LogLevel   string       `yaml:"log_level"`
-	TCPChannel []TCPChannel `yaml:"tcp_channel"`
+	LogFile  string    `yaml:"log_file"`
+	LogLevel string    `yaml:"log_level"`
+	Channel  []Channel `yaml:"channel"`
 }
 
 func (cfg *Config) InitDefault() {
@@ -24,7 +22,7 @@ func (cfg *Config) InitDefault() {
 }
 
 func (cfg *Config) LoadFile(filename string) error {
-	d, err := ioutil.ReadFile(filename)
+	d, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}

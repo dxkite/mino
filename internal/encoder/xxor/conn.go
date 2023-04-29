@@ -4,14 +4,14 @@ import (
 	"dxkite.cn/log"
 	"errors"
 	"fmt"
-	"net"
+	"io"
 	"runtime"
 	"sync/atomic"
 	"time"
 )
 
 type Conn struct {
-	net.Conn
+	conn            io.ReadWriteCloser
 	key             []byte
 	keyLen          int64
 	rb              int64
@@ -37,7 +37,7 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 	if err := c.Handshake(); err != nil {
 		return 0, err
 	}
-	n, re := c.Conn.Read(b)
+	n, re := c.conn.Read(b)
 	if re != nil {
 		err = re
 		return
@@ -69,13 +69,17 @@ func (c *Conn) Write(b []byte) (n int, err error) {
 		b[i] = b[i] ^ c.key[j%c.keyLen]
 		j++
 	}
-	n, err = c.Conn.Write(b)
+	n, err = c.conn.Write(b)
 	//fmt.Println("Write", "want write", len(b), "real write", n)
 	if err != nil {
 		return 0, err
 	}
 	c.wb += int64(n)
 	return
+}
+
+func (c *Conn) Close() error {
+	return c.conn.Close()
 }
 
 func xor(buf, key []byte) []byte {
@@ -97,7 +101,7 @@ func (c *Conn) doHandshakeClient() error {
 	}
 	c.key = sessionKey
 	c.keyLen = int64(len(sessionKey))
-	if n, err := c.Conn.Write(buf); n != len(buf) {
+	if n, err := c.conn.Write(buf); n != len(buf) {
 		return errors.New("mino encoder: header write short")
 	} else if err == nil {
 		atomic.StoreUint32(&c.handshakeStatus, 1)
@@ -111,7 +115,7 @@ func (c *Conn) doHandshakeClient() error {
 func (c *Conn) doHandshakeServer() error {
 	msg := defaultXxor()
 	//fmt.Println("[doHandshakeServer] server base key", hex.EncodeToString(c.key))
-	sessionKey, err := msg.Decoding(c.Conn, c.key)
+	sessionKey, err := msg.Decoding(c.conn, c.key)
 	//fmt.Println("[doHandshakeServer] sessionKey", hex.EncodeToString(sessionKey))
 
 	if err != nil {
@@ -149,18 +153,18 @@ func (c *Conn) handshakeComplete() bool {
 	return atomic.LoadUint32(&c.handshakeStatus) == 1
 }
 
-func Client(conn net.Conn, key []byte) net.Conn {
+func Client(conn io.ReadWriteCloser, key []byte) io.ReadWriteCloser {
 	return &Conn{
-		Conn:     conn,
+		conn:     conn,
 		key:      key,
 		keyLen:   int64(len(key)),
 		isClient: true,
 	}
 }
 
-func Server(conn net.Conn, key []byte) net.Conn {
+func Server(conn io.ReadWriteCloser, key []byte) io.ReadWriteCloser {
 	return &Conn{
-		Conn:     conn,
+		conn:     conn,
 		key:      key,
 		keyLen:   int64(len(key)),
 		isClient: false,
