@@ -3,11 +3,12 @@ package xxor
 import (
 	"dxkite.cn/log"
 	"dxkite.cn/mino/internal/connection"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 	"runtime"
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
@@ -18,11 +19,25 @@ type Conn struct {
 	rb              int64
 	wb              int64
 	isClient        bool
-	handshakeStatus uint32
+	handshakeMtx    sync.Mutex
+	handshakeFinish bool
+	id              int
 }
 
 const headerSize = 8
 const randomMaxSize = 0xff
+
+var connectionId = 0
+var connectionMtx = sync.Mutex{}
+
+func nextId() int {
+	defer func() {
+		connectionMtx.Lock()
+		defer connectionMtx.Unlock()
+		connectionId++
+	}()
+	return connectionId
+}
 
 // 读包装
 func (c *Conn) Read(b []byte) (n int, err error) {
@@ -102,9 +117,11 @@ func xor(buf, key []byte) []byte {
 // 读包装
 func (c *Conn) doHandshakeClient() error {
 	msg := defaultXxor()
-	//fmt.Println("[doHandshakeClient] client base key", hex.EncodeToString(c.key))
+	log.Debug("[doHandshakeClient]", c.id, "client base key", hex.EncodeToString(c.key))
 	buf, sessionKey, err := msg.Encoding(c.key)
-	//fmt.Println("[doHandshakeClient] sessionKey", hex.EncodeToString(sessionKey))
+	log.Debug("[doHandshakeClient]", c.id, "sessionKey", hex.EncodeToString(sessionKey))
+	log.Debug("[doHandshakeClient]", c.id, "handshake", hex.EncodeToString(buf))
+
 	if err != nil {
 		return err
 	}
@@ -112,9 +129,7 @@ func (c *Conn) doHandshakeClient() error {
 	c.keyLen = int64(len(sessionKey))
 	if n, err := c.conn.Write(buf); n != len(buf) {
 		return errors.New("mino encoder: header write short")
-	} else if err == nil {
-		atomic.StoreUint32(&c.handshakeStatus, 1)
-	} else {
+	} else if err != nil {
 		return err
 	}
 	return nil
@@ -123,9 +138,9 @@ func (c *Conn) doHandshakeClient() error {
 // 读包装
 func (c *Conn) doHandshakeServer() error {
 	msg := defaultXxor()
-	//fmt.Println("[doHandshakeServer] server base key", hex.EncodeToString(c.key))
+	log.Debug("[doHandshakeServer] server base key", hex.EncodeToString(c.key))
 	sessionKey, err := msg.Decoding(c.conn, c.key)
-	//fmt.Println("[doHandshakeServer] sessionKey", hex.EncodeToString(sessionKey))
+	log.Debug("[doHandshakeServer] sessionKey", hex.EncodeToString(sessionKey))
 
 	if err != nil {
 		return err
@@ -133,8 +148,6 @@ func (c *Conn) doHandshakeServer() error {
 
 	c.key = sessionKey
 	c.keyLen = int64(len(sessionKey))
-
-	atomic.StoreUint32(&c.handshakeStatus, 1)
 
 	// 短时间内不允许出现同样的key
 	if XorTtlSession.Has(string(sessionKey)) {
@@ -148,34 +161,38 @@ func (c *Conn) doHandshakeServer() error {
 }
 
 func (c *Conn) Handshake() error {
-	if c.handshakeComplete() {
+	if c.handshakeFinish {
 		return nil
 	}
+	c.handshakeMtx.Lock()
+	defer func() {
+		c.handshakeFinish = true
+		c.handshakeMtx.Unlock()
+	}()
 	if c.isClient {
 		return c.doHandshakeClient()
-	} else {
-		return c.doHandshakeServer()
 	}
-}
-
-func (c *Conn) handshakeComplete() bool {
-	return atomic.LoadUint32(&c.handshakeStatus) == 1
+	return c.doHandshakeServer()
 }
 
 func Client(conn connection.Connection, key []byte) connection.Connection {
 	return &Conn{
-		conn:     conn,
-		key:      key,
-		keyLen:   int64(len(key)),
-		isClient: true,
+		id:              nextId(),
+		conn:            conn,
+		key:             key,
+		keyLen:          int64(len(key)),
+		isClient:        true,
+		handshakeFinish: false,
 	}
 }
 
 func Server(conn connection.Connection, key []byte) connection.Connection {
 	return &Conn{
-		conn:     conn,
-		key:      key,
-		keyLen:   int64(len(key)),
-		isClient: false,
+		id:              nextId(),
+		conn:            conn,
+		key:             key,
+		keyLen:          int64(len(key)),
+		isClient:        false,
+		handshakeFinish: false,
 	}
 }

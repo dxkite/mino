@@ -38,21 +38,22 @@ func sha1Sum(d []byte) []byte {
 	return v.Sum(nil)[:]
 }
 
-// 握手协议
-// 1. 获取 8 位的随机数据 rdm
-// 2. headerKey = key xor rdm
-// 3. 随机生成 0~255 长度的 padding
-// 4. 获取当前时间戳（毫秒级别） int64 timestamp
-// 5. 生成 header =
-//      "XXOR"
-//      + byte(version=1)
-//      + byte(paddingSize)
-//      + byte(encodingType=1)
-//      + byte(checkMac=1)
-// 6. encodingHeader = header xor headerKey
-// 7. checkHeader = rdm + encodingHeader + padding + timestamp
-// 8. realHeader = checkHeader + sha1(checkHeader)
-// 9. sessionKey = padding xor headerKey
+// Encoding 握手协议
+//  1. 获取 8 位的随机数据 rdm
+//  2. headerKey = key xor rdm
+//  3. 随机生成 0~255 长度的 padding
+//  4. 获取当前时间戳（毫秒级别） int64 timestamp
+//  5. 生成 header =
+//     "XXOR"
+//     + byte(version=1)
+//     + byte(paddingSize)
+//     + byte(encodingType=1)
+//     + byte(checkMac=1)
+//  6. encodingHeader = header xor headerKey
+//  7. checkHeader = rdm + encodingHeader + padding + timestamp
+//  8. realHeader = checkHeader + sha1(checkHeader)
+//  9. sessionKey = padding xor headerKey
+//
 // 后续数据使用 sessionKey xor
 func (m *XxorMessage) Encoding(key []byte) (data, sessionKey []byte, err error) {
 	rdm := make([]byte, headerSize)
@@ -62,9 +63,10 @@ func (m *XxorMessage) Encoding(key []byte) (data, sessionKey []byte, err error) 
 
 	key = xor(key, rdm)
 
-	rand2.Seed(time.Now().UnixNano())
+	r := rand2.New(rand2.NewSource(time.Now().UnixNano()))
+
 	// fix: 0%0 integer divide by zero
-	paddingSize := rand2.Intn(randomMaxSize-headerSize) + headerSize
+	paddingSize := r.Intn(randomMaxSize-headerSize) + headerSize
 
 	m.PaddingSize = paddingSize
 	m.Padding = make([]byte, paddingSize)
@@ -82,25 +84,25 @@ func (m *XxorMessage) Encoding(key []byte) (data, sessionKey []byte, err error) 
 	head = append(head, byte(m.EncodeType))
 	head = append(head, byte(1)) // EnableMac
 
-	//fmt.Println("headKey", hex.EncodeToString(key))
-	//fmt.Println("head", hex.EncodeToString(head))
-	//fmt.Println("head", "\n"+hex.Dump(head))
+	//log.Debug("headKey", hex.EncodeToString(key))
+	//log.Debug("head", hex.EncodeToString(head))
+	//log.Debug("head", "\n"+hex.Dump(head))
 
 	head = xor(head, key)
 
-	//fmt.Println("encodingHeader", "\n"+hex.Dump(head))
-	//fmt.Println("padding", "\n"+hex.Dump(m.Padding))
+	//log.Debug("encodingHeader", "\n"+hex.Dump(head))
+	//log.Debug("padding", "\n"+hex.Dump(m.Padding))
 
 	data = append(data, rdm...)
 	data = append(data, head...)
 	data = append(data, m.Padding...)
 	data = append(data, timeBuf...)
 
-	//fmt.Println("sha1Data", hex.EncodeToString(data))
-	//fmt.Println("sha1Data", "\n"+hex.Dump(data))
+	//log.Debug("sha1Data", hex.EncodeToString(data))
+	//log.Debug("sha1Data", "\n"+hex.Dump(data))
 
 	sha1Sum := sha1Sum(data)
-	//fmt.Println("sha1Sum", hex.EncodeToString(sha1Sum))
+	//log.Debug("sha1Sum", hex.EncodeToString(sha1Sum))
 
 	data = append(data, sha1Sum...)
 	sessionKey = xor(m.Padding, key)
@@ -112,8 +114,8 @@ func (m *XxorMessage) Decoding(r io.Reader, key []byte) (sessionKey []byte, err 
 	if _, err := io.ReadFull(r, rdm); err != nil {
 		return nil, err
 	}
-	//fmt.Println("rdm", hex.EncodeToString(rdm))
-	//fmt.Println("key", hex.EncodeToString(key))
+	//log.Debug("rdm", hex.EncodeToString(rdm))
+	//log.Debug("key", hex.EncodeToString(key))
 
 	key = xor(key, rdm)
 
@@ -122,10 +124,10 @@ func (m *XxorMessage) Decoding(r io.Reader, key []byte) (sessionKey []byte, err 
 		return nil, err
 	}
 
-	//fmt.Println("headKey", hex.EncodeToString(key))
+	//log.Debug("headKey", hex.EncodeToString(key))
 	encodingHead := append([]byte(nil), head...)
 	head = xor(head, key)
-	//fmt.Println("head", hex.EncodeToString(head), string(head))
+	//log.Debug("head", hex.EncodeToString(head), string(head))
 
 	if string(head[:4]) != "XXOR" {
 		return nil, errors.New("xxor: unknown magic")
@@ -160,19 +162,19 @@ func (m *XxorMessage) Decoding(r io.Reader, key []byte) (sessionKey []byte, err 
 		return nil, errors.New("xxor: mac read: " + err.Error())
 	}
 
-	//fmt.Println("padding", "\n"+hex.Dump(m.Padding))
-	//fmt.Println("timestamp", m.Timestamp)
-	//fmt.Println("sha1", hex.EncodeToString(m.Mac))
+	//log.Debug("padding", "\n"+hex.Dump(m.Padding))
+	//log.Debug("timestamp", m.Timestamp)
+	//log.Debug("sha1", hex.EncodeToString(m.Mac))
 
 	data := append(rdm, encodingHead...)
 	data = append(data, m.Padding...)
 	data = append(data, timeBuf...)
 
-	//fmt.Println("sha1Data", hex.EncodeToString(data))
-	//fmt.Println("sha1Data", "\n"+hex.Dump(data))
+	//log.Debug("sha1Data", hex.EncodeToString(data))
+	//log.Debug("sha1Data", "\n"+hex.Dump(data))
 
 	sha1Sum := sha1Sum(data)
-	//fmt.Println("sha1Sum", hex.EncodeToString(sha1Sum))
+	//log.Debug("sha1Sum", hex.EncodeToString(sha1Sum))
 
 	if string(sha1Sum) != string(m.Mac) {
 		return nil, errors.New("xxor: mac error")
