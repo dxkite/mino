@@ -1,13 +1,14 @@
 #!/bin/bash
-VERSION=dev
+DATE=$(date '+%Y%m%d%H%M%S')
 COMMIT=$(git rev-parse --short HEAD)
 COUNT=$(git rev-list HEAD --count)
+VERSION="dev-$DATE.$COUNT"
 
 function build() {
   OS=$1
   ARCH=$2
-  NAME="mino-$VERSION.$COUNT-$COMMIT-$OS-$ARCH"
-  LD_FLAG="-s -w -X 'dxkite.cn/mino.Version=$VERSION.$COUNT' -X 'dxkite.cn/mino.Commit=$COMMIT'"
+  NAME="mino-$VERSION-$COMMIT-$OS-$ARCH"
+  LD_FLAG="-s -w -X 'dxkite.cn/mino.Version=$VERSION' -X 'dxkite.cn/mino.Commit=$COMMIT'"
   if [[ $OS == windows* ]]; then
       NAME="$NAME.exe"
       LD_FLAG="-H windowsgui $LD_FLAG"
