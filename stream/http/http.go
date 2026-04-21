@@ -31,6 +31,7 @@ var Methods = []string{
 type Server struct {
 	net.Conn
 	r       rewind.Reader
+	br      *bufio.Reader
 	req     *http.Request
 	rwdSize int
 }
@@ -38,12 +39,14 @@ type Server struct {
 // 握手
 func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 	r := rewind.NewRewindReaderSize(conn.Conn, conn.rwdSize)
-	req, er := http.ReadRequest(bufio.NewReader(r))
+	br := bufio.NewReader(r)
+	req, er := http.ReadRequest(br)
 	if er != nil {
 		err = er
 		return
 	}
 	conn.req = req
+	conn.br = br
 	if req.Method != http.MethodConnect {
 		conn.r = r
 		// 不是CONNECT读完要重置
@@ -87,6 +90,9 @@ func (conn *Server) User() string {
 func (conn *Server) Read(p []byte) (n int, err error) {
 	if conn.r != nil {
 		return conn.r.Read(p)
+	}
+	if conn.br != nil {
+		return conn.br.Read(p)
 	}
 	return conn.Conn.Read(p)
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net"
+	"sync"
 	"sync/atomic"
 )
 
@@ -16,6 +17,8 @@ type Conn struct {
 	wb              int64
 	isClient        bool
 	handshakeStatus uint32
+	handshakeOnce   sync.Once
+	handshakeErr    error
 }
 
 // 写包装
@@ -90,14 +93,14 @@ func (c *Conn) doHandshakeServer() (err error) {
 }
 
 func (c *Conn) Handshake() error {
-	if c.handshakeComplete() {
-		return nil
-	}
-	if c.isClient {
-		return c.doHandshakeClient()
-	} else {
-		return c.doHandshakeServer()
-	}
+	c.handshakeOnce.Do(func() {
+		if c.isClient {
+			c.handshakeErr = c.doHandshakeClient()
+		} else {
+			c.handshakeErr = c.doHandshakeServer()
+		}
+	})
+	return c.handshakeErr
 }
 
 func (c *Conn) handshakeComplete() bool {
