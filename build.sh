@@ -1,4 +1,6 @@
 #!/bin/bash
+
+ANDROID_SDK_PATH="/home/harry/android-toolchain-linux/android"
 VERSION=$(git describe --tags)
 COMMIT=$(git rev-parse --short HEAD)
 
@@ -18,8 +20,13 @@ function build() {
 }
 
 function build_android() {
+  if [ -z "$ANDROID_SDK_PATH" ] || [ ! -d "$ANDROID_SDK_PATH" ]; then
+    echo "ANDROID_SDK_PATH is empty or does not exist. Please set ANDROID_SDK_PATH to a valid Android SDK path."
+    exit 1
+  fi
   git clone https://github.com/TTHHR/mino-android
   cd mino-android
+  echo "sdk.dir=$ANDROID_SDK_PATH" > local.properties
   chmod +x gradlew
   ./gradlew assembleDebug
   cp ./app/build/outputs/apk/debug/app-debug.apk ../mino-$VERSION-arm64-debug.apk
