@@ -311,11 +311,6 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 		return nil, rmtErr
 	}
 
-	// 数据编码
-	if enc, ok := encoder.Get(t.Config.Encoder); ok {
-		rmt = enc.Client(rmt, t.Config)
-	}
-
 	// 请求本地地址就不走远程
 	if util.IsLocalAddr(targetAddress) {
 		return rmt, nil
@@ -323,6 +318,10 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 
 	// 使用远程服务器
 	if UpStream != nil {
+		// 仅在连接上游代理时使用编码器，直连目标网站不能做二次编码。
+		if enc, ok := encoder.Get(t.Config.Encoder); ok {
+			rmt = enc.Client(rmt, t.Config)
+		}
 		if cl, ok := t.sts.Get(UpStream.Scheme); ok {
 			cfg := t.Config
 			cfg.Username = UpStream.User.Username()

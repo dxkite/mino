@@ -2,9 +2,10 @@ package main
 
 import (
 	"context"
+	"runtime"
+
 	"dxkite.cn/log"
 	"dxkite.cn/mino/daemon"
-	"runtime"
 
 	"dxkite.cn/mino"
 	"dxkite.cn/mino/config"
