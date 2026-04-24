@@ -40,6 +40,7 @@ type Transporter struct {
 	Event   Handler
 
 	check       map[string]stream.Checker
+	checkOrder  []string
 	enableProto map[string]struct{}
 
 	Config   *config.Config
@@ -51,7 +52,8 @@ type Transporter struct {
 	nextSid int
 	mtxSid  sync.Mutex
 
-	timeout time.Duration
+	timeout  time.Duration
+	upstream *url.URL
 }
 
 func New(config *config.Config) (t *Transporter) {
@@ -80,6 +82,13 @@ func (t *Transporter) Init() error {
 	}
 	// 连接超时 默认 10s
 	t.timeout = time.Duration(t.Config.Timeout) * time.Millisecond
+	if upstream := t.Config.Upstream; len(upstream) > 0 {
+		u, err := url.Parse(upstream)
+		if err != nil {
+			return err
+		}
+		t.upstream = u
+	}
 	return nil
 }
 
@@ -141,13 +150,14 @@ func (t *Transporter) initChecker() {
 	if t.sts == nil {
 		t.sts = stream.DefaultManager
 	}
-	for name := range t.sts.Proto {
+	for _, name := range t.sts.Order() {
 		t.check[name] = t.sts.Proto[name].Checker(t.Config)
+		t.checkOrder = append(t.checkOrder, name)
 	}
 }
 
 func (t *Transporter) Detect(conn rewind.Conn) (proto stream.Stream, err error) {
-	for name := range t.check {
+	for _, name := range t.checkOrder {
 		// 重置流位置
 		if err = conn.Rewind(); err != nil {
 			return nil, err
@@ -297,14 +307,13 @@ func (t *Transporter) AddSession(svr stream.Server, session *Session) {
 func (t *Transporter) dial(network, address string) (net.Conn, error) {
 	var rmt net.Conn
 	var rmtErr error
-	var UpStream *url.URL
 	var targetNetwork = network
 	var targetAddress = address
 
-	if upstream := t.Config.Upstream; len(upstream) > 0 {
-		UpStream, _ = url.Parse(upstream)
+	upstream := t.upstream
+	if upstream != nil {
 		network = "tcp"
-		address = UpStream.Host
+		address = upstream.Host
 	}
 
 	if rmt, rmtErr = net.DialTimeout(network, address, t.timeout); rmtErr != nil {
@@ -317,21 +326,21 @@ func (t *Transporter) dial(network, address string) (net.Conn, error) {
 	}
 
 	// 使用远程服务器
-	if UpStream != nil {
+	if upstream != nil {
+		cfg := *t.Config
+		cfg.Username = upstream.User.Username()
+		pwd, _ := upstream.User.Password()
+		cfg.Password = pwd
 		// 仅在连接上游代理时使用编码器，直连目标网站不能做二次编码。
-		if enc, ok := encoder.Get(t.Config.Encoder); ok {
-			rmt = enc.Client(rmt, t.Config)
+		if enc, ok := encoder.Get(cfg.Encoder); ok {
+			rmt = enc.Client(rmt, &cfg)
 		}
-		if cl, ok := t.sts.Get(UpStream.Scheme); ok {
-			cfg := t.Config
-			cfg.Username = UpStream.User.Username()
-			pwd, _ := UpStream.User.Password()
-			cfg.Password = pwd
-			client := cl.Client(rmt, cfg)
+		if cl, ok := t.sts.Get(upstream.Scheme); ok {
+			client := cl.Client(rmt, &cfg)
 			if err := client.Handshake(); err != nil {
 				return nil, errors.New(fmt.Sprint("[remote] protocol handshake error: ", err))
 			}
-			log.Debug("connecting", targetNetwork, targetAddress, "via", UpStream)
+			log.Debug("connecting", targetNetwork, targetAddress, "via", upstream)
 			if err := client.Connect(targetNetwork, targetAddress); err != nil {
 				return nil, errors.New(fmt.Sprint("[remote] connecting error: ", err))
 			}

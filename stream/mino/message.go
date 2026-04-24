@@ -59,7 +59,8 @@ func (m *RequestMessage) marshal() ([]byte, error) {
 		b2 |= 1 << 6
 		h = true
 	}
-	buf := []byte{Version2, b2}
+	buf := make([]byte, 0, 2+len(host)+2+2+len(m.Username)+len(m.Password))
+	buf = append(buf, Version2, b2)
 	if h {
 		buf = append(buf, byte(len(host)))
 		buf = append(buf, host...)
@@ -67,9 +68,9 @@ func (m *RequestMessage) marshal() ([]byte, error) {
 		buf = append(buf, ip...)
 	}
 	// Port
-	pb := make([]byte, 2)
-	binary.BigEndian.PutUint16(pb, uint16(port))
-	buf = append(buf, pb...)
+	var pb [2]byte
+	binary.BigEndian.PutUint16(pb[:], uint16(port))
+	buf = append(buf, pb[:]...)
 	// AuthMessage
 	if len(m.Username) > 0 {
 		buf = append(buf, byte(len(m.Username)))
@@ -82,7 +83,7 @@ func (m *RequestMessage) marshal() ([]byte, error) {
 
 // 编码
 func (m *RequestMessage) unmarshal(r io.Reader) error {
-	buf := make([]byte, 255)
+	var buf [255]byte
 	if _, err := io.ReadFull(r, buf[:1]); err != nil {
 		return err
 	}
@@ -159,16 +160,17 @@ func (m *ResponseMessage) Error() error {
 func (m *ResponseMessage) marshal() ([]byte, error) {
 	if m.err == nil {
 		return []byte{0}, nil
-	} else {
-		buf := []byte{byte(len(m.err.Error()))}
-		buf = append(buf, m.err.Error()...)
-		return buf, nil
 	}
+	msg := m.err.Error()
+	buf := make([]byte, 0, 1+len(msg))
+	buf = append(buf, byte(len(msg)))
+	buf = append(buf, msg...)
+	return buf, nil
 }
 
 // 编码
 func (m *ResponseMessage) unmarshal(r io.Reader) error {
-	buf := make([]byte, 255)
+	var buf [255]byte
 	if _, err := io.ReadFull(r, buf[:1]); err != nil {
 		return err
 	}

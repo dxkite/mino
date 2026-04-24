@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"sync/atomic"
 )
 
 // 会话
@@ -66,7 +67,10 @@ func (s *Session) Transport() (up, down int64, err error) {
 }
 
 func (s *Session) notifyClose() {
-	go func() { s.chClosed <- struct{}{} }()
+	select {
+	case s.chClosed <- struct{}{}:
+	default:
+	}
 }
 
 func (s *Session) CloseNotify() <-chan struct{} {
@@ -118,23 +122,25 @@ func NewSession(sid int, group string, loc, rmt net.Conn, dst string) *Session {
 
 func (s *Session) Read(p []byte) (n int, err error) {
 	n, err = s.loc.Read(p)
-	s.Up += int64(n)
-	go func() {
-		if !s.Closed {
-			s.chRead <- s.Up
+	up := atomic.AddInt64(&s.Up, int64(n))
+	if n > 0 && !s.Closed {
+		select {
+		case s.chRead <- up:
+		default:
 		}
-	}()
+	}
 	return
 }
 
 func (s *Session) Write(p []byte) (n int, err error) {
 	n, err = s.loc.Write(p)
-	s.Down += int64(n)
-	go func() {
-		if !s.Closed {
-			s.chWrite <- s.Down
+	down := atomic.AddInt64(&s.Down, int64(n))
+	if n > 0 && !s.Closed {
+		select {
+		case s.chWrite <- down:
+		default:
 		}
-	}()
+	}
 	return
 }
 
@@ -160,5 +166,11 @@ func (sg *SessionGroup) DelSession(gid string) {
 }
 
 func (sg *SessionGroup) Group() map[string]*Session {
-	return sg.group
+	sg.mtx.Lock()
+	defer sg.mtx.Unlock()
+	group := make(map[string]*Session, len(sg.group))
+	for k, v := range sg.group {
+		group[k] = v
+	}
+	return group
 }
