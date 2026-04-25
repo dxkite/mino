@@ -176,7 +176,7 @@ func main() {
 
 	// 守护进程
 	if len(os.Args) >= 2 && daemon.IsCmd(os.Args[1]) {
-		daemon.Exec(cfg.PacFile, os.Args)
+		daemon.Exec(cfg.PidFile, os.Args)
 		os.Exit(0)
 	}
 

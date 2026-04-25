@@ -1,31 +1,62 @@
+//go:build !windows
 // +build !windows
 
 package daemon
 
 import (
 	"bytes"
-	"dxkite.cn/log"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
+
+	"dxkite.cn/log"
 )
+
+func start(pidPath string, args []string) {
+	if isRunning(pidPath) {
+		log.Println("mino is running")
+		return
+	}
+	exePath, err := os.Executable()
+	if err != nil {
+		exePath = args[0]
+	}
+	cmd := exec.Command(exePath, args[1:]...)
+	log.Println("run", cmd)
+	if err := cmd.Start(); err != nil {
+		log.Println("start error", err)
+		return
+	}
+	if cmd.Process.Pid > 0 {
+		log.Println("start ok", "pid", cmd.Process.Pid)
+		b := []byte(strconv.Itoa(cmd.Process.Pid))
+		_ = ioutil.WriteFile(pidPath, b, os.ModePerm)
+	} else {
+		log.Println("start error")
+	}
+}
 
 // 是否在运行
 func isRunning(pidPath string) bool {
 	if b, err := ioutil.ReadFile(pidPath); err == nil {
-		cmd := exec.Command("/bin/sh", "-c", "ps -ax | awk '{ print $1 }' | grep "+string(b))
+		pid := strings.TrimSpace(string(b))
+		if pid == "" {
+			return false
+		}
+		if _, err := strconv.Atoi(pid); err != nil {
+			log.Println("invalid pid:", pid)
+			return false
+		}
+		cmd := exec.Command("ps", "-p", pid, "-o", "pid=")
 		var buf bytes.Buffer
-		//w := io.MultiWriter(os.Stdout, &buf)
-		//cmd.Stdout = w
-		//cmd.Stderr = w
 		cmd.Stdout = &buf
 		cmd.Stderr = &buf
 		if err := cmd.Run(); err != nil {
-			log.Println("run error", err)
-			log.Println(buf.Bytes())
+			return false
 		} else {
-			if strings.Index(buf.String(), string(b)) >= 0 {
+			if strings.Contains(buf.String(), pid) {
 				return true
 			}
 		}
@@ -40,7 +71,11 @@ func stop(pidPath string) {
 	}
 	var c *exec.Cmd
 	if b, err := ioutil.ReadFile(pidPath); err == nil {
-		c = exec.Command("/bin/bash", "-c", `kill -9 `+string(b))
+		pid := strings.TrimSpace(string(b))
+		if _, err := strconv.Atoi(pid); err != nil {
+			log.Fatalln("stop error: invalid pid:", pid)
+		}
+		c = exec.Command("kill", "-9", pid)
 		_ = os.Remove(pidPath)
 	} else {
 		log.Fatalln("stop error: pid file does not exist")

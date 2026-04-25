@@ -2,10 +2,6 @@ package daemon
 
 import (
 	"dxkite.cn/log"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"strconv"
 )
 
 func IsCmd(name string) bool {
@@ -34,25 +30,5 @@ func Exec(pidPath string, args []string) {
 		} else {
 			log.Println("mino is stopped")
 		}
-	}
-}
-
-func start(pidPath string, args []string) {
-	if isRunning(pidPath) {
-		log.Println("mino is running")
-		return
-	}
-	cmd := exec.Command(args[0], args[1:]...)
-	log.Println("run", cmd)
-	if err := cmd.Start(); err != nil {
-		log.Println("start error", err)
-		return
-	}
-	if cmd.Process.Pid > 0 {
-		log.Println("start ok", "pid", cmd.Process.Pid)
-		b := []byte(strconv.Itoa(cmd.Process.Pid))
-		_ = ioutil.WriteFile(pidPath, b, os.ModePerm)
-	} else {
-		log.Println("start error")
 	}
 }
