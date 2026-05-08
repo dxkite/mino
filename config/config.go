@@ -16,10 +16,21 @@ import (
 
 type ConfigChangeCallback func(config *Config)
 
+type User struct {
+	Username string `yaml:"username" json:"username"`
+	Password string `yaml:"password" json:"password"`
+	// 账号过期日期，格式 YYYY-MM-DD。为空表示不过期。
+	ExpireAt string `yaml:"expire_at" json:"expire_at"`
+}
+
 type Config struct {
 	// upstream 账号密码
 	Username string `yaml:"username" json:"username"`
 	Password string `yaml:"password" json:"password"`
+	// 账号过期日期，格式 YYYY-MM-DD。为空表示不过期。
+	ExpireAt string `yaml:"expire_at" json:"expire_at"`
+	// 用户列表。配置后支持多个账号；顶层 username/password/expire_at 仍作为兼容账号生效。
+	Users []User `yaml:"users" json:"users"`
 	// 监听地址
 	Address string `yaml:"address" json:"address"`
 	// pac文件

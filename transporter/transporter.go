@@ -1,9 +1,7 @@
 package transporter
 
 import (
-	"dxkite.cn/log"
-	"dxkite.cn/mino/encoder"
-	"dxkite.cn/mino/util"
+	"crypto/subtle"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -14,10 +12,15 @@ import (
 	"sync"
 	"time"
 
+	"dxkite.cn/log"
 	"dxkite.cn/mino/config"
+	"dxkite.cn/mino/encoder"
 	"dxkite.cn/mino/rewind"
 	"dxkite.cn/mino/stream"
+	"dxkite.cn/mino/util"
 )
+
+const expireAtLayout = "2006-01-02"
 
 // HTTP接口
 // CONNECT 用来做HTTP代理用，不属于Web
@@ -66,6 +69,71 @@ func New(config *config.Config) (t *Transporter) {
 		nextSid:     0,
 	}
 	return t
+}
+
+func (t *Transporter) basicAuth(info *stream.AuthInfo) bool {
+	cfg := t.Config
+	if cfg == nil {
+		return true
+	}
+	if !t.authRequired() {
+		return true
+	}
+	if ok, expireAt := matchUser(info, cfg.Users); ok {
+		return checkExpireAt(info, expireAt)
+	}
+	if cfg.Username != "" || cfg.Password != "" {
+		if matchCredential(info, cfg.Username, cfg.Password) {
+			return checkExpireAt(info, cfg.ExpireAt)
+		}
+	}
+	log.Warn("auth failed", info.Username, info.RemoteAddr)
+	return false
+}
+
+func matchUser(info *stream.AuthInfo, users []config.User) (bool, string) {
+	for _, user := range users {
+		if matchCredential(info, user.Username, user.Password) {
+			return true, user.ExpireAt
+		}
+	}
+	return false, ""
+}
+
+func matchCredential(info *stream.AuthInfo, username, password string) bool {
+	return subtle.ConstantTimeCompare([]byte(info.Username), []byte(username)) == 1 &&
+		subtle.ConstantTimeCompare([]byte(info.Password), []byte(password)) == 1
+}
+
+func checkExpireAt(info *stream.AuthInfo, expireAt string) bool {
+	if expireAt == "" {
+		return true
+	}
+	expireTime, err := time.ParseInLocation(expireAtLayout, expireAt, time.Local)
+	if err != nil {
+		log.Warn("invalid expire_at", expireAt, info.Username, info.RemoteAddr)
+		return false
+	}
+	if time.Now().After(expireTime) {
+		log.Warn("user expired", info.Username, "expire_at", expireAt, info.RemoteAddr)
+		return false
+	}
+	return true
+}
+
+func (t *Transporter) authRequired() bool {
+	cfg := t.Config
+	return cfg != nil && (len(cfg.Users) > 0 || cfg.Username != "" || cfg.Password != "")
+}
+
+func (t *Transporter) authFunc() stream.BasicAuthFunc {
+	if t.AuthFunc != nil {
+		return t.AuthFunc
+	}
+	if t.authRequired() {
+		return t.basicAuth
+	}
+	return nil
 }
 
 func (t *Transporter) Init() error {
@@ -209,7 +277,7 @@ func (t *Transporter) createStream(conn rewind.Conn) (string, stream.Server, err
 		return p.Name(), nil, errors.New(fmt.Sprintf("stream %s is disabled", p.Name()))
 	}
 	svr := p.Server(conn, t.Config)
-	if err := svr.Handshake(t.AuthFunc); err != nil {
+	if err := svr.Handshake(t.authFunc()); err != nil {
 		return p.Name(), nil, errors.New(fmt.Sprintf("handshake error"))
 	}
 	return p.Name(), svr, nil
