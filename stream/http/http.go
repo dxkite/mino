@@ -63,6 +63,7 @@ func (conn *Server) Handshake(auth stream.BasicAuthFunc) (err error) {
 		}) {
 		} else {
 			_, _ = conn.Write([]byte("401 Unauthorized\r\nContent-Length: 0\r\n\r\n"))
+			return errors.New("auth error")
 		}
 	}
 	return
@@ -75,6 +76,9 @@ func (conn *Server) Target() (network, address string, err error) {
 	}
 	if len(address) == 0 {
 		address = conn.req.Host
+	}
+	if len(address) == 0 {
+		return "", "", errors.New("empty http target")
 	}
 	address = fmtHost(conn.req.URL.Scheme, address)
 	return "tcp", address, nil
