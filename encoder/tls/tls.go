@@ -6,6 +6,7 @@ import (
 	"dxkite.cn/mino/config"
 	"dxkite.cn/mino/encoder"
 	"dxkite.cn/mino/util"
+	"errors"
 	"io"
 	"net"
 )
@@ -23,6 +24,9 @@ const TlsRecordTypeHandshake uint8 = 22
 
 // 判断编码类型
 func (stm *tlsStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, error) {
+	if cfg == nil || len(cfg.TlsCertFile) == 0 || len(cfg.TlsKeyFile) == 0 {
+		return false, nil
+	}
 	// 读3个字节
 	buf := make([]byte, 3)
 	if _, err := io.ReadFull(conn, buf); err != nil {
@@ -43,6 +47,10 @@ func (stm *tlsStreamEncoder) Detect(conn net.Conn, cfg *config.Config) (bool, er
 
 // 创建客户端
 func (stm *tlsStreamEncoder) init(cfg *config.Config) {
+	stm.svrCfg = nil
+	if cfg == nil {
+		return
+	}
 	var enableServer = len(cfg.TlsCertFile) > 0
 	if enableServer {
 		certF := util.GetRelativePath(cfg.TlsCertFile)
@@ -64,9 +72,25 @@ func (stm *tlsStreamEncoder) Client(conn net.Conn, cfg *config.Config) net.Conn 
 // 创建服务端
 func (stm *tlsStreamEncoder) Server(conn net.Conn, cfg *config.Config) net.Conn {
 	stm.init(cfg)
+	if stm.svrCfg == nil {
+		return errConn{Conn: conn, err: errors.New("tls server certificate is not configured")}
+	}
 	return tls.Server(conn, stm.svrCfg)
 }
 
 func init() {
 	encoder.Reg(&tlsStreamEncoder{})
+}
+
+type errConn struct {
+	net.Conn
+	err error
+}
+
+func (c errConn) Read([]byte) (int, error) {
+	return 0, c.err
+}
+
+func (c errConn) Write([]byte) (int, error) {
+	return 0, c.err
 }
